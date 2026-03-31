@@ -10,7 +10,7 @@ on:
 jobs:
   scan:
     name: 執行掃描
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 8
 
     steps:
