@@ -1,0 +1,22 @@
+# fly.toml configures the Fly.io deployment without a volume mount
+# Stateless Worker — no SQLite, no persistent volume needed
+app = "shop-watcher"
+primary_region = "nrt"  # Tokyo (closest to Taiwan)
+
+[build]
+  dockerfile = "Dockerfile"
+
+[processes]
+  app = "python main.py"
+
+[env]
+  PYTHONUNBUFFERED = "1"
+  TZ = "Asia/Taipei"
+
+# Secrets to set via CLI (not committed to repo):
+#   fly secrets set WORKER_SECRET=... NEXT_PUBLIC_API_URL=...
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
