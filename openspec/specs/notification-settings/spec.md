@@ -1,104 +1,32 @@
-# item-deduplication Specification
+# notification-settings Specification
 
 ## Purpose
 
-TBD - created by archiving change 'keyword-shop-watcher'. Update Purpose after archive.
+TBD - created by archiving change 'saas-webapp'. Update Purpose after archive.
 
 ## Requirements
 
-### Requirement: SeenItem table records notified items with user, platform, and item_id as unique key
+### Requirement: User can save Discord notification settings
 
-The system SHALL maintain a `SeenItem` table in PostgreSQL. Each row records a unique combination of `(userId, platform, itemId)`. A `SeenItem` row is only created when a new item passes the deduplication check.
+The system SHALL allow an authenticated user to save a Discord Webhook URL and an optional Discord User ID to their `NotificationSetting` record.
 
-#### Scenario: SeenItem row is created for a first-time item
+#### Scenario: User saves Discord Webhook URL and User ID
 
-- **WHEN** `POST /api/worker/notify` is called with an item whose `(userId, platform, itemId)` does not exist in `SeenItem`
-- **THEN** a new `SeenItem` row SHALL be inserted with `userId`, `platform`, `itemId`, `keyword` (the matched keyword text), and `firstSeen` (current UTC timestamp)
+- **WHEN** a user submits the notification settings form with a valid Discord Webhook URL
+- **THEN** the `NotificationSetting` row SHALL be created or updated (upsert) with `discordWebhookUrl` and `discordUserId`
+- **AND** a success message SHALL be displayed to the user
 
-#### Scenario: SeenItem unique constraint prevents duplicate rows
+#### Scenario: User saves settings without Discord User ID
 
-- **WHEN** `POST /api/worker/notify` is called a second time with the same `(userId, platform, itemId)`
-- **THEN** the Prisma upsert or unique check SHALL detect the conflict
-- **AND** no duplicate `SeenItem` row SHALL be inserted
-- **AND** the response SHALL return `{ "status": "duplicate" }`
+- **WHEN** a user submits with a Webhook URL but leaves Discord User ID empty
+- **THEN** `discordUserId` SHALL be stored as `null`
+- **AND** Discord notifications SHALL be sent without a user mention
 
+#### Scenario: Invalid Discord Webhook URL is rejected
 
-<!-- @trace
-source: saas-webapp
-updated: 2026-03-31
-code:
-  - webapp/app/api/keywords/[id]/route.ts
-  - src/scrapers/ruten.py
-  - webapp/app/globals.css
-  - webapp/package.json
-  - webapp/app/favicon.ico
-  - webapp/public/file.svg
-  - webapp/tsconfig.json
-  - webapp/middleware.ts
-  - webapp/prisma/migrations/migration_lock.toml
-  - webapp/app/api/worker/notify/route.ts
-  - webapp/app/login/page.tsx
-  - webapp/eslint.config.mjs
-  - webapp/public/globe.svg
-  - webapp/types/next-auth.d.ts
-  - webapp/next.config.ts
-  - webapp/public/vercel.svg
-  - webapp/vercel.json
-  - main.py
-  - poc/screenshots/shopee.png
-  - webapp/app/dashboard/layout.tsx
-  - .github/workflows/worker.yml
-  - .env.example
-  - webapp/lib/email.ts
-  - webapp/lib/prisma.ts
-  - webapp/components/KeywordForm.tsx
-  - webapp/app/api/worker/keywords/route.ts
-  - webapp/components/NotificationForm.tsx
-  - fly.toml
-  - src/database.py
-  - webapp/app/api/keywords/route.ts
-  - src/api_client.py
-  - webapp/app/api/settings/route.ts
-  - webapp/postcss.config.mjs
-  - webapp/app/dashboard/page.tsx
-  - config.example.yaml
-  - webapp/app/page.tsx
-  - webapp/components/KeywordFormWrapper.tsx
-  - poc/screenshots/ruten.png
-  - webapp/lib/worker-auth.ts
-  - src/config.py
-  - webapp/app/settings/page.tsx
-  - webapp/prisma/migrations/20260331075111_init/migration.sql
-  - requirements.txt
-  - webapp/components/KeywordList.tsx
-  - webapp/prisma/schema.prisma
-  - .github/workflows/ci.yml
-  - src/scheduler.py
-  - src/scrapers/shopee.py
-  - webapp/app/api/auth/[...nextauth]/route.ts
-  - webapp/auth.ts
-  - webapp/lib/discord.ts
-  - webapp/public/window.svg
-  - webapp/app/layout.tsx
-  - webapp/public/next.svg
-  - src/scrapers/__init__.py
-  - src/notifier.py
-  - Dockerfile
-  - run_once.py
-  - webapp/README.md
--->
-
----
-### Requirement: Deduplication is scoped per user
-
-The system SHALL allow different users to be notified of the same item. A `SeenItem` row blocks notifications only for the specific user who already received it.
-
-#### Scenario: Same item can be notified to two different users
-
-- **WHEN** User A and User B both have a keyword matching the same item on Shopee
-- **THEN** User A SHALL receive a notification if `(userA_id, "shopee", itemId)` is not in `SeenItem`
-- **AND** User B SHALL also receive a notification if `(userB_id, "shopee", itemId)` is not in `SeenItem`
-- **AND** the presence of a `SeenItem` row for User A SHALL NOT block User B's notification
+- **WHEN** a user submits a `discordWebhookUrl` that does not start with `https://discord.com/api/webhooks/`
+- **THEN** the API SHALL return a validation error
+- **AND** the `NotificationSetting` row SHALL NOT be updated
 
 
 <!-- @trace
@@ -167,15 +95,110 @@ code:
 -->
 
 ---
-### Requirement: SeenItem rows are preserved after a keyword is deleted
+### Requirement: User can save Email notification settings
 
-The system SHALL retain `SeenItem` rows even when the corresponding `Keyword` is deleted, to prevent re-notification if the keyword is re-created.
+The system SHALL allow an authenticated user to save an email address for Resend Email notifications.
 
-#### Scenario: Deleting a keyword does not delete its SeenItem history
+#### Scenario: User saves a valid email address
 
-- **WHEN** a user deletes a `Keyword` row
-- **THEN** all `SeenItem` rows associated with that user and the keyword text SHALL remain in the database
-- **AND** if the same keyword is re-created, previously seen items SHALL be treated as duplicates and SHALL NOT trigger new notifications
+- **WHEN** a user submits the notification settings form with a valid email address in `emailAddress`
+- **THEN** the `NotificationSetting.emailAddress` field SHALL be updated
+- **AND** subsequent item notifications SHALL trigger an email to that address
+
+#### Scenario: User clears email address to disable email notifications
+
+- **WHEN** a user submits with an empty `emailAddress` field
+- **THEN** `NotificationSetting.emailAddress` SHALL be set to `null`
+- **AND** no email notifications SHALL be sent for that user
+
+#### Scenario: Invalid email format is rejected
+
+- **WHEN** a user submits an `emailAddress` value that is not a valid email format
+- **THEN** the API SHALL return a validation error
+- **AND** the `NotificationSetting` row SHALL NOT be updated
+
+
+<!-- @trace
+source: saas-webapp
+updated: 2026-03-31
+code:
+  - webapp/app/api/keywords/[id]/route.ts
+  - src/scrapers/ruten.py
+  - webapp/app/globals.css
+  - webapp/package.json
+  - webapp/app/favicon.ico
+  - webapp/public/file.svg
+  - webapp/tsconfig.json
+  - webapp/middleware.ts
+  - webapp/prisma/migrations/migration_lock.toml
+  - webapp/app/api/worker/notify/route.ts
+  - webapp/app/login/page.tsx
+  - webapp/eslint.config.mjs
+  - webapp/public/globe.svg
+  - webapp/types/next-auth.d.ts
+  - webapp/next.config.ts
+  - webapp/public/vercel.svg
+  - webapp/vercel.json
+  - main.py
+  - poc/screenshots/shopee.png
+  - webapp/app/dashboard/layout.tsx
+  - .github/workflows/worker.yml
+  - .env.example
+  - webapp/lib/email.ts
+  - webapp/lib/prisma.ts
+  - webapp/components/KeywordForm.tsx
+  - webapp/app/api/worker/keywords/route.ts
+  - webapp/components/NotificationForm.tsx
+  - fly.toml
+  - src/database.py
+  - webapp/app/api/keywords/route.ts
+  - src/api_client.py
+  - webapp/app/api/settings/route.ts
+  - webapp/postcss.config.mjs
+  - webapp/app/dashboard/page.tsx
+  - config.example.yaml
+  - webapp/app/page.tsx
+  - webapp/components/KeywordFormWrapper.tsx
+  - poc/screenshots/ruten.png
+  - webapp/lib/worker-auth.ts
+  - src/config.py
+  - webapp/app/settings/page.tsx
+  - webapp/prisma/migrations/20260331075111_init/migration.sql
+  - requirements.txt
+  - webapp/components/KeywordList.tsx
+  - webapp/prisma/schema.prisma
+  - .github/workflows/ci.yml
+  - src/scheduler.py
+  - src/scrapers/shopee.py
+  - webapp/app/api/auth/[...nextauth]/route.ts
+  - webapp/auth.ts
+  - webapp/lib/discord.ts
+  - webapp/public/window.svg
+  - webapp/app/layout.tsx
+  - webapp/public/next.svg
+  - src/scrapers/__init__.py
+  - src/notifier.py
+  - Dockerfile
+  - run_once.py
+  - webapp/README.md
+-->
+
+---
+### Requirement: Notification settings are isolated per user
+
+The system SHALL ensure each user's notification settings are private and cannot be read or modified by other users.
+
+#### Scenario: Settings page shows only the authenticated user's settings
+
+- **WHEN** an authenticated user navigates to `/settings`
+- **THEN** only the `NotificationSetting` row where `userId` matches the session user SHALL be loaded
+- **AND** other users' webhook URLs or email addresses SHALL NOT be exposed
+
+#### Scenario: Settings are pre-filled with existing values on load
+
+- **WHEN** a user opens `/settings` and already has a `NotificationSetting` record
+- **THEN** the form fields SHALL be pre-populated with the stored values
+- **AND** the user SHALL be able to update individual fields without re-entering all values
 
 <!-- @trace
 source: saas-webapp

@@ -1,0 +1,41 @@
+# GitHub Pages 部署 — 將 docs/ 資料夾發布為 GitHub Pages 靜態網站
+name: Deploy Pages
+
+on:
+  push:
+    branches: [main]   # 僅在 main branch push 時觸發
+  workflow_dispatch:   # 支援手動觸發
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一時間只允許一個部署
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: 部署至 GitHub Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 設定 Pages
+        uses: actions/configure-pages@v5
+
+      - name: 上傳 docs/ 為 Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: 部署至 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

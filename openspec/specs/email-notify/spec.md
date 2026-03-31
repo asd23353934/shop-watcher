@@ -1,104 +1,34 @@
-# item-deduplication Specification
+# email-notify Specification
 
 ## Purpose
 
-TBD - created by archiving change 'keyword-shop-watcher'. Update Purpose after archive.
+TBD - created by archiving change 'saas-webapp'. Update Purpose after archive.
 
 ## Requirements
 
-### Requirement: SeenItem table records notified items with user, platform, and item_id as unique key
+### Requirement: New item triggers an Email notification via Resend
 
-The system SHALL maintain a `SeenItem` table in PostgreSQL. Each row records a unique combination of `(userId, platform, itemId)`. A `SeenItem` row is only created when a new item passes the deduplication check.
+When a new item passes deduplication, the system SHALL send an HTML Email to the address stored in the user's `NotificationSetting.emailAddress` using the Resend SDK.
 
-#### Scenario: SeenItem row is created for a first-time item
+#### Scenario: Email is sent with item details
 
-- **WHEN** `POST /api/worker/notify` is called with an item whose `(userId, platform, itemId)` does not exist in `SeenItem`
-- **THEN** a new `SeenItem` row SHALL be inserted with `userId`, `platform`, `itemId`, `keyword` (the matched keyword text), and `firstSeen` (current UTC timestamp)
+- **WHEN** a new item passes the deduplication check and the user has an `emailAddress` configured
+- **THEN** the system SHALL call `resend.emails.send()` with:
+  - `to`: the user's `emailAddress`
+  - `from`: the configured sender address (e.g., `noreply@shopwatcher.app`)
+  - `subject`: `[Shop Watcher] 發現新商品：{item name}`
+  - `html`: an HTML body containing the item name, platform, price, URL, and image (if available)
 
-#### Scenario: SeenItem unique constraint prevents duplicate rows
+#### Scenario: Email subject shows item name truncated to 60 characters
 
-- **WHEN** `POST /api/worker/notify` is called a second time with the same `(userId, platform, itemId)`
-- **THEN** the Prisma upsert or unique check SHALL detect the conflict
-- **AND** no duplicate `SeenItem` row SHALL be inserted
-- **AND** the response SHALL return `{ "status": "duplicate" }`
+- **WHEN** an item name exceeds 60 characters
+- **THEN** the email `subject` SHALL truncate the name and append `...`
 
+#### Scenario: Email is skipped when no email address is configured
 
-<!-- @trace
-source: saas-webapp
-updated: 2026-03-31
-code:
-  - webapp/app/api/keywords/[id]/route.ts
-  - src/scrapers/ruten.py
-  - webapp/app/globals.css
-  - webapp/package.json
-  - webapp/app/favicon.ico
-  - webapp/public/file.svg
-  - webapp/tsconfig.json
-  - webapp/middleware.ts
-  - webapp/prisma/migrations/migration_lock.toml
-  - webapp/app/api/worker/notify/route.ts
-  - webapp/app/login/page.tsx
-  - webapp/eslint.config.mjs
-  - webapp/public/globe.svg
-  - webapp/types/next-auth.d.ts
-  - webapp/next.config.ts
-  - webapp/public/vercel.svg
-  - webapp/vercel.json
-  - main.py
-  - poc/screenshots/shopee.png
-  - webapp/app/dashboard/layout.tsx
-  - .github/workflows/worker.yml
-  - .env.example
-  - webapp/lib/email.ts
-  - webapp/lib/prisma.ts
-  - webapp/components/KeywordForm.tsx
-  - webapp/app/api/worker/keywords/route.ts
-  - webapp/components/NotificationForm.tsx
-  - fly.toml
-  - src/database.py
-  - webapp/app/api/keywords/route.ts
-  - src/api_client.py
-  - webapp/app/api/settings/route.ts
-  - webapp/postcss.config.mjs
-  - webapp/app/dashboard/page.tsx
-  - config.example.yaml
-  - webapp/app/page.tsx
-  - webapp/components/KeywordFormWrapper.tsx
-  - poc/screenshots/ruten.png
-  - webapp/lib/worker-auth.ts
-  - src/config.py
-  - webapp/app/settings/page.tsx
-  - webapp/prisma/migrations/20260331075111_init/migration.sql
-  - requirements.txt
-  - webapp/components/KeywordList.tsx
-  - webapp/prisma/schema.prisma
-  - .github/workflows/ci.yml
-  - src/scheduler.py
-  - src/scrapers/shopee.py
-  - webapp/app/api/auth/[...nextauth]/route.ts
-  - webapp/auth.ts
-  - webapp/lib/discord.ts
-  - webapp/public/window.svg
-  - webapp/app/layout.tsx
-  - webapp/public/next.svg
-  - src/scrapers/__init__.py
-  - src/notifier.py
-  - Dockerfile
-  - run_once.py
-  - webapp/README.md
--->
-
----
-### Requirement: Deduplication is scoped per user
-
-The system SHALL allow different users to be notified of the same item. A `SeenItem` row blocks notifications only for the specific user who already received it.
-
-#### Scenario: Same item can be notified to two different users
-
-- **WHEN** User A and User B both have a keyword matching the same item on Shopee
-- **THEN** User A SHALL receive a notification if `(userA_id, "shopee", itemId)` is not in `SeenItem`
-- **AND** User B SHALL also receive a notification if `(userB_id, "shopee", itemId)` is not in `SeenItem`
-- **AND** the presence of a `SeenItem` row for User A SHALL NOT block User B's notification
+- **WHEN** a user's `NotificationSetting.emailAddress` is null
+- **THEN** no Resend API call SHALL be made for that user
+- **AND** the `POST /api/worker/notify` response SHALL not be affected
 
 
 <!-- @trace
@@ -167,15 +97,98 @@ code:
 -->
 
 ---
-### Requirement: SeenItem rows are preserved after a keyword is deleted
+### Requirement: Resend API errors do not block the notify response
 
-The system SHALL retain `SeenItem` rows even when the corresponding `Keyword` is deleted, to prevent re-notification if the keyword is re-created.
+The system SHALL NOT propagate Resend API errors to the Worker. If the email send fails, the item is still recorded as seen and the API returns a success response.
 
-#### Scenario: Deleting a keyword does not delete its SeenItem history
+#### Scenario: Resend API error is logged and does not block
 
-- **WHEN** a user deletes a `Keyword` row
-- **THEN** all `SeenItem` rows associated with that user and the keyword text SHALL remain in the database
-- **AND** if the same keyword is re-created, previously seen items SHALL be treated as duplicates and SHALL NOT trigger new notifications
+- **WHEN** the Resend SDK call returns an error (network error or API error)
+- **THEN** the error SHALL be logged server-side with the item ID and user ID
+- **AND** the `POST /api/worker/notify` response SHALL still return HTTP 200
+- **AND** the `SeenItem` row SHALL have already been inserted before the email send attempt
+
+
+<!-- @trace
+source: saas-webapp
+updated: 2026-03-31
+code:
+  - webapp/app/api/keywords/[id]/route.ts
+  - src/scrapers/ruten.py
+  - webapp/app/globals.css
+  - webapp/package.json
+  - webapp/app/favicon.ico
+  - webapp/public/file.svg
+  - webapp/tsconfig.json
+  - webapp/middleware.ts
+  - webapp/prisma/migrations/migration_lock.toml
+  - webapp/app/api/worker/notify/route.ts
+  - webapp/app/login/page.tsx
+  - webapp/eslint.config.mjs
+  - webapp/public/globe.svg
+  - webapp/types/next-auth.d.ts
+  - webapp/next.config.ts
+  - webapp/public/vercel.svg
+  - webapp/vercel.json
+  - main.py
+  - poc/screenshots/shopee.png
+  - webapp/app/dashboard/layout.tsx
+  - .github/workflows/worker.yml
+  - .env.example
+  - webapp/lib/email.ts
+  - webapp/lib/prisma.ts
+  - webapp/components/KeywordForm.tsx
+  - webapp/app/api/worker/keywords/route.ts
+  - webapp/components/NotificationForm.tsx
+  - fly.toml
+  - src/database.py
+  - webapp/app/api/keywords/route.ts
+  - src/api_client.py
+  - webapp/app/api/settings/route.ts
+  - webapp/postcss.config.mjs
+  - webapp/app/dashboard/page.tsx
+  - config.example.yaml
+  - webapp/app/page.tsx
+  - webapp/components/KeywordFormWrapper.tsx
+  - poc/screenshots/ruten.png
+  - webapp/lib/worker-auth.ts
+  - src/config.py
+  - webapp/app/settings/page.tsx
+  - webapp/prisma/migrations/20260331075111_init/migration.sql
+  - requirements.txt
+  - webapp/components/KeywordList.tsx
+  - webapp/prisma/schema.prisma
+  - .github/workflows/ci.yml
+  - src/scheduler.py
+  - src/scrapers/shopee.py
+  - webapp/app/api/auth/[...nextauth]/route.ts
+  - webapp/auth.ts
+  - webapp/lib/discord.ts
+  - webapp/public/window.svg
+  - webapp/app/layout.tsx
+  - webapp/public/next.svg
+  - src/scrapers/__init__.py
+  - src/notifier.py
+  - Dockerfile
+  - run_once.py
+  - webapp/README.md
+-->
+
+---
+### Requirement: Sender email address is configurable via environment variable
+
+The system SHALL read the email sender address from the `RESEND_FROM_EMAIL` environment variable.
+
+#### Scenario: RESEND_FROM_EMAIL is used as the sender address
+
+- **WHEN** `RESEND_FROM_EMAIL=noreply@shopwatcher.app` is set
+- **THEN** all outgoing emails SHALL use `noreply@shopwatcher.app` as the `from` address
+
+#### Scenario: Missing RESEND_FROM_EMAIL causes a startup configuration error
+
+- **WHEN** `RESEND_FROM_EMAIL` is not set and an email send is attempted
+- **THEN** the system SHALL log an error `RESEND_FROM_EMAIL is not configured`
+- **AND** the email SHALL NOT be sent
 
 <!-- @trace
 source: saas-webapp

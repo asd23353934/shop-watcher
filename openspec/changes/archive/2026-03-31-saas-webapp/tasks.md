@@ -57,7 +57,7 @@
 ## 9. 部署至 Vercel（Vercel 一鍵部署）
 
 - [x] 9.1 確認 `webapp/` 根目錄有 `next.config.ts`；在 Vercel 建立新 Project，設定 Root Directory 為 `webapp`；連結 git repo
-- [ ] 9.2 在 Vercel Project Settings → Environment Variables 加入所有必要變數：`NEXTAUTH_SECRET`、`GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`、`DATABASE_URL`（Neon.tech production）、`RESEND_API_KEY`、`RESEND_FROM_EMAIL`、`WORKER_SECRET`
-- [ ] 9.3 在 Google Cloud Console 新增 Vercel domain 至 OAuth 2.0 授權 redirect URI（`https://{your-vercel-domain}/api/auth/callback/google`）
-- [ ] 9.4 在 Vercel 執行 `prisma migrate deploy`（透過 build command 或 Vercel 環境）；確認 production DB tables 建立
-- [ ] 9.5 推送至 `main`，確認 Vercel 自動部署成功；完整驗證：Google 登入 → 建立 keyword → 設定 Discord/Email → 呼叫 `GET /api/worker/keywords` 確認回傳正確資料
+- [x] 9.2 在 Vercel Project Settings → Environment Variables 加入所有必要變數：`NEXTAUTH_SECRET`、`GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`、`DATABASE_URL`（Neon.tech production）、`RESEND_API_KEY`、`RESEND_FROM_EMAIL`、`WORKER_SECRET`
+- [x] 9.3 在 Google Cloud Console 新增 Vercel domain 至 OAuth 2.0 授權 redirect URI（`https://{your-vercel-domain}/api/auth/callback/google`）
+- [x] 9.4 在 Vercel 執行 `prisma migrate deploy`（透過 build command 或 Vercel 環境）；確認 production DB tables 建立
+- [x] 9.5 推送至 `main`，確認 Vercel 自動部署成功；完整驗證：Google 登入 → 建立 keyword → 設定 Discord/Email → 呼叫 `GET /api/worker/keywords` 確認回傳正確資料

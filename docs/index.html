@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shop Watcher — 電商新品即時監控</title>
+  <meta name="description" content="自動監控蝦皮、露天拍賣最新商品上架，透過 Discord 即時通知。支援多關鍵字、價格區間篩選。" />
+
+  <!-- Tailwind CSS v3 Play CDN（無需本地安裝，HTML 獨立運作） -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            shopee: '#EE4D2D',
+            ruten: '#0066CC',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- highlight.js v11 via CDN + GitHub Dark 主題 -->
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+  <style>
+    html { scroll-behavior: smooth; }
+    pre code.hljs { border-radius: 0.5rem; }
+  </style>
+</head>
+
+<body class="dark bg-gray-900 text-white antialiased">
+
+  <!-- ===== Navbar ===== -->
+  <header class="sticky top-0 z-50 bg-gray-900/90 backdrop-blur border-b border-gray-800">
+    <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+      <span class="font-bold text-lg tracking-tight">🛍️ Shop Watcher</span>
+      <nav class="flex items-center gap-6 text-sm text-gray-400">
+        <a href="#features" class="hover:text-white transition-colors">功能</a>
+        <a href="#installation" class="hover:text-white transition-colors">安裝</a>
+        <a href="https://github.com/asd23353934/shop-watcher"
+          target="_blank" rel="noopener"
+          class="hover:text-white transition-colors">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- ===== Hero Section ===== -->
+    <section class="py-24 px-4 text-center bg-gradient-to-b from-gray-900 to-gray-800">
+      <div class="max-w-3xl mx-auto">
+
+        <!-- Project name — prominently displayed -->
+        <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight mb-4">
+          Shop Watcher
+        </h1>
+
+        <!-- Tagline communicates the core value proposition -->
+        <p class="text-lg sm:text-xl text-gray-300 mb-8 leading-relaxed">
+          自動監控<strong class="text-white">蝦皮</strong>、<strong class="text-white">露天拍賣</strong>最新商品上架<br class="hidden sm:block" />
+          關鍵字命中時立即透過 <strong class="text-indigo-400">Discord</strong> 通知你
+        </p>
+
+        <!-- Feature highlight tags — flex-wrap 確保 mobile 不溢出 -->
+        <div class="flex flex-wrap justify-center gap-2 mb-10">
+          <span class="px-3 py-1 rounded-full text-sm font-medium text-white"
+            style="background-color: #EE4D2D;">🛒 蝦皮 Shopee</span>
+          <span class="px-3 py-1 rounded-full text-sm font-medium text-white"
+            style="background-color: #0066CC;">🏪 露天拍賣 Ruten</span>
+          <span class="px-3 py-1 rounded-full text-sm font-medium bg-indigo-600 text-white">
+            🎮 Discord 即時通知
+          </span>
+          <span class="px-3 py-1 rounded-full text-sm font-medium bg-gray-700 text-gray-200">
+            🔍 關鍵字監控
+          </span>
+          <span class="px-3 py-1 rounded-full text-sm font-medium bg-gray-700 text-gray-200">
+            💰 價格區間篩選
+          </span>
+          <span class="px-3 py-1 rounded-full text-sm font-medium bg-gray-700 text-gray-200">
+            ☁️ 免費雲端部署
+          </span>
+        </div>
+
+        <!-- CTA 按鈕 — links to #installation, smooth scroll -->
+        <a href="#installation"
+          class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-semibold
+                 px-8 py-3 rounded-lg transition-colors text-base shadow-lg">
+          開始使用 →
+        </a>
+      </div>
+    </section>
+
+    <!-- ===== Feature Section ===== -->
+    <section id="features" class="py-20 px-4 bg-gray-800">
+      <div class="max-w-5xl mx-auto">
+
+        <!-- Feature section has a visible section heading -->
+        <h2 class="text-2xl sm:text-3xl font-bold text-center mb-12">核心功能</h2>
+
+        <!-- 3-column responsive grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+          <!-- Card 1: 多平台監控 -->
+          <div class="bg-gray-900 rounded-xl p-6 border border-gray-700 hover:border-indigo-500 transition-colors">
+            <div class="text-4xl mb-4">🔍</div>
+            <h3 class="text-lg font-bold mb-2">多平台即時監控</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">
+              同時監控蝦皮（Shopee）與露天拍賣（Ruten）兩大電商平台。
+              以 Playwright 驅動真實瀏覽器，有效繞過反爬蟲限制，精準抓取最新上架商品。
+            </p>
+          </div>
+
+          <!-- Card 2: Discord 即時通知 -->
+          <div class="bg-gray-900 rounded-xl p-6 border border-gray-700 hover:border-indigo-500 transition-colors">
+            <div class="text-4xl mb-4">🎮</div>
+            <h3 class="text-lg font-bold mb-2">Discord 即時通知</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">
+              發現新商品時立即透過 Discord Webhook 推送 Embed 通知，包含商品圖片、名稱、價格與連結。
+              支援 <code class="bg-gray-700 px-1 rounded text-xs">@</code> 提及功能，不錯過任何商品。
+            </p>
+          </div>
+
+          <!-- Card 3: 關鍵字管理 -->
+          <div class="bg-gray-900 rounded-xl p-6 border border-gray-700 hover:border-indigo-500 transition-colors">
+            <div class="text-4xl mb-4">⚙️</div>
+            <h3 class="text-lg font-bold mb-2">彈性關鍵字管理</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">
+              透過 Next.js 後台管理監控關鍵字，支援多關鍵字、選擇平台、設定最低／最高價格範圍。
+              已通知過的商品自動去重，不重複打擾。
+            </p>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Installation Guide Section ===== -->
+    <section id="installation" class="py-20 px-4 bg-gray-900">
+      <div class="max-w-3xl mx-auto">
+
+        <!-- Installation section has a visible section heading with anchor -->
+        <h2 class="text-2xl sm:text-3xl font-bold mb-12 text-center">快速上手</h2>
+
+        <!-- Four numbered steps -->
+        <div class="space-y-10 mb-16">
+
+          <!-- Step 1 -->
+          <div class="flex gap-4">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-sm">1</div>
+            <div class="flex-1">
+              <h3 class="font-bold text-base mb-2">安裝依賴</h3>
+              <p class="text-gray-400 text-sm mb-3">安裝所有 Python 套件（需要 Python 3.11+）：</p>
+              <pre><code class="language-bash">pip install -r requirements.txt</code></pre>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="flex gap-4">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-sm">2</div>
+            <div class="flex-1">
+              <h3 class="font-bold text-base mb-2">安裝 Playwright 瀏覽器</h3>
+              <p class="text-gray-400 text-sm mb-3">下載 Chromium 及其系統依賴：</p>
+              <pre><code class="language-bash">playwright install --with-deps chromium</code></pre>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="flex gap-4">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-sm">3</div>
+            <div class="flex-1">
+              <h3 class="font-bold text-base mb-2">設定環境變數</h3>
+              <p class="text-gray-400 text-sm mb-3">複製範本並填入你的設定：</p>
+              <pre><code class="language-bash">cp .env.example .env
+# 編輯 .env，填入 WORKER_SECRET 與 NEXT_PUBLIC_API_URL</code></pre>
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="flex gap-4">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-sm">4</div>
+            <div class="flex-1">
+              <h3 class="font-bold text-base mb-2">啟動 Worker</h3>
+              <p class="text-gray-400 text-sm mb-3">啟動後每 5 分鐘自動掃描一次：</p>
+              <pre><code class="language-bash">python main.py</code></pre>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Environment Variable Reference Table -->
+        <div class="mb-16">
+          <h3 class="text-lg font-bold mb-4">環境變數參考</h3>
+          <div class="overflow-x-auto rounded-lg border border-gray-700">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-800 text-gray-300">
+                <tr>
+                  <th class="px-4 py-3 text-left font-semibold">變數名稱</th>
+                  <th class="px-4 py-3 text-left font-semibold">必填</th>
+                  <th class="px-4 py-3 text-left font-semibold">預設值</th>
+                  <th class="px-4 py-3 text-left font-semibold">說明</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-700">
+                <tr class="bg-gray-900 hover:bg-gray-800 transition-colors">
+                  <td class="px-4 py-3 font-mono text-indigo-300">WORKER_SECRET</td>
+                  <td class="px-4 py-3 text-red-400">必填</td>
+                  <td class="px-4 py-3 text-gray-500">—</td>
+                  <td class="px-4 py-3 text-gray-400">與 Next.js API 共享的驗證密鑰</td>
+                </tr>
+                <tr class="bg-gray-900 hover:bg-gray-800 transition-colors">
+                  <td class="px-4 py-3 font-mono text-indigo-300">NEXT_PUBLIC_API_URL</td>
+                  <td class="px-4 py-3 text-red-400">必填</td>
+                  <td class="px-4 py-3 text-gray-500">—</td>
+                  <td class="px-4 py-3 text-gray-400">Next.js API base URL（例：https://xxx.vercel.app）</td>
+                </tr>
+                <tr class="bg-gray-900 hover:bg-gray-800 transition-colors">
+                  <td class="px-4 py-3 font-mono text-indigo-300">CHECK_INTERVAL</td>
+                  <td class="px-4 py-3 text-gray-400">選填</td>
+                  <td class="px-4 py-3 font-mono text-gray-400">300</td>
+                  <td class="px-4 py-3 text-gray-400">掃描間隔秒數（預設 5 分鐘）</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Docker Deployment -->
+        <div class="mb-16">
+          <h3 class="text-lg font-bold mb-2">🐳 Docker 部署</h3>
+          <p class="text-gray-400 text-sm mb-4">使用官方 Playwright Python 映像，無需手動安裝瀏覽器：</p>
+          <pre><code class="language-bash"># 建置映像
+docker build -t shop-watcher .
+
+# 啟動 Worker（替換為你的實際值）
+docker run -d \
+  -e WORKER_SECRET=your_secret_here \
+  -e NEXT_PUBLIC_API_URL=https://your-app.vercel.app \
+  --name shop-watcher \
+  shop-watcher</code></pre>
+          <p class="text-gray-500 text-xs mt-3">
+            映像基於 <code class="bg-gray-800 px-1 rounded">mcr.microsoft.com/playwright/python:v1.44.0-focal</code>，已內建 Chromium。
+          </p>
+        </div>
+
+        <!-- Fly.io Deployment -->
+        <div>
+          <h3 class="text-lg font-bold mb-2">🚀 Fly.io 雲端部署</h3>
+          <p class="text-gray-400 text-sm mb-4">
+            Worker 為無狀態設計，<strong class="text-white">不需要 persistent volume</strong>，直接部署即可：
+          </p>
+          <pre><code class="language-bash"># 初始化（只需執行一次）
+fly launch
+
+# 設定 Secrets（不寫入程式碼）
+fly secrets set \
+  WORKER_SECRET=your_secret_here \
+  NEXT_PUBLIC_API_URL=https://your-app.vercel.app
+
+# 部署
+fly deploy</code></pre>
+          <p class="text-gray-500 text-xs mt-3">
+            Fly.io 免費方案包含足夠的 compute hours，適合 Worker 長期運行。
+          </p>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== Footer ===== -->
+  <footer class="bg-gray-800 border-t border-gray-700 py-8 px-4 text-center text-gray-500 text-sm">
+    <p>
+      Shop Watcher — MIT License ·
+      <a href="https://github.com/asd23353934/shop-watcher"
+        target="_blank" rel="noopener"
+        class="text-indigo-400 hover:text-indigo-300 transition-colors">
+        GitHub
+      </a>
+    </p>
+  </footer>
+
+  <!-- highlight.js 初始化 -->
+  <script>hljs.highlightAll();</script>
+
+</body>
+</html>
