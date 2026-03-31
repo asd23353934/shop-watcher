@@ -39,5 +39,5 @@
 
 - [x] 5.1 建立 `.github/workflows/pages.yml`（`GitHub Actions workflow automatically deploys docs/ to GitHub Pages on push to main`）：`on: push: branches: [main]`；使用 `actions/configure-pages`、`actions/upload-pages-artifact`（path: `docs`）、`actions/deploy-pages`；確認只在 `main` push 觸發（`Workflow does not run on pushes to other branches`）
 - [x] 5.2 確認 `docs/index.html` 所有外部資源均使用 CDN 絕對 URL，無本地資源連結（`docs/index.html uses only relative paths for assets`、`Page renders correctly when repo is renamed`）
-- [ ] 5.3 在 GitHub repo Settings → Pages 設定 Source 為 `main` branch, `/docs` folder（GitHub Pages 部署來源設為 `/docs` 資料夾決策；`GitHub Pages source is configured to serve from the /docs folder on main branch`、`No gh-pages branch is required`）
-- [ ] 5.4 推送一次 commit 至 `main`，確認 GitHub Actions workflow 成功完成（綠色 checkmark），並在 2 分鐘內於 `https://{user}.github.io/{repo}/` 看到頁面（`GitHub Pages deployment completes within 2 minutes of a push to main`）
+- [x] 5.3 在 GitHub repo Settings → Pages 設定 Source 為 `main` branch, `/docs` folder（GitHub Pages 部署來源設為 `/docs` 資料夾決策；`GitHub Pages source is configured to serve from the /docs folder on main branch`、`No gh-pages branch is required`）
+- [x] 5.4 推送一次 commit 至 `main`，確認 GitHub Actions workflow 成功完成（綠色 checkmark），並在 2 分鐘內於 `https://{user}.github.io/{repo}/` 看到頁面（`GitHub Pages deployment completes within 2 minutes of a push to main`）

@@ -58,7 +58,11 @@
       "Bash(flyctl secrets:*)",
       "Bash(where fly:*)",
       "Bash(where flyctl:*)",
-      "Bash(powershell -Command \"Get-Command fly,flyctl -ErrorAction SilentlyContinue | Select-Object Name, Source\")"
+      "Bash(powershell -Command \"Get-Command fly,flyctl -ErrorAction SilentlyContinue | Select-Object Name, Source\")",
+      "Bash(for f:*)",
+      "Bash(do echo:*)",
+      "Read(//c/Users/user/Desktop/gitlab/shop-watcher/**)",
+      "Bash(done)"
     ]
   }
 }
