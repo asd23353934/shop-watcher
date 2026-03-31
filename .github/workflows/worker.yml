@@ -11,7 +11,7 @@ jobs:
   scan:
     name: 執行掃描
     runs-on: ubuntu-latest
-    timeout-minutes: 8         # 最多跑 8 分鐘，防止超時
+    timeout-minutes: 8
 
     steps:
       - uses: actions/checkout@v4
@@ -32,18 +32,4 @@ jobs:
         env:
           WORKER_SECRET: ${{ secrets.WORKER_SECRET }}
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-        run: python -c "
-import asyncio, logging, sys
-from dotenv import load_dotenv
-load_dotenv()
-logging.basicConfig(level=logging.INFO, format='%(asctime)s  %(levelname)-7s  %(message)s', stream=sys.stdout)
-from src.api_client import WorkerApiClient
-from src.scheduler import run_scan_cycle
-async def main():
-    api = WorkerApiClient()
-    try:
-        await run_scan_cycle(api)
-    finally:
-        await api.close()
-asyncio.run(main())
-"
+        run: python run_once.py
