@@ -53,7 +53,12 @@
       "Bash(cmd /c \"taskkill /PID 418380 /F\")",
       "Bash(cmd /c \"taskkill /PID 659300 /F\")",
       "Bash(cmd /c \"taskkill /PID 418380 /F && taskkill /PID 659300 /F\")",
-      "Bash(powershell -Command \"Stop-Process -Id 418380 -Force; Stop-Process -Id 659300 -Force\")"
+      "Bash(powershell -Command \"Stop-Process -Id 418380 -Force; Stop-Process -Id 659300 -Force\")",
+      "Bash(node -e \"console.log\\(require\\(''crypto''\\).randomBytes\\(32\\).toString\\(''hex''\\)\\)\")",
+      "Bash(flyctl secrets:*)",
+      "Bash(where fly:*)",
+      "Bash(where flyctl:*)",
+      "Bash(powershell -Command \"Get-Command fly,flyctl -ErrorAction SilentlyContinue | Select-Object Name, Source\")"
     ]
   }
 }

@@ -1,0 +1,49 @@
+# GitHub Actions Worker — 定時執行一次掃描循環
+# 每 10 分鐘觸發，抓取蝦皮與露天最新商品並通知用戶
+name: Worker Scan
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # 每 10 分鐘執行一次
+  workflow_dispatch:           # 支援手動觸發
+
+jobs:
+  scan:
+    name: 執行掃描
+    runs-on: ubuntu-latest
+    timeout-minutes: 8         # 最多跑 8 分鐘，防止超時
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 設定 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: 安裝 Python 依賴
+        run: pip install -r requirements.txt
+
+      - name: 安裝 Playwright Chromium
+        run: python -m playwright install chromium --with-deps
+
+      - name: 執行單次掃描
+        env:
+          WORKER_SECRET: ${{ secrets.WORKER_SECRET }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+        run: python -c "
+import asyncio, logging, sys
+from dotenv import load_dotenv
+load_dotenv()
+logging.basicConfig(level=logging.INFO, format='%(asctime)s  %(levelname)-7s  %(message)s', stream=sys.stdout)
+from src.api_client import WorkerApiClient
+from src.scheduler import run_scan_cycle
+async def main():
+    api = WorkerApiClient()
+    try:
+        await run_scan_cycle(api)
+    finally:
+        await api.close()
+asyncio.run(main())
+"
