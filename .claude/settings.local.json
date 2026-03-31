@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(spectra new:*)",
+      "Bash(spectra instructions:*)",
+      "Bash(spectra status:*)",
+      "Bash(spectra analyze:*)",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(''''Findings:'''', sum\\(x[''''finding_count''''] for x in d[''''dimensions'''']\\)\\); [print\\(f[''''id''''], f[''''severity''''], f[''''summary'''']\\) for f in d.get\\(''''findings'''',[]\\)]\")",
+      "Bash(spectra validate:*)",
+      "Bash(spectra park:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://shopee.tw/api/v4/search/search_items?by=ctime&keyword=PS5&limit=5&newest=0&order=desc&page_type=search&scenario=PAGE_GLOBAL_SEARCH&version=2\" -H \"User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/124.0.0.0 Safari/537.36\" -H \"Referer: https://shopee.tw/\" -H \"x-api-source: pc\" -H \"x-shopee-language: zh-Hant\" -H \"Accept: application/json\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://rtapi.ruten.com.tw/api/search/v3/index.php/core/prod?q=PS5&sort=newest&limit=5\" -H \"User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\")",
+      "Bash(spectra list:*)",
+      "Bash(spectra unpark:*)",
+      "Bash(python -c \":*)",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d[''''locale'''']\\); print\\(d[''''instruction''''][:300]\\)\")",
+      "Bash(python -c \"import playwright; print\\(''playwright OK''\\)\")",
+      "Bash(playwright --version)",
+      "Bash(pip install:*)",
+      "Bash(playwright install:*)",
+      "Bash(python poc/test_scraper.py)",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); findings=[f for f in data[''''findings''''] if f[''''severity''''] in \\(''''Critical'''',''''Warning''''\\)]; print\\(f''''Total: {len\\(findings\\)}''''\\); [print\\(f\"\"  {f[''''id'''']} [{f[''''severity'''']}]: {f[''''summary''''][:80]}\"\"\\) for f in findings]\")",
+      "Bash(git config:*)"
+    ]
+  }
+}
