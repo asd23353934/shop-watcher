@@ -107,9 +107,15 @@ export async function sendDiscordBatchNotification(
 ): Promise<void> {
   if (!webhookUrl || items.length === 0) return
 
+  // Cap items at MAX_NOTIFY_PER_BATCH (default 10)
+  const maxBatch = parseInt(process.env.MAX_NOTIFY_PER_BATCH ?? '10', 10) || 10
+  const capped = items.slice(0, maxBatch)
+  const omitted = items.length - capped.length
+
+  const totalLabel = items.length > maxBatch ? `${maxBatch}/${items.length}` : String(items.length)
   const content = discordUserId
-    ? `<@${discordUserId}> 關鍵字「${keyword}」發現 ${items.length} 個新商品！`
-    : `關鍵字「${keyword}」發現 ${items.length} 個新商品！`
+    ? `<@${discordUserId}> 關鍵字「${keyword}」發現 ${totalLabel} 個新商品！`
+    : `關鍵字「${keyword}」發現 ${totalLabel} 個新商品！`
 
   const toEmbed = (item: Item) => {
     const platformLabel = PLATFORM_LABELS[item.platform] ?? item.platform
@@ -139,26 +145,52 @@ export async function sendDiscordBatchNotification(
     }
   }
 
-  // Split into chunks of max 10 embeds per Webhook call
+  // Split capped items into chunks of max 10 embeds per Webhook call
   const CHUNK_SIZE = 10
-  for (let i = 0; i < items.length; i += CHUNK_SIZE) {
-    const chunk = items.slice(i, i + CHUNK_SIZE)
-    const isFirst = i === 0
+  const chunks: Item[][] = []
+  for (let i = 0; i < capped.length; i += CHUNK_SIZE) {
+    chunks.push(capped.slice(i, i + CHUNK_SIZE))
+  }
+
+  for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
+    const chunk = chunks[chunkIdx]
+    const isFirst = chunkIdx === 0
+    const isLast = chunkIdx === chunks.length - 1
+
+    const embeds = chunk.map((item, itemIdx) => {
+      const embed = toEmbed(item)
+      // Add overflow notice field to the very last embed of the last chunk
+      if (isLast && itemIdx === chunk.length - 1 && omitted > 0) {
+        return {
+          ...embed,
+          fields: [
+            ...(embed.fields ?? []),
+            {
+              name: '⚠️ 提示',
+              value: `還有 ${omitted} 筆未顯示，請縮小關鍵字範圍`,
+              inline: false,
+            },
+          ],
+        }
+      }
+      return embed
+    })
+
     try {
       const res = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: isFirst ? content : undefined,
-          embeds: chunk.map(toEmbed),
+          embeds,
         }),
       })
       if (!res.ok) {
         const text = await res.text().catch(() => '')
-        console.error(`[discord] Batch webhook chunk ${i / CHUNK_SIZE + 1} returned ${res.status}: ${text}`)
+        console.error(`[discord] Batch webhook chunk ${chunkIdx + 1} returned ${res.status}: ${text}`)
       }
     } catch (err) {
-      console.error(`[discord] Batch webhook chunk ${i / CHUNK_SIZE + 1} failed:`, err)
+      console.error(`[discord] Batch webhook chunk ${chunkIdx + 1} failed:`, err)
     }
   }
 }

@@ -18,6 +18,8 @@ export default function NotificationForm() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [webhookTesting, setWebhookTesting] = useState(false)
+  const [webhookTestResult, setWebhookTestResult] = useState<{ ok: boolean; message: string } | null>(null)
 
   // Settings are pre-filled with existing values on load
   useEffect(() => {
@@ -33,6 +35,28 @@ export default function NotificationForm() {
       .catch(() => setError('載入設定失敗'))
       .finally(() => setLoading(false))
   }, [])
+
+  const handleTestWebhook = async () => {
+    setWebhookTestResult(null)
+    setWebhookTesting(true)
+    try {
+      const res = await fetch('/api/settings/test-webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ webhookUrl: form.discordWebhookUrl }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setWebhookTestResult({ ok: true, message: '✓ 測試訊息已送出' })
+      } else {
+        setWebhookTestResult({ ok: false, message: `✗ ${data.error ?? '測試失敗'}` })
+      }
+    } catch {
+      setWebhookTestResult({ ok: false, message: '✗ 網路錯誤，請再試一次' })
+    } finally {
+      setWebhookTesting(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -90,13 +114,31 @@ export default function NotificationForm() {
           <label className="mb-1 block text-sm font-medium text-gray-700">
             Webhook URL
           </label>
-          <input
-            type="url"
-            value={form.discordWebhookUrl ?? ''}
-            onChange={(e) => setForm((p) => ({ ...p, discordWebhookUrl: e.target.value }))}
-            placeholder="https://discord.com/api/webhooks/..."
-            className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={form.discordWebhookUrl ?? ''}
+              onChange={(e) => {
+                setForm((p) => ({ ...p, discordWebhookUrl: e.target.value }))
+                setWebhookTestResult(null)
+              }}
+              placeholder="https://discord.com/api/webhooks/..."
+              className="flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <button
+              type="button"
+              onClick={handleTestWebhook}
+              disabled={webhookTesting || !form.discordWebhookUrl}
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+            >
+              {webhookTesting ? '測試中...' : '測試'}
+            </button>
+          </div>
+          {webhookTestResult && (
+            <p className={`mt-1 text-xs font-medium ${webhookTestResult.ok ? 'text-green-600' : 'text-red-600'}`}>
+              {webhookTestResult.message}
+            </p>
+          )}
           <p className="mt-1 text-xs text-gray-400">
             從 Discord 頻道設定 → 整合 → Webhooks 取得
           </p>
