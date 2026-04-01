@@ -68,7 +68,17 @@
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); w=[f for f in d[''''findings''''] if f[''''severity''''] in \\(''''Critical'''',''''Warning''''\\)]; print\\(f''''{len\\(w\\)} Critical/Warning''''\\); [print\\(f[''''id''''],f[''''summary'''']\\) for f in w]\")",
       "Bash(spectra --version)",
       "Bash(xargs grep:*)",
-      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d[''''state''''], d[''''progress'''']\\)\")"
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d[''''state''''], d[''''progress'''']\\)\")",
+      "Bash(pip show:*)",
+      "Bash(python -c \"from playwright_stealth import stealth_async; print\\(''import ok''\\)\")",
+      "Bash(python -c \"import playwright_stealth; print\\(dir\\(playwright_stealth\\)\\)\")",
+      "Bash(python -c \"from playwright_stealth import Stealth; s = Stealth\\(\\); print\\([m for m in dir\\(s\\) if not m.startswith\\(''_''\\)]\\)\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code} %{redirect_url}\" \"https://shopee.tw/search?keyword=鍵盤&sortBy=ctime&order=desc\")",
+      "Bash(curl -s --max-time 10 -A \"Mozilla/5.0\" \"https://shopee.tw/\" -o /dev/null -w \"%{http_code}\")",
+      "Bash(python -c \"import httpx; r = httpx.get\\(''https://shopee.tw/'', timeout=10, follow_redirects=False, headers={''User-Agent'':''Mozilla/5.0''}\\); print\\(r.status_code, r.headers.get\\(''location'',''''\\)\\)\")",
+      "Bash(python /tmp/test_shopee_prod.py \"PS5\")",
+      "Bash(python -c \"from playwright_stealth import Stealth, stealth; help\\(stealth\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d[''''state''''], d[''''progress'''']\\)\")"
     ]
   }
 }
