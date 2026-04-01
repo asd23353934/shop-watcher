@@ -92,23 +92,29 @@ async def _scrape_shopee_api(page: Page, keyword: str) -> list[WatcherItem]:
     )
 
     try:
-        # Use Playwright's built-in request (bypasses browser CSP/CORS restrictions)
-        # and manually attach cookies from the current browser context
         cookies = await page.context.cookies("https://shopee.tw")
+        cookie_map = {c["name"]: c["value"] for c in cookies}
         cookie_header = "; ".join(f"{c['name']}={c['value']}" for c in cookies)
+        # Shopee API requires the CSRF token from cookie as a request header
+        csrf_token = cookie_map.get("csrftoken", "")
 
         response = await page.request.get(
             api_url,
             headers={
                 "accept": "application/json",
-                "referer": page.url,
+                "referer": f"https://shopee.tw/search?keyword={quote(keyword)}",
                 "x-api-source": "pc",
                 "x-requested-with": "XMLHttpRequest",
+                "x-csrftoken": csrf_token,
                 "cookie": cookie_header,
             },
         )
         if not response.ok:
-            logger.warning("[shopee] API HTTP %d for keyword=%s", response.status, keyword)
+            body = await response.text()
+            logger.warning(
+                "[shopee] API HTTP %d for keyword=%s body=%s",
+                response.status, keyword, body[:200],
+            )
             return []
         result = await response.json()
     except Exception as exc:
@@ -133,14 +139,7 @@ async def _scrape_shopee_api(page: Page, keyword: str) -> list[WatcherItem]:
         logger.warning("[shopee] API: no items in response (keys=%s)", list(result.keys()))
         return []
 
-    logger.info("[shopee] API: found %d raw items", len(raw_items))
-
-    # Log first item structure to help diagnose field names
-    if raw_items:
-        first = raw_items[0]
-        info0 = first.get("item_basic") or first
-        logger.info("[shopee] API first item keys: %s", list(info0.keys())[:20])
-
+    logger.info("[shopee] API: found %d raw items for keyword=%s", len(raw_items), keyword)
     items: list[WatcherItem] = []
     seen_ids: set[str] = set()
 
