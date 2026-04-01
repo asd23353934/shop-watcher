@@ -1,25 +1,50 @@
 """
-Shopee scraper using Playwright headless Chromium.
+Shopee scraper.
 
-Strategy:
-1. Visit homepage to obtain session cookies.
-2. Call Shopee's internal search API via browser fetch (inherits cookies/headers).
-3. Fall back to DOM scraping if the API returns no items.
+Strategy (in order):
+1. Pure HTTP request + __NEXT_DATA__ SSR parsing (no headless signals).
+2. Playwright: intercept search_items API response during page load.
+3. Playwright: call API via browser fetch (uses session cookies).
+4. Playwright: extract from window JS state.
+5. Playwright: DOM scraping fallback.
 """
 
 import asyncio
+import json
 import logging
 import re
 from typing import Optional
 from urllib.parse import quote
 
+import httpx
 from playwright.async_api import Page, TimeoutError as PWTimeout
+from playwright_stealth import Stealth
+
+# chrome_runtime=True makes the browser look more like real Chrome
+_stealth = Stealth(chrome_runtime=True)
 
 from src.watchers.base import WatcherItem
 
 logger = logging.getLogger(__name__)
 
 SEARCH_TIMEOUT = 15_000  # ms (DOM fallback only)
+
+_HTTP_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Cache-Control": "max-age=0",
+}
 HOMEPAGE_WAIT = 3  # seconds after homepage load
 
 
@@ -168,6 +193,149 @@ def _parse_api_items(result: dict, keyword: str) -> list[WatcherItem]:
     return items
 
 
+async def _call_search_api_with_cookies(
+    keyword: str, cookies: list[dict]
+) -> list[WatcherItem]:
+    """
+    Call Shopee's search_items API via httpx using a cookie list
+    (e.g. extracted from a Playwright browser context).
+    Returns [] on any failure.
+    """
+    api_url = (
+        "https://shopee.tw/api/v4/search/search_items"
+        f"?by=ctime&keyword={quote(keyword)}&limit=30&newest=0"
+        "&order=desc&page_type=search&scenario=PAGE_GLOBAL_SEARCH&version=2"
+    )
+    csrf_token = next((c["value"] for c in cookies if c["name"] == "csrftoken"), "")
+    cookie_header = "; ".join(f"{c['name']}={c['value']}" for c in cookies)
+    try:
+        async with httpx.AsyncClient(
+            headers=_HTTP_HEADERS, follow_redirects=False, timeout=20.0
+        ) as client:
+            api_resp = await client.get(
+                api_url,
+                headers={
+                    "Cookie": cookie_header,
+                    "x-csrftoken": csrf_token,
+                    "x-api-source": "pc",
+                    "x-requested-with": "XMLHttpRequest",
+                    "x-shopee-language": "zh-Hant",
+                    "accept": "application/json",
+                    "referer": f"https://shopee.tw/search?keyword={quote(keyword)}",
+                },
+            )
+        logger.info("[shopee] cookie-API: status=%s csrftoken=%s", api_resp.status_code, bool(csrf_token))
+        if api_resp.status_code != 200:
+            return []
+        data = api_resp.json()
+        error_code = data.get("error")
+        def _summarize(v):
+            if isinstance(v, list):
+                return f"list[{len(v)}]"
+            if isinstance(v, dict):
+                return f"dict({list(v.keys())[:5]})"
+            return type(v).__name__
+        logger.info("[shopee] cookie-API: error=%s structure=%s", error_code,
+                    {k: _summarize(data[k]) for k in list(data.keys())})
+        if error_code and error_code != 0:
+            return []
+        return _parse_api_items(data, keyword)
+    except Exception as exc:
+        logger.warning("[shopee] cookie-API call failed: %s", exc)
+        return []
+
+
+async def _scrape_shopee_http(keyword: str) -> list[WatcherItem]:
+    """
+    Pure HTTP approach: visit homepage with httpx to pick up any HTTP-set
+    cookies, then call the search API with those cookies.
+    Note: csrftoken is JS-set so usually won't be available here.
+    Returns [] on any failure.
+    """
+    try:
+        async with httpx.AsyncClient(
+            headers=_HTTP_HEADERS, follow_redirects=True, timeout=20.0
+        ) as client:
+            await client.get("https://shopee.tw/")
+            cookies_list = [{"name": k, "value": v} for k, v in client.cookies.items()]
+            logger.info("[shopee] HTTP: got %d cookies from homepage", len(cookies_list))
+        return await _call_search_api_with_cookies(keyword, cookies_list)
+    except Exception as exc:
+        logger.warning("[shopee] HTTP scrape failed: %s", exc)
+        return []
+
+
+async def _fetch_via_browser(page: Page, keyword: str) -> list[WatcherItem]:
+    """
+    Call Shopee's search API directly from within the browser context via page.evaluate.
+    csrftoken is extracted via Playwright (which can read HttpOnly cookies) and injected
+    into the JS fetch call — bypassing the document.cookie restriction.
+    Returns [] on any failure.
+    """
+    try:
+        # Extract csrftoken via Playwright (works even if HttpOnly)
+        pw_cookies = await page.context.cookies(["https://shopee.tw"])
+        csrf_token = next((c["value"] for c in pw_cookies if c["name"] == "csrftoken"), "")
+        logger.info("[shopee] Browser fetch: csrftoken from Playwright=%s", bool(csrf_token))
+
+        data = await page.evaluate(
+            """
+            async ([keyword, csrfToken]) => {
+                const params = new URLSearchParams({
+                    by: 'ctime',
+                    keyword: keyword,
+                    limit: '30',
+                    newest: '0',
+                    order: 'desc',
+                    page_type: 'search',
+                    scenario: 'PAGE_GLOBAL_SEARCH',
+                    version: '2',
+                });
+                const url = 'https://shopee.tw/api/v4/search/search_items?' + params.toString();
+                try {
+                    const resp = await fetch(url, {
+                        credentials: 'include',
+                        headers: {
+                            'x-csrftoken': csrfToken,
+                            'x-api-source': 'pc',
+                            'x-requested-with': 'XMLHttpRequest',
+                            'x-shopee-language': 'zh-Hant',
+                            'accept': 'application/json',
+                            'referer': 'https://shopee.tw/search?keyword=' + encodeURIComponent(keyword),
+                        },
+                    });
+                    if (!resp.ok) return {_fetch_error: resp.status};
+                    return await resp.json();
+                } catch (e) {
+                    return {_fetch_error: String(e)};
+                }
+            }
+            """,
+            [keyword, csrf_token],
+        )
+        if not data or not isinstance(data, dict):
+            return []
+        if data.get("_fetch_error"):
+            logger.warning("[shopee] Browser fetch error: %s", data["_fetch_error"])
+            return []
+        error_code = data.get("error")
+        if error_code and error_code != 0:
+            logger.warning("[shopee] Browser fetch API error=%s", error_code)
+            return []
+        def _summarize(v):
+            if isinstance(v, list):
+                return f"list[{len(v)}]"
+            if isinstance(v, dict):
+                return f"dict({list(v.keys())[:5]})"
+            return type(v).__name__
+        summary = {k: _summarize(data[k]) for k in list(data.keys())}
+        logger.info("[shopee] Browser fetch response — structure: %s", summary)
+        return _parse_api_items(data, keyword)
+    except Exception as exc:
+        logger.debug("[shopee] Browser fetch failed: %s", exc)
+        return []
+
+
 async def _extract_from_page_state(page: Page, keyword: str) -> list[WatcherItem]:
     """
     After the search page has loaded, attempt to extract item data directly
@@ -218,31 +386,36 @@ async def _intercept_search_api(page: Page, keyword: str) -> list[WatcherItem]:
     """
     captured: dict = {}
 
+    api_urls_seen: list[str] = []
+
     async def on_response(response):
-        if "search_items" not in response.url:
+        url = response.url
+        # Log all shopee API calls for diagnostics
+        if "shopee.tw/api/" in url:
+            api_urls_seen.append(url.split("?")[0].replace("https://shopee.tw", ""))
+
+        if "search_items" not in url:
             return
-        # Skip session-init calls (no keyword, or error response)
         try:
             data = await response.json()
         except Exception:
             return
         if not isinstance(data, dict):
             return
-        # Skip error responses
+        # Always log search_items response for diagnosis
         error_code = data.get("error")
+        def _summarize(v):
+            if isinstance(v, list):
+                return f"list[{len(v)}]"
+            if isinstance(v, dict):
+                return f"dict({list(v.keys())[:5]})"
+            return type(v).__name__
+        summary = {k: _summarize(data[k]) for k in list(data.keys())}
+        logger.info("[shopee] search_items response — error=%s structure: %s", error_code, summary)
         if error_code and error_code != 0:
-            logger.debug("[shopee] search_items error=%s, skipping", error_code)
             return
-        # Require actual item data
-        raw = (
-            data.get("items")
-            or [v for k, v in data.items() if isinstance(k, str) and k.isdigit() and isinstance(v, dict)]
-        )
-        if not raw:
-            logger.debug("[shopee] search_items no items yet, skipping")
-            return
+        # Capture first non-error search_items response
         if not captured:
-            logger.info("[shopee] Captured %d items from search_items", len(raw))
             captured["data"] = data
 
     page.on("response", on_response)
@@ -258,7 +431,14 @@ async def _intercept_search_api(page: Page, keyword: str) -> list[WatcherItem]:
         return []
 
     if "login" in page.url:
-        logger.warning("[shopee] Redirected to login for keyword=%s", keyword)
+        if "fu_tracking_id" in page.url:
+            logger.warning(
+                "[shopee] Fraud detection blocked search for keyword=%s — "
+                "set SHOPEE_COOKIES_JSON env var with real session cookies to bypass",
+                keyword,
+            )
+        else:
+            logger.warning("[shopee] Redirected to login for keyword=%s", keyword)
         page.remove_listener("response", on_response)
         return []
 
@@ -269,9 +449,15 @@ async def _intercept_search_api(page: Page, keyword: str) -> list[WatcherItem]:
         await asyncio.sleep(0.5)
 
     page.remove_listener("response", on_response)
+    logger.info("[shopee] API URLs seen during page load: %s", api_urls_seen[:10])
 
     if not captured:
-        logger.info("[shopee] API response not captured for keyword=%s, trying page state", keyword)
+        logger.info("[shopee] API response not captured for keyword=%s, trying browser fetch", keyword)
+        items = await _fetch_via_browser(page, keyword)
+        if items:
+            logger.info("[shopee] Browser fetch returned %d item(s) for keyword=%s", len(items), keyword)
+            return items
+        logger.info("[shopee] Browser fetch returned nothing, trying page state for keyword=%s", keyword)
         items = await _extract_from_page_state(page, keyword)
         return items
 
@@ -386,24 +572,57 @@ async def scrape_shopee(
     """
     Search Shopee for newest listings matching keyword.
 
-    Strategy: intercept the JSON API response that Shopee's own JavaScript
-    fires during page load — no manual API calls, no bot detection issues.
-    Falls back to DOM scraping if the API response is not captured.
+    Strategy (in order):
+    1. Pure HTTP + __NEXT_DATA__ SSR parsing (no headless signals).
+    2. Playwright: intercept search_items API during page load.
+    3. Playwright: browser fetch with CSRF token.
+    4. Playwright: extract from window JS state.
+    5. Playwright: DOM scraping.
 
     Returns list of WatcherItem, filtered by price range if configured.
     Never raises — returns [] on any error.
     """
-    await page.add_init_script(
-        "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-    )
+    # ── Step 1: Pure HTTP (no headless signals) ───────────────────────────
+    items = await _scrape_shopee_http(keyword)
+    if items:
+        logger.info("[shopee] HTTP strategy succeeded for keyword=%s", keyword)
+        return _apply_price_filter(items, min_price, max_price)
 
-    # ── Step 1: Intercept Shopee's own API call ───────────────────────────
+    # ── Step 2+: Playwright fallback ──────────────────────────────────────
+    logger.info("[shopee] HTTP strategy failed, falling back to Playwright for keyword=%s", keyword)
+    await _stealth.apply_stealth_async(page)
+
+    # Visit homepage to establish session/cookies (skip if cookies already injected)
+    cookies_already_set = bool(await page.context.cookies(["https://shopee.tw"]))
+    if not cookies_already_set:
+        try:
+            await page.goto("https://shopee.tw/", timeout=20_000, wait_until="domcontentloaded")
+            await asyncio.sleep(2)
+            if "login" in page.url:
+                logger.warning("[shopee] Homepage redirected to login — continuing to search page anyway")
+            else:
+                logger.info("[shopee] Homepage loaded, session established")
+        except Exception as exc:
+            logger.warning("[shopee] Homepage load failed: %s, continuing anyway", exc)
+    else:
+        logger.info("[shopee] Session cookies already set, skipping homepage preload")
+
+    # Intercept Shopee's own API call
     items = await _intercept_search_api(page, keyword)
 
-    # ── Step 2: DOM fallback if API was not captured ──────────────────────
+    # Hybrid fallback: use Playwright's browser cookies in an httpx API call
+    if not items:
+        pw_cookies = await page.context.cookies(["https://shopee.tw"])
+        logger.info("[shopee] Playwright cookies available: %d (names: %s)",
+                    len(pw_cookies), [c["name"] for c in pw_cookies[:10]])
+        if pw_cookies:
+            items = await _call_search_api_with_cookies(keyword, pw_cookies)
+            if items:
+                logger.info("[shopee] Hybrid cookie strategy succeeded for keyword=%s", keyword)
+
+    # DOM fallback if all API strategies failed
     if not items:
         logger.info("[shopee] Falling back to DOM scrape for keyword=%s", keyword)
         items = await _scrape_shopee_dom_from_loaded_page(page, keyword)
 
-    # ── Step 3: Apply price filter ────────────────────────────────────────
     return _apply_price_filter(items, min_price, max_price)

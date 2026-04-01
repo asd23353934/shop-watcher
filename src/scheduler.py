@@ -8,12 +8,14 @@ Watcher Scheduler — asyncio loop that drives all keyword-platform scans.
 """
 
 import asyncio
+import json
 import logging
 import os
 import signal
 from datetime import datetime, timezone
 from typing import Optional
 
+import httpx
 from playwright.async_api import async_playwright
 
 from src.api_client import WorkerApiClient
@@ -21,6 +23,30 @@ from src.scrapers.shopee import scrape_shopee
 from src.scrapers.ruten import scrape_ruten
 
 logger = logging.getLogger(__name__)
+
+
+async def _notify_scrape_error(platform: str, keyword: str, error: Exception) -> None:
+    """Send a Discord error embed when scraping fails. No-op if DISCORD_ERROR_WEBHOOK is not set."""
+    webhook_url = os.environ.get("DISCORD_ERROR_WEBHOOK", "")
+    if not webhook_url:
+        return
+    payload = {
+        "embeds": [{
+            "title": "⚠️ 爬取失敗",
+            "color": 0xFF0000,
+            "fields": [
+                {"name": "平台", "value": platform, "inline": True},
+                {"name": "關鍵字", "value": keyword, "inline": True},
+                {"name": "錯誤", "value": str(error)[:1000]},
+            ],
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }]
+    }
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(webhook_url, json=payload)
+    except Exception as exc:
+        logger.warning("Failed to send Discord error notification: %s", exc)
 
 
 def _get_check_interval() -> int:
@@ -107,6 +133,16 @@ async def run_scan_cycle(api: WorkerApiClient) -> None:
             ),
         )
 
+        # Inject Shopee session cookies if provided (bypasses fraud detection)
+        shopee_cookies_json = os.environ.get("SHOPEE_COOKIES_JSON", "")
+        if shopee_cookies_json:
+            try:
+                shopee_cookies = json.loads(shopee_cookies_json)
+                await context.add_cookies(shopee_cookies)
+                logger.info("Shopee cookies injected: %d cookies", len(shopee_cookies))
+            except Exception as exc:
+                logger.warning("Failed to inject Shopee cookies: %s", exc)
+
         try:
             for kw in keywords:
                 keyword_id: str = kw.get("id", "")
@@ -141,6 +177,7 @@ async def run_scan_cycle(api: WorkerApiClient) -> None:
                             "[%s] %s — unhandled error: %s",
                             platform, keyword_text, exc,
                         )
+                        await _notify_scrape_error(platform, keyword_text, exc)
                         items = []
                     finally:
                         await page.close()

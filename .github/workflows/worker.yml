@@ -32,4 +32,9 @@ jobs:
         env:
           WORKER_SECRET: ${{ secrets.WORKER_SECRET }}
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          # 可選：蝦皮 session cookies（JSON 陣列格式）用於繞過 fraud detection
+          # 從真實 Chrome 匯出 shopee.tw cookies 後存入此 secret
+          SHOPEE_COOKIES_JSON: ${{ secrets.SHOPEE_COOKIES_JSON }}
+          # 可選：爬取失敗時的 Discord Webhook 通知
+          DISCORD_ERROR_WEBHOOK: ${{ secrets.DISCORD_ERROR_WEBHOOK }}
         run: python run_once.py
