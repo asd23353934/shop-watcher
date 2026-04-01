@@ -1,10 +1,4 @@
-# hero-section Specification
-
-## Purpose
-
-TBD - created by archiving change 'landing-page'. Update Purpose after archive.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Hero section displays project name, tagline, and feature highlights
 
@@ -44,15 +38,8 @@ The landing page SHALL render a hero section using a two-column layout on deskto
 - **AND** the Discord mockup SHALL appear below the text content
 - **AND** the heading font size SHALL reduce to at least 2.25rem
 
+## ADDED Requirements
 
-<!-- @trace
-source: docs-landing-page-redesign
-updated: 2026-04-01
-code:
-  - docs/index.html
--->
-
----
 ### Requirement: Hero section displays a system status badge
 
 The landing page SHALL display a status badge in the hero section indicating that the monitoring system is actively running.
@@ -64,15 +51,6 @@ The landing page SHALL display a status badge in the hero section indicating tha
 - **AND** the badge SHALL contain an animated ping indicator (CSS `animate-ping` on a surrounding element)
 - **AND** the badge SHALL use an indigo color scheme (`bg-indigo-500/10 border-indigo-500/20 text-indigo-400`)
 
-
-<!-- @trace
-source: docs-landing-page-redesign
-updated: 2026-04-01
-code:
-  - docs/index.html
--->
-
----
 ### Requirement: Hero section right column displays a Discord notification mockup
 
 The landing page SHALL render a Discord-styled notification window in the right column of the hero section to visually demonstrate the product's output.
@@ -94,10 +72,3 @@ The landing page SHALL render a Discord-styled notification window in the right 
 
 - **WHEN** the page loads
 - **THEN** the mockup container SHALL continuously animate with a floating up-and-down motion using the `animate-float` keyframe (translateY 0 → -10px → 0, period 6s)
-
-<!-- @trace
-source: docs-landing-page-redesign
-updated: 2026-04-01
-code:
-  - docs/index.html
--->

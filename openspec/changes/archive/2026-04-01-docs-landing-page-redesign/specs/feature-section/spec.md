@@ -1,10 +1,4 @@
-# feature-section Specification
-
-## Purpose
-
-TBD - created by archiving change 'landing-page'. Update Purpose after archive.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Feature section displays three capability cards
 
@@ -36,15 +30,8 @@ The landing page SHALL render a feature section with exactly 3 cards laid out in
 - **WHEN** a user views the feature section
 - **THEN** a section heading (`<h2>`) with text "為什麼選擇 Shop Watcher？" SHALL be displayed above the cards
 
+## ADDED Requirements
 
-<!-- @trace
-source: docs-landing-page-redesign
-updated: 2026-04-01
-code:
-  - docs/index.html
--->
-
----
 ### Requirement: Feature cards respond to hover with visual feedback
 
 Each feature card SHALL provide interactive hover effects to improve perceived interactivity.
@@ -61,10 +48,3 @@ Each feature card SHALL provide interactive hover effects to improve perceived i
 - **WHEN** a user hovers over a feature card
 - **THEN** a decorative quarter-circle element in the top-right corner of the card SHALL scale up (`group-hover:scale-110`)
 - **AND** each card's decorative arc SHALL use the card's accent color (indigo, discord purple, or cyan)
-
-<!-- @trace
-source: docs-landing-page-redesign
-updated: 2026-04-01
-code:
-  - docs/index.html
--->
