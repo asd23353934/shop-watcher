@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import KeywordList from '@/components/KeywordList'
 import KeywordFormWrapper from '@/components/KeywordFormWrapper'
+import NotificationBanner from '@/components/NotificationBanner'
 
 export default async function DashboardPage() {
   const session = await auth()
@@ -13,10 +14,19 @@ export default async function DashboardPage() {
 
   // Authenticated user can create a keyword, Authenticated user can edit an existing keyword,
   // Authenticated user can delete a keyword
-  const keywords = await prisma.keyword.findMany({
-    where: { userId: session.user.id },
-    orderBy: { createdAt: 'desc' },
-  })
+  const [keywords, notificationSetting] = await Promise.all([
+    prisma.keyword.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: 'desc' },
+    }),
+    // Dashboard warns user when no notification method is configured
+    prisma.notificationSetting.findUnique({
+      where: { userId: session.user.id },
+    }),
+  ])
+
+  const hasNotification =
+    !!notificationSetting?.discordWebhookUrl || !!notificationSetting?.notifyEmail
 
   return (
     <div>
@@ -26,6 +36,8 @@ export default async function DashboardPage() {
           管理您的商品監控關鍵字，發現新商品時即時通知
         </p>
       </div>
+
+      {!hasNotification && <NotificationBanner />}
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">

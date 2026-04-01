@@ -43,6 +43,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Invalid platforms: ${invalidPlatforms.join(', ')}` }, { status: 400 })
   }
 
+  // Duplicate keyword creation is rejected for the same user
+  const existing = await prisma.keyword.findFirst({
+    where: {
+      userId: session.user.id,
+      keyword: keyword.trim(),
+      platforms: { equals: platforms },
+    },
+  })
+  if (existing) {
+    return NextResponse.json({ error: '此關鍵字與平台組合已存在' }, { status: 409 })
+  }
+
   const newKeyword = await prisma.keyword.create({
     data: {
       userId: session.user.id,
