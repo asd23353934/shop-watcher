@@ -178,24 +178,28 @@ async def _intercept_search_api(page: Page, keyword: str) -> list[WatcherItem]:
     captured: dict = {}
 
     async def on_response(response):
-        if "/api/v4/search/" not in response.url:
+        if "search_items" not in response.url:
             return
-        logger.info("[shopee] API call: %s", response.url[:150])
+        logger.info("[shopee] search_items call: %s", response.url[:150])
         try:
             data = await response.json()
-        except Exception:
+        except Exception as exc:
+            logger.warning("[shopee] Failed to parse search_items response: %s", exc)
             return
-        # Accept the response that actually contains item dicts
         if not isinstance(data, dict):
             return
-        has_items = (
-            isinstance(data.get("items"), list)
-            or isinstance(data.get("data", {}).get("items"), list)
-            or any(isinstance(v, dict) and v.get("itemid") for v in data.values() if isinstance(v, dict))
-            or any(isinstance(v, list) and v and isinstance(v[0], dict) for v in data.values() if isinstance(v, list))
-        )
-        if has_items and not captured:
-            logger.info("[shopee] Captured item response from: %s", response.url[:150])
+
+        def _summarize(v):
+            if isinstance(v, list):
+                inner = type(v[0]).__name__ if v else "empty"
+                return f"list[{len(v)}]<{inner}>"
+            if isinstance(v, dict):
+                return f"dict{list(v.keys())[:6]}"
+            return f"{type(v).__name__}={repr(v)[:30]}"
+
+        logger.info("[shopee] search_items structure: %s", {k: _summarize(data[k]) for k in data})
+
+        if not captured:
             captured["data"] = data
 
     page.on("response", on_response)
