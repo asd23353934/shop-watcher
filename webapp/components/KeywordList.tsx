@@ -26,9 +26,21 @@ const PLATFORM_LABELS: Record<string, string> = {
 }
 
 const MATCH_MODE_LABELS: Record<string, string> = {
+  any: '寬鬆 — 含任一關鍵詞即通知',
+  all: '嚴格 — 每個詞都必須出現',
+  exact: '完整比對 — 名稱須包含完整字串',
+}
+
+const MATCH_MODE_EXAMPLES: Record<string, string> = {
+  any: '含任一詞即通知，範圍較廣',
+  all: '所有詞都必須同時出現',
+  exact: '名稱須包含完整關鍵字字串',
+}
+
+const MATCH_MODE_BADGE_LABELS: Record<string, string> = {
   any: '寬鬆',
-  all: '每詞都要有',
-  exact: '完整字串',
+  all: '嚴格',
+  exact: '完整比對',
 }
 
 export default function KeywordList({ initialKeywords, onRefresh }: KeywordListProps) {
@@ -202,6 +214,11 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
                     <option key={value} value={value}>{label}</option>
                   ))}
                 </select>
+                {editForm.matchMode && MATCH_MODE_EXAMPLES[editForm.matchMode] && (
+                  <p className="mt-1 text-xs text-gray-400">
+                    {MATCH_MODE_EXAMPLES[editForm.matchMode]}
+                  </p>
+                )}
               </div>
               <div className="flex gap-2">
                 <input
@@ -342,7 +359,7 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
                   </span>
                   {kw.matchMode && kw.matchMode !== 'any' && (
                     <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs text-indigo-600">
-                      {MATCH_MODE_LABELS[kw.matchMode] ?? kw.matchMode}
+                      {MATCH_MODE_BADGE_LABELS[kw.matchMode] ?? kw.matchMode}
                     </span>
                   )}
                 </div>
