@@ -91,6 +91,29 @@ class WorkerApiClient:
             logger.error("notify_item: network error — %s", exc)
             return False
 
+    async def post_scan_log(self, scanned_at: str) -> bool:
+        """
+        POST /api/worker/scan-log
+
+        Records the scan completion time to the Next.js API.
+        Returns True on HTTP 200, False on any error.
+        """
+        url = f"{self._base_url}/api/worker/scan-log"
+        payload = {"scannedAt": scanned_at}
+        try:
+            resp = await self._client.post(url, json=payload)
+            if resp.status_code in (200, 201):
+                return True
+            logger.error(
+                "post_scan_log: HTTP %s — %s",
+                resp.status_code,
+                resp.text[:200],
+            )
+            return False
+        except httpx.HTTPError as exc:
+            logger.error("post_scan_log: network error — %s", exc)
+            return False
+
     async def notify_batch(self, keyword_id: str, items: list) -> dict:
         """
         POST /api/worker/notify/batch

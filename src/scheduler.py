@@ -11,6 +11,7 @@ import asyncio
 import logging
 import os
 import signal
+from datetime import datetime, timezone
 from typing import Optional
 
 from playwright.async_api import async_playwright
@@ -128,6 +129,11 @@ async def run_scan_cycle(api: WorkerApiClient) -> None:
         finally:
             # Browser is always closed after a scan cycle
             await browser.close()
+
+    # Record scan completion time
+    scanned_at = datetime.now(timezone.utc).isoformat()
+    await api.post_scan_log(scanned_at)
+    logger.info("Scan cycle complete, logged scannedAt=%s", scanned_at)
 
 
 async def run_scheduler() -> None:

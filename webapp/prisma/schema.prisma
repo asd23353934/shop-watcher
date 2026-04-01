@@ -48,6 +48,12 @@ model NotificationSetting {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model ScanLog {
+  id        String   @id @default(cuid())
+  scannedAt DateTime
+  createdAt DateTime @default(now())
+}
+
 model SeenItem {
   id        String   @id @default(cuid())
   userId    String

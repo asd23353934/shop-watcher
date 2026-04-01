@@ -21,6 +21,9 @@ export default async function SettingsPage() {
             <Link href="/dashboard" className="text-sm text-gray-600 hover:text-gray-900">
               關鍵字
             </Link>
+            <Link href="/history" className="text-sm text-gray-600 hover:text-gray-900">
+              通知記錄
+            </Link>
             <Link href="/settings" className="text-sm font-medium text-indigo-600">
               通知設定
             </Link>
