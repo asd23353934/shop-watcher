@@ -168,12 +168,25 @@ async def _intercept_search_api(page: Page, keyword: str) -> list[WatcherItem]:
     captured: dict = {}
 
     async def on_response(response):
-        if "search_items" in response.url and not captured:
-            logger.info("[shopee] Intercepted URL: %s", response.url[:120])
-            try:
-                captured["data"] = await response.json()
-            except Exception as exc:
-                logger.warning("[shopee] Failed to parse intercepted response: %s", exc)
+        if "/api/v4/search/" not in response.url:
+            return
+        logger.info("[shopee] API call: %s", response.url[:150])
+        try:
+            data = await response.json()
+        except Exception:
+            return
+        # Accept the response that actually contains item dicts
+        if not isinstance(data, dict):
+            return
+        has_items = (
+            isinstance(data.get("items"), list)
+            or isinstance(data.get("data", {}).get("items"), list)
+            or any(isinstance(v, dict) and v.get("itemid") for v in data.values() if isinstance(v, dict))
+            or any(isinstance(v, list) and v and isinstance(v[0], dict) for v in data.values() if isinstance(v, list))
+        )
+        if has_items and not captured:
+            logger.info("[shopee] Captured item response from: %s", response.url[:150])
+            captured["data"] = data
 
     page.on("response", on_response)
 
