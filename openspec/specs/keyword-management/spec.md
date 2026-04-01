@@ -413,3 +413,55 @@ code:
 -->
 
 ---
+### Requirement: Keyword supports a blocklist of forbidden terms
+
+Each keyword SHALL support a `blocklist` field containing zero or more forbidden terms. Items whose names contain any term from the blocklist SHALL NOT be reported to the user, regardless of keyword match.
+
+#### Scenario: Keyword is created with a blocklist
+
+- **WHEN** a user submits the keyword creation form with one or more comma-separated blocklist terms
+- **THEN** the `Keyword` row SHALL be created with `blocklist` set to the parsed array of trimmed, non-empty terms
+- **AND** the blocklist SHALL be stored as `String[]` in the database
+
+#### Scenario: Keyword is created without a blocklist
+
+- **WHEN** a user submits the keyword creation form without entering any blocklist terms
+- **THEN** the `Keyword` row SHALL be created with `blocklist` set to an empty array `[]`
+
+#### Scenario: Keyword blocklist is updated
+
+- **WHEN** a user edits an existing keyword and changes the blocklist field
+- **THEN** the `Keyword.blocklist` SHALL be updated to reflect the new comma-separated terms
+
+<!-- @trace
+source: notification-and-search-improvements
+updated: 2026-04-01
+code:
+  - src/scheduler.py
+  - webapp/components/KeywordForm.tsx
+  - webapp/prisma/migrations/20260401020513_add_keyword_blocklist/migration.sql
+  - webapp/scripts/cleanup.ts
+  - src/scrapers/ruten.py
+  - webapp/app/settings/page.tsx
+  - src/watchers/base.py
+  - webapp/package.json
+  - webapp/app/api/history/route.ts
+  - webapp/components/NotificationForm.tsx
+  - webapp/lib/email.ts
+  - webapp/app/history/page.tsx
+  - webapp/app/api/settings/test-webhook/route.ts
+  - webapp/prisma/schema.prisma
+  - webapp/app/api/worker/keywords/route.ts
+  - webapp/app/dashboard/page.tsx
+  - webapp/app/api/keywords/[id]/route.ts
+  - webapp/app/dashboard/layout.tsx
+  - .github/workflows/cleanup.yml
+  - webapp/app/api/worker/notify/batch/route.ts
+  - webapp/prisma/migrations/20260401023619_add_seen_item_last_price/migration.sql
+  - src/scrapers/shopee.py
+  - webapp/app/api/worker/scan-log/route.ts
+  - src/api_client.py
+  - webapp/lib/discord.ts
+  - webapp/app/api/keywords/route.ts
+  - webapp/prisma/migrations/20260401023108_add_scan_log/migration.sql
+-->

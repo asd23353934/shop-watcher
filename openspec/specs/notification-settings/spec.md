@@ -305,3 +305,54 @@ code:
   - webapp/app/api/keywords/route.ts
   - webapp/components/NotificationBanner.tsx
 -->
+
+---
+### Requirement: User can test Discord Webhook URL before saving
+
+The settings page SHALL provide a "Test Webhook" button that sends a test Discord message to the configured Webhook URL and displays success or failure to the user.
+
+#### Scenario: Valid Webhook URL sends test message successfully
+
+- **WHEN** a user clicks the "Test Webhook" button with a valid Discord Webhook URL entered
+- **THEN** the system SHALL POST to `POST /api/settings/test-webhook` with the webhookUrl
+- **AND** the endpoint SHALL send a test Discord Embed to that URL
+- **AND** if Discord returns 2xx, the UI SHALL display a success indicator
+
+#### Scenario: Invalid Webhook URL returns error to user
+
+- **WHEN** a user clicks the "Test Webhook" button and Discord returns a non-2xx status
+- **THEN** the UI SHALL display an error message with the status code
+- **AND** the NotificationSetting record SHALL NOT be modified by the test action
+
+<!-- @trace
+source: notification-reliability
+updated: 2026-04-01
+code:
+  - webapp/app/api/worker/keywords/route.ts
+  - src/api_client.py
+  - webapp/prisma/schema.prisma
+  - webapp/prisma/migrations/20260401020513_add_keyword_blocklist/migration.sql
+  - webapp/app/api/history/route.ts
+  - webapp/components/NotificationForm.tsx
+  - .github/workflows/cleanup.yml
+  - src/watchers/base.py
+  - webapp/app/dashboard/layout.tsx
+  - webapp/app/history/page.tsx
+  - webapp/prisma/migrations/20260401023108_add_scan_log/migration.sql
+  - webapp/components/KeywordForm.tsx
+  - webapp/app/api/settings/test-webhook/route.ts
+  - webapp/app/api/keywords/[id]/route.ts
+  - webapp/app/api/worker/notify/batch/route.ts
+  - webapp/lib/email.ts
+  - src/scheduler.py
+  - webapp/prisma/migrations/20260401023619_add_seen_item_last_price/migration.sql
+  - webapp/app/settings/page.tsx
+  - src/scrapers/ruten.py
+  - webapp/lib/discord.ts
+  - webapp/scripts/cleanup.ts
+  - webapp/app/api/worker/scan-log/route.ts
+  - webapp/app/dashboard/page.tsx
+  - webapp/app/api/keywords/route.ts
+  - webapp/package.json
+  - src/scrapers/shopee.py
+-->
