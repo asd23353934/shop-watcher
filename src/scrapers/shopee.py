@@ -18,10 +18,6 @@ from urllib.parse import quote
 
 import httpx
 from playwright.async_api import Page, TimeoutError as PWTimeout
-from playwright_stealth import Stealth
-
-# chrome_runtime=True makes the browser look more like real Chrome
-_stealth = Stealth(chrome_runtime=True)
 
 from src.watchers.base import WatcherItem
 
@@ -590,8 +586,6 @@ async def scrape_shopee(
 
     # ── Step 2+: Playwright fallback ──────────────────────────────────────
     logger.info("[shopee] HTTP strategy failed, falling back to Playwright for keyword=%s", keyword)
-    await _stealth.apply_stealth_async(page)
-
     # Visit homepage to establish session/cookies (skip if cookies already injected)
     cookies_already_set = bool(await page.context.cookies(["https://shopee.tw"]))
     if not cookies_already_set:
