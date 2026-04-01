@@ -86,7 +86,7 @@ def _parse_api_items(result: dict, keyword: str) -> list[WatcherItem]:
     raw_items = (
         result.get("items")
         or result.get("data", {}).get("items")
-        or [result[k] for k in result if isinstance(k, str) and k.isdigit()]
+        or [v for k, v in result.items() if isinstance(k, str) and k.isdigit() and isinstance(v, dict)]
     )
     if not raw_items:
         logger.warning("[shopee] API: no items in response (keys=%s)", list(result.keys())[:10])
