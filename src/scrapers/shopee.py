@@ -93,19 +93,24 @@ def _parse_api_items(result: dict, keyword: str) -> list[WatcherItem]:
         return []
 
     logger.info("[shopee] API: found %d raw items for keyword=%s", len(raw_items), keyword)
+    if raw_items:
+        first = raw_items[0]
+        info0 = first.get("item_basic") or first
+        logger.info("[shopee] API item keys sample: %s", list(info0.keys())[:15])
+
     items: list[WatcherItem] = []
     seen_ids: set[str] = set()
 
     for raw in raw_items[:25]:
         try:
             info = raw.get("item_basic") or raw
-            item_id = str(info.get("itemid", ""))
+            item_id = str(info.get("itemid") or info.get("item_id") or info.get("id") or "")
             shop_id = str(info.get("shopid", ""))
             if not item_id or item_id in seen_ids:
                 continue
             seen_ids.add(item_id)
 
-            name = (info.get("name") or f"item-{item_id}")[:120]
+            name = (info.get("name") or info.get("item_name") or info.get("title") or f"item-{item_id}")[:120]
 
             # Shopee prices are in units of 100,000 (5 decimal places)
             price: Optional[float] = None
