@@ -15,6 +15,8 @@ interface Item {
   platform: string
   item_id: string
   seller_name?: string | null
+  isPriceDrop?: boolean
+  originalPrice?: number
 }
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -153,14 +155,24 @@ export async function sendEmailBatchNotification(
       const thumbnail = item.image_url
         ? `<img src="${item.image_url}" alt="" style="width:60px;height:60px;object-fit:cover;border-radius:4px;" />`
         : ''
+
+      // Price drop: show badge and original price
+      const priceDropBadge = item.isPriceDrop
+        ? `<span style="background:#dcfce7;color:#16a34a;font-size:11px;padding:2px 6px;border-radius:4px;font-weight:bold;">↓ 降價</span> `
+        : ''
+      const originalPriceCell =
+        item.isPriceDrop && item.originalPrice != null
+          ? `<span style="text-decoration:line-through;color:#9ca3af;margin-right:4px;">NT$ ${item.originalPrice.toLocaleString('zh-TW')}</span>`
+          : ''
+
       return `
-      <tr>
+      <tr style="${item.isPriceDrop ? 'background:#f0fdf4;' : ''}">
         <td style="padding:8px;border:1px solid #eee;text-align:center;">${thumbnail}</td>
         <td style="padding:8px;border:1px solid #eee;">
-          <a href="${item.url}" style="color:#4f46e5;text-decoration:none;">${item.name}</a>
+          ${priceDropBadge}<a href="${item.url}" style="color:#4f46e5;text-decoration:none;">${item.name}</a>
         </td>
         <td style="padding:8px;border:1px solid #eee;">${platformLabel}</td>
-        <td style="padding:8px;border:1px solid #eee;">${priceText}</td>
+        <td style="padding:8px;border:1px solid #eee;">${originalPriceCell}${priceText}</td>
         <td style="padding:8px;border:1px solid #eee;">${sellerText}</td>
       </tr>`
     })

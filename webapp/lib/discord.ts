@@ -14,6 +14,8 @@ interface Item {
   platform: string
   item_id: string
   seller_name?: string | null
+  isPriceDrop?: boolean
+  originalPrice?: number
 }
 
 const PLATFORM_COLORS: Record<string, number> = {
@@ -119,7 +121,10 @@ export async function sendDiscordBatchNotification(
 
   const toEmbed = (item: Item) => {
     const platformLabel = PLATFORM_LABELS[item.platform] ?? item.platform
-    const color = PLATFORM_COLORS[item.platform] ?? 0x7289da
+    // Price drop uses green color (0x57F287), otherwise platform color
+    const color = item.isPriceDrop
+      ? 0x57f287
+      : (PLATFORM_COLORS[item.platform] ?? 0x7289da)
     const priceText =
       item.price != null
         ? `NT$ ${item.price.toLocaleString('zh-TW')}`
@@ -127,15 +132,31 @@ export async function sendDiscordBatchNotification(
 
     const fields: Array<{ name: string; value: string; inline: boolean }> = [
       { name: '平台', value: platformLabel, inline: true },
-      { name: '價格', value: priceText, inline: true },
-      { name: '關鍵字', value: keyword, inline: true },
     ]
+
+    if (item.isPriceDrop && item.originalPrice != null) {
+      // Price drop: show original price and new price separately
+      fields.push({
+        name: '原價',
+        value: `NT$ ${item.originalPrice.toLocaleString('zh-TW')}`,
+        inline: true,
+      })
+      fields.push({ name: '現價', value: priceText, inline: true })
+    } else {
+      fields.push({ name: '價格', value: priceText, inline: true })
+    }
+
+    fields.push({ name: '關鍵字', value: keyword, inline: true })
     if (item.seller_name) {
       fields.push({ name: '賣家', value: item.seller_name, inline: true })
     }
 
+    // Price drop items get [降價] prefix in title
+    const titleBase = item.name.length > 250 ? item.name.slice(0, 247) + '...' : item.name
+    const title = item.isPriceDrop ? `[降價] ${titleBase}` : titleBase
+
     return {
-      title: item.name.length > 256 ? item.name.slice(0, 253) + '...' : item.name,
+      title: title.length > 256 ? title.slice(0, 253) + '...' : title,
       url: item.url,
       color,
       fields,

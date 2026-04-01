@@ -61,6 +61,7 @@ model SeenItem {
   itemId    String
   keyword   String
   firstSeen DateTime @default(now())
+  lastPrice Float?
   keywordId String?
 
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
