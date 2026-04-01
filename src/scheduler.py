@@ -138,6 +138,11 @@ async def run_scan_cycle(api: WorkerApiClient) -> None:
         if shopee_cookies_json:
             try:
                 shopee_cookies = json.loads(shopee_cookies_json)
+                # Normalize sameSite: Playwright only accepts Strict|Lax|None
+                _valid_samesite = {"Strict", "Lax", "None"}
+                for c in shopee_cookies:
+                    if c.get("sameSite") not in _valid_samesite:
+                        c["sameSite"] = "Lax"
                 await context.add_cookies(shopee_cookies)
                 logger.info("Shopee cookies injected: %d cookies", len(shopee_cookies))
             except Exception as exc:
