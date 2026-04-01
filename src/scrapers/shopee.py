@@ -180,26 +180,28 @@ async def _intercept_search_api(page: Page, keyword: str) -> list[WatcherItem]:
     async def on_response(response):
         if "search_items" not in response.url:
             return
-        logger.info("[shopee] search_items call: %s", response.url[:150])
+        # Skip session-init calls (no keyword, or error response)
         try:
             data = await response.json()
-        except Exception as exc:
-            logger.warning("[shopee] Failed to parse search_items response: %s", exc)
+        except Exception:
             return
         if not isinstance(data, dict):
             return
-
-        def _summarize(v):
-            if isinstance(v, list):
-                inner = type(v[0]).__name__ if v else "empty"
-                return f"list[{len(v)}]<{inner}>"
-            if isinstance(v, dict):
-                return f"dict{list(v.keys())[:6]}"
-            return f"{type(v).__name__}={repr(v)[:30]}"
-
-        logger.info("[shopee] search_items structure: %s", {k: _summarize(data[k]) for k in data})
-
+        # Skip error responses
+        error_code = data.get("error")
+        if error_code and error_code != 0:
+            logger.debug("[shopee] search_items error=%s, skipping", error_code)
+            return
+        # Require actual item data
+        raw = (
+            data.get("items")
+            or [v for k, v in data.items() if isinstance(k, str) and k.isdigit() and isinstance(v, dict)]
+        )
+        if not raw:
+            logger.debug("[shopee] search_items no items yet, skipping")
+            return
         if not captured:
+            logger.info("[shopee] Captured %d items from search_items", len(raw))
             captured["data"] = data
 
     page.on("response", on_response)
@@ -208,7 +210,7 @@ async def _intercept_search_api(page: Page, keyword: str) -> list[WatcherItem]:
         f"https://shopee.tw/search?keyword={quote(keyword)}&sortBy=ctime&order=desc"
     )
     try:
-        await page.goto(search_url, timeout=25_000, wait_until="domcontentloaded")
+        await page.goto(search_url, timeout=30_000, wait_until="domcontentloaded")
     except Exception as exc:
         logger.error("[shopee] Navigation error: %s", exc)
         page.remove_listener("response", on_response)
@@ -219,8 +221,8 @@ async def _intercept_search_api(page: Page, keyword: str) -> list[WatcherItem]:
         page.remove_listener("response", on_response)
         return []
 
-    # Wait up to 12 s for the API response to be captured
-    for _ in range(24):
+    # Wait up to 20 s for the actual search API response (JS fires it after page init)
+    for _ in range(40):
         if captured:
             break
         await asyncio.sleep(0.5)
