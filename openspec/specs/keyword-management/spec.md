@@ -8,14 +8,14 @@ TBD - created by archiving change 'saas-webapp'. Update Purpose after archive.
 
 ### Requirement: Authenticated user can create a keyword
 
-The system SHALL allow an authenticated user to create a new keyword with platform selection, optional price range, and active status.
+The system SHALL allow an authenticated user to create a new keyword with platform selection, optional price range, and active status. After a successful creation, the keyword list SHALL be updated without requiring a full page reload.
 
 #### Scenario: User creates a keyword with required fields
 
 - **WHEN** a user submits the keyword creation form with a non-empty `keyword` string and at least one platform selected (`shopee` or `ruten`)
 - **THEN** a `Keyword` row SHALL be created in the database with `userId` set to the authenticated user's ID
 - **AND** `active` SHALL default to `true`
-- **AND** the new keyword SHALL appear in the user's keyword list
+- **AND** the keyword list SHALL refresh and display the new keyword without a full page reload
 
 #### Scenario: Keyword creation with price range
 
@@ -37,68 +37,12 @@ The system SHALL allow an authenticated user to create a new keyword with platfo
 
 
 <!-- @trace
-source: saas-webapp
-updated: 2026-03-31
+source: keyword-ux-improvements
+updated: 2026-04-01
 code:
-  - webapp/app/api/keywords/[id]/route.ts
-  - src/scrapers/ruten.py
-  - webapp/app/globals.css
-  - webapp/package.json
-  - webapp/app/favicon.ico
-  - webapp/public/file.svg
-  - webapp/tsconfig.json
-  - webapp/middleware.ts
-  - webapp/prisma/migrations/migration_lock.toml
-  - webapp/app/api/worker/notify/route.ts
-  - webapp/app/login/page.tsx
-  - webapp/eslint.config.mjs
-  - webapp/public/globe.svg
-  - webapp/types/next-auth.d.ts
-  - webapp/next.config.ts
-  - webapp/public/vercel.svg
-  - webapp/vercel.json
-  - main.py
-  - poc/screenshots/shopee.png
-  - webapp/app/dashboard/layout.tsx
-  - .github/workflows/worker.yml
-  - .env.example
-  - webapp/lib/email.ts
-  - webapp/lib/prisma.ts
-  - webapp/components/KeywordForm.tsx
-  - webapp/app/api/worker/keywords/route.ts
-  - webapp/components/NotificationForm.tsx
-  - fly.toml
-  - src/database.py
-  - webapp/app/api/keywords/route.ts
-  - src/api_client.py
-  - webapp/app/api/settings/route.ts
-  - webapp/postcss.config.mjs
   - webapp/app/dashboard/page.tsx
-  - config.example.yaml
-  - webapp/app/page.tsx
-  - webapp/components/KeywordFormWrapper.tsx
-  - poc/screenshots/ruten.png
-  - webapp/lib/worker-auth.ts
-  - src/config.py
-  - webapp/app/settings/page.tsx
-  - webapp/prisma/migrations/20260331075111_init/migration.sql
-  - requirements.txt
-  - webapp/components/KeywordList.tsx
-  - webapp/prisma/schema.prisma
-  - .github/workflows/ci.yml
-  - src/scheduler.py
-  - src/scrapers/shopee.py
-  - webapp/app/api/auth/[...nextauth]/route.ts
-  - webapp/auth.ts
-  - webapp/lib/discord.ts
-  - webapp/public/window.svg
-  - webapp/app/layout.tsx
-  - webapp/public/next.svg
-  - src/scrapers/__init__.py
-  - src/notifier.py
-  - Dockerfile
-  - run_once.py
-  - webapp/README.md
+  - webapp/app/api/keywords/route.ts
+  - webapp/components/NotificationBanner.tsx
 -->
 
 ---
@@ -432,3 +376,40 @@ code:
   - run_once.py
   - webapp/README.md
 -->
+
+---
+### Requirement: Duplicate keyword creation is rejected for the same user
+
+The system SHALL prevent a user from creating a keyword with the same `keyword` text and identical `platforms` array as an existing keyword owned by that user. Different users MAY have keywords with identical text and platforms.
+
+#### Scenario: User attempts to create a duplicate keyword
+
+- **WHEN** a user submits a keyword creation form with a `keyword` and `platforms` combination that already exists for that user
+- **THEN** the API SHALL return HTTP 409 Conflict
+- **AND** no new `Keyword` row SHALL be created in the database
+- **AND** the response body SHALL include an error message indicating the keyword already exists
+
+#### Scenario: User creates a keyword that another user already has
+
+- **WHEN** User A submits a keyword that User B already has with the same text and platforms
+- **THEN** the API SHALL return HTTP 201 Created
+- **AND** a new `Keyword` row SHALL be created for User A
+
+#### Scenario: Same keyword text with different platforms is allowed
+
+- **WHEN** a user submits a keyword with text "藍藍檔案" and platforms `["shopee"]`
+- **AND** that user already has a keyword with text "藍藍檔案" and platforms `["shopee", "ruten"]`
+- **THEN** the API SHALL return HTTP 201 Created
+- **AND** a new `Keyword` row SHALL be created
+
+
+<!-- @trace
+source: keyword-ux-improvements
+updated: 2026-04-01
+code:
+  - webapp/app/dashboard/page.tsx
+  - webapp/app/api/keywords/route.ts
+  - webapp/components/NotificationBanner.tsx
+-->
+
+---

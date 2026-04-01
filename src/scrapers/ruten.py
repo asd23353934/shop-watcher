@@ -75,8 +75,9 @@ async def scrape_ruten(
                 continue
             seen_ids.add(item_id)
 
-            # ── Name ──────────────────────────────────────────────────────
+            # ── Name & Seller ─────────────────────────────────────────────
             # Ruten item name is extracted from the card text
+            # Ruten seller name is the second non-empty line of card text
             raw_text = (await a.inner_text()).strip()
             lines = [
                 ln.strip()
@@ -84,6 +85,7 @@ async def scrape_ruten(
                 if ln.strip() and not ln.strip().isdigit()
             ]
             name = lines[0] if lines else ""
+            seller_name = lines[1] if len(lines) > 1 else None
 
             if not name:
                 img_el = await a.query_selector("img")
@@ -141,6 +143,7 @@ async def scrape_ruten(
                     price=price,
                     url=full_url,
                     image_url=image_url,
+                    seller_name=seller_name[:80] if seller_name else None,
                 )
             )
         except Exception as exc:

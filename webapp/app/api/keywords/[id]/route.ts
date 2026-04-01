@@ -25,7 +25,7 @@ export async function PATCH(
   }
 
   const body = await request.json()
-  const { keyword, platforms, minPrice, maxPrice, active } = body
+  const { keyword, platforms, minPrice, maxPrice, active, blocklist } = body
 
   const updated = await prisma.keyword.update({
     where: { id },
@@ -35,6 +35,11 @@ export async function PATCH(
       ...(minPrice !== undefined && { minPrice: minPrice != null ? Number(minPrice) : null }),
       ...(maxPrice !== undefined && { maxPrice: maxPrice != null ? Number(maxPrice) : null }),
       ...(active !== undefined && { active }),
+      ...(blocklist !== undefined && {
+        blocklist: Array.isArray(blocklist)
+          ? blocklist.map((w: string) => w.trim()).filter((w: string) => w.length > 0)
+          : [],
+      }),
     },
   })
 

@@ -11,6 +11,7 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
   const [platforms, setPlatforms] = useState<string[]>(['shopee', 'ruten'])
   const [minPrice, setMinPrice] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
+  const [blocklist, setBlocklist] = useState('')
   const [active, setActive] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -35,6 +36,10 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
           platforms,
           minPrice: minPrice ? Number(minPrice) : null,
           maxPrice: maxPrice ? Number(maxPrice) : null,
+          blocklist: blocklist
+            .split(',')
+            .map((w) => w.trim())
+            .filter((w) => w.length > 0),
           active,
         }),
       })
@@ -50,6 +55,7 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
       setPlatforms(['shopee', 'ruten'])
       setMinPrice('')
       setMaxPrice('')
+      setBlocklist('')
       setActive(true)
       onSuccess?.()
     } catch {
@@ -126,6 +132,21 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
             className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
+      </div>
+
+      {/* Blocklist */}
+      <div className="mb-4">
+        <label className="mb-1 block text-sm font-medium text-gray-700">
+          禁詞（選填）
+        </label>
+        <input
+          type="text"
+          value={blocklist}
+          onChange={(e) => setBlocklist(e.target.value)}
+          placeholder="廣告,整組,代工（逗號分隔）"
+          className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+        <p className="mt-1 text-xs text-gray-400">商品名稱包含禁詞時不會發送通知</p>
       </div>
 
       {/* Active toggle */}

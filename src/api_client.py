@@ -91,5 +91,42 @@ class WorkerApiClient:
             logger.error("notify_item: network error — %s", exc)
             return False
 
+    async def notify_batch(self, keyword_id: str, items: list) -> dict:
+        """
+        POST /api/worker/notify/batch
+
+        Sends a batch of scraped WatcherItems to the Next.js API in a single request.
+        Returns { "new": N, "duplicate": M } on success, or { "new": 0, "duplicate": 0 } on error.
+        """
+        url = f"{self._base_url}/api/worker/notify/batch"
+        payload = {
+            "keyword_id": keyword_id,
+            "items": [
+                {
+                    "platform": item.platform,
+                    "item_id": item.item_id,
+                    "name": item.name,
+                    "price": item.price,
+                    "url": item.url,
+                    "image_url": item.image_url,
+                    "seller_name": item.seller_name,
+                }
+                for item in items
+            ],
+        }
+        try:
+            resp = await self._client.post(url, json=payload)
+            if resp.status_code in (200, 201):
+                return resp.json()
+            logger.error(
+                "notify_batch: HTTP %s — %s",
+                resp.status_code,
+                resp.text[:200],
+            )
+            return {"new": 0, "duplicate": 0}
+        except httpx.HTTPError as exc:
+            logger.error("notify_batch: network error — %s", exc)
+            return {"new": 0, "duplicate": 0}
+
     async def close(self) -> None:
         await self._client.aclose()

@@ -11,7 +11,7 @@ class WatcherItem:
     price: Optional[float]      # TWD
     url: str
     image_url: Optional[str] = None
-    seller: Optional[str] = None
+    seller_name: Optional[str] = None
 
 
 class BaseWatcher(ABC):

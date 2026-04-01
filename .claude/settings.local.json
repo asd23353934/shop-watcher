@@ -64,7 +64,9 @@
       "Read(//c/Users/user/Desktop/gitlab/shop-watcher/**)",
       "Bash(done)",
       "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); findings=[f for f in data[''''findings''''] if f[''''severity''''] in \\(''''Critical'''',''''Warning''''\\)]; print\\(f''''{len\\(findings\\)} Critical/Warning findings''''\\); [print\\(f[''''id''''], f[''''summary'''']\\) for f in findings]\")",
-      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d[''''state''''], d[''''progress'''']\\)\")"
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d[''''state''''], d[''''progress'''']\\)\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); w=[f for f in d[''''findings''''] if f[''''severity''''] in \\(''''Critical'''',''''Warning''''\\)]; print\\(f''''{len\\(w\\)} Critical/Warning''''\\); [print\\(f[''''id''''],f[''''summary'''']\\) for f in w]\")",
+      "Bash(spectra --version)"
     ]
   }
 }

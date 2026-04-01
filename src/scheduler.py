@@ -74,6 +74,10 @@ async def run_scan_cycle(api: WorkerApiClient) -> None:
                 max_price: Optional[float] = kw.get("maxPrice")
 
                 # Each keyword-platform pair is searched independently
+                # Blocklist: lower-cased forbidden terms for this keyword
+                blocklist = [w.lower() for w in kw.get("blocklist", []) if w.strip()]
+
+                # Each keyword-platform pair is searched independently
                 for platform in platforms:
                     page = await context.new_page()
                     try:
@@ -97,17 +101,29 @@ async def run_scan_cycle(api: WorkerApiClient) -> None:
                     finally:
                         await page.close()
 
-                    # Found items are reported to Next.js API immediately after each search
-                    reported = 0
-                    for item in items:
-                        ok = await api.notify_item(keyword_id, item)
-                        if ok:
-                            reported += 1
+                    # Scraped items are filtered by keyword blocklist before notification
+                    if blocklist:
+                        before = len(items)
+                        items = [
+                            item for item in items
+                            if not any(word in item.name.lower() for word in blocklist)
+                        ]
+                        filtered = before - len(items)
+                        if filtered:
+                            logger.debug(
+                                "[%s] %s — blocked %d item(s) by blocklist",
+                                platform, keyword_text, filtered,
+                            )
+
+                    # Batch-report all filtered items in a single API call
+                    result = await api.notify_batch(keyword_id, items)
+                    new_count = result.get("new", 0)
+                    dup_count = result.get("duplicate", 0)
 
                     # Per-scan summary is logged to stdout
                     logger.info(
-                        "[%s] %s — %d found, %d reported",
-                        platform, keyword_text, len(items), reported,
+                        "[%s] %s — %d found, %d new, %d duplicate",
+                        platform, keyword_text, len(items), new_count, dup_count,
                     )
         finally:
             # Browser is always closed after a scan cycle

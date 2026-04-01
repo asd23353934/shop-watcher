@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { keyword, platforms, minPrice, maxPrice, active } = body
+  const { keyword, platforms, minPrice, maxPrice, active, blocklist } = body
 
   // Keyword creation with empty keyword string is rejected
   if (!keyword || typeof keyword !== 'string' || keyword.trim() === '') {
@@ -55,6 +55,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: '此關鍵字與平台組合已存在' }, { status: 409 })
   }
 
+  const parsedBlocklist: string[] = Array.isArray(blocklist)
+    ? blocklist.map((w: string) => w.trim()).filter((w: string) => w.length > 0)
+    : []
+
   const newKeyword = await prisma.keyword.create({
     data: {
       userId: session.user.id,
@@ -62,6 +66,7 @@ export async function POST(request: Request) {
       platforms,
       minPrice: minPrice != null ? Number(minPrice) : null,
       maxPrice: maxPrice != null ? Number(maxPrice) : null,
+      blocklist: parsedBlocklist,
       active: active !== false,
     },
   })

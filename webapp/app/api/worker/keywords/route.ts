@@ -34,6 +34,7 @@ export async function GET(request: Request) {
     platforms: kw.platforms,
     minPrice: kw.minPrice,
     maxPrice: kw.maxPrice,
+    blocklist: kw.blocklist,
     notificationSetting: kw.user.notificationSetting
       ? {
           discordWebhookUrl: kw.user.notificationSetting.discordWebhookUrl,

@@ -179,6 +179,24 @@ async def scrape_shopee(
             except Exception:
                 pass
 
+            # Seller name: try [class*="shop"] or [class*="seller"] inside card,
+            # then fall back to href pattern -s.{shopId} adjacent element
+            seller_name = None
+            try:
+                container = await a.evaluate_handle(
+                    "el => el.closest('[data-sqe]') || el.parentElement"
+                )
+                if container:
+                    for sel in ['[class*="shop"]', '[class*="seller"]']:
+                        seller_el = await container.query_selector(sel)
+                        if seller_el:
+                            text = (await seller_el.inner_text()).strip()
+                            if text:
+                                seller_name = text[:80]
+                                break
+            except Exception:
+                pass
+
             items.append(
                 WatcherItem(
                     platform="shopee",
@@ -187,6 +205,7 @@ async def scrape_shopee(
                     price=price,
                     url=full_url,
                     image_url=image_url,
+                    seller_name=seller_name,
                 )
             )
         except Exception as exc:
