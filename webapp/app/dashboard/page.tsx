@@ -26,7 +26,7 @@ export default async function DashboardPage() {
   ])
 
   const hasNotification =
-    !!notificationSetting?.discordWebhookUrl || !!notificationSetting?.notifyEmail
+    !!notificationSetting?.discordWebhookUrl || !!notificationSetting?.emailAddress
 
   return (
     <div>
