@@ -117,9 +117,18 @@ async def _scrape_shopee_api(page: Page, keyword: str) -> list[WatcherItem]:
         logger.warning("[shopee] API returned null/empty response")
         return []
 
-    raw_items = result.get("items") or []
+    # Log top-level keys to help diagnose structure changes
+    top_keys = list(result.keys()) if isinstance(result, dict) else []
+    logger.info("[shopee] API response keys: %s", top_keys)
+
+    # Try multiple known response structures
+    raw_items = (
+        result.get("items")
+        or result.get("data", {}).get("items")
+        or []
+    )
     if not raw_items:
-        logger.info("[shopee] API: no items in response")
+        logger.warning("[shopee] API: no items in response (keys=%s)", top_keys)
         return []
 
     items: list[WatcherItem] = []
@@ -183,29 +192,13 @@ async def _scrape_shopee_api(page: Page, keyword: str) -> list[WatcherItem]:
     return items
 
 
-async def _scrape_shopee_dom(page: Page, keyword: str) -> list[WatcherItem]:
+async def _scrape_shopee_dom_from_loaded_page(page: Page, keyword: str) -> list[WatcherItem]:
     """
-    DOM-based fallback scraper.  Navigates to the search page and parses
-    product cards.  Returns [] if no selectors match.
+    DOM-based fallback scraper for an already-loaded search page.
+    Waits for product card selectors then parses links.
+    Returns [] if no selectors match.
     """
-    search_url = (
-        f"https://shopee.tw/search?keyword={quote(keyword)}&sortBy=ctime&order=desc"
-    )
-    try:
-        await page.goto(search_url, timeout=20_000, wait_until="domcontentloaded")
-        await asyncio.sleep(3)
-    except PWTimeout:
-        logger.error("[shopee] DOM: search page navigation timed out")
-        return []
-    except Exception as exc:
-        logger.error("[shopee] DOM: search page error: %s", exc)
-        return []
-
-    if "login" in page.url:
-        logger.warning("[shopee] DOM: search page redirected to login")
-        return []
-
-    # Wait for product cards
+    # Wait for product cards (page already navigated)
     loaded = False
     for sel in [
         '[data-sqe="item"]',
@@ -305,35 +298,45 @@ async def scrape_shopee(
     """
     Search Shopee for newest listings matching keyword.
 
-    Tries the internal JSON API first (faster, no DOM fragility).
-    Falls back to DOM scraping if the API returns no items.
+    Strategy:
+    1. Navigate directly to the search URL (avoids repeated homepage bot detection).
+    2. Override navigator.webdriver to bypass basic headless detection.
+    3. Try internal JSON API via browser fetch (inherits cookies).
+    4. Fall back to DOM scraping if API returns nothing.
 
     Returns list of WatcherItem, filtered by price range if configured.
     Never raises — returns [] on any error.
     """
-    # ── Step 1: Homepage first to obtain session cookies ──────────────────
+    # ── Step 1: Override webdriver flag before any navigation ────────────
+    await page.add_init_script(
+        "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+    )
+
+    # ── Step 2: Navigate directly to search page ──────────────────────────
+    search_url = (
+        f"https://shopee.tw/search?keyword={quote(keyword)}&sortBy=ctime&order=desc"
+    )
     try:
-        await page.goto(
-            "https://shopee.tw/",
-            timeout=20_000,
-            wait_until="domcontentloaded",
-        )
-        await asyncio.sleep(HOMEPAGE_WAIT)
+        await page.goto(search_url, timeout=25_000, wait_until="domcontentloaded")
+        await asyncio.sleep(3)
     except Exception as exc:
-        logger.error("[shopee] Homepage navigation error: %s", exc)
+        logger.error("[shopee] Navigation error: %s", exc)
         return []
 
-    if "login" in page.url:
-        logger.warning("[shopee] Homepage redirected to login — bot detected")
+    current_url = page.url
+    if "login" in current_url:
+        logger.warning("[shopee] Redirected to login for keyword=%s", keyword)
         return []
 
-    # ── Step 2: Try internal API ──────────────────────────────────────────
+    logger.info("[shopee] Loaded search page for keyword=%s url=%s", keyword, current_url[:80])
+
+    # ── Step 3: Try internal API (cookies now set by search page) ────────
     items = await _scrape_shopee_api(page, keyword)
 
-    # ── Step 3: DOM fallback if API yielded nothing ───────────────────────
+    # ── Step 4: DOM fallback if API yielded nothing ───────────────────────
     if not items:
-        logger.info("[shopee] API returned 0 items, falling back to DOM scrape")
-        items = await _scrape_shopee_dom(page, keyword)
+        logger.info("[shopee] API returned 0 items, falling back to DOM scrape for keyword=%s", keyword)
+        items = await _scrape_shopee_dom_from_loaded_page(page, keyword)
 
-    # ── Step 4: Apply price filter ────────────────────────────────────────
+    # ── Step 5: Apply price filter ────────────────────────────────────────
     return _apply_price_filter(items, min_price, max_price)
