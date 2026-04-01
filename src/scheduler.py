@@ -147,6 +147,7 @@ async def run_scan_cycle(api: WorkerApiClient) -> None:
                 logger.info("Shopee cookies injected: %d cookies", len(shopee_cookies))
             except Exception as exc:
                 logger.warning("Failed to inject Shopee cookies: %s", exc)
+                await _notify_scrape_error("shopee", "cookie-injection", exc)
 
         try:
             for kw in keywords:
