@@ -135,6 +135,12 @@ async def _scrape_shopee_api(page: Page, keyword: str) -> list[WatcherItem]:
 
     logger.info("[shopee] API: found %d raw items", len(raw_items))
 
+    # Log first item structure to help diagnose field names
+    if raw_items:
+        first = raw_items[0]
+        info0 = first.get("item_basic") or first
+        logger.info("[shopee] API first item keys: %s", list(info0.keys())[:20])
+
     items: list[WatcherItem] = []
     seen_ids: set[str] = set()
 
