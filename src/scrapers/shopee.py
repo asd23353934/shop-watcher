@@ -1,14 +1,17 @@
 """
 Shopee scraper using Playwright headless Chromium.
 
-Strategy: visit homepage first to obtain session cookies,
-then navigate to search page. No playwright-stealth required.
+Strategy:
+1. Visit homepage to obtain session cookies.
+2. Call Shopee's internal search API via browser fetch (inherits cookies/headers).
+3. Fall back to DOM scraping if the API returns no items.
 """
 
 import asyncio
 import logging
 import re
 from typing import Optional
+from urllib.parse import quote
 
 from playwright.async_api import Page, TimeoutError as PWTimeout
 
@@ -16,7 +19,7 @@ from src.watchers.base import WatcherItem
 
 logger = logging.getLogger(__name__)
 
-SEARCH_TIMEOUT = 15_000  # ms
+SEARCH_TIMEOUT = 15_000  # ms (DOM fallback only)
 HOMEPAGE_WAIT = 3  # seconds after homepage load
 
 
@@ -75,6 +78,224 @@ def _apply_price_filter(
     return result
 
 
+async def _scrape_shopee_api(page: Page, keyword: str) -> list[WatcherItem]:
+    """
+    Fetch search results from Shopee's internal JSON API via browser fetch.
+    Inherits session cookies from the already-loaded homepage context.
+    Returns [] on any error.
+    """
+    encoded = quote(keyword)
+    api_url = (
+        "https://shopee.tw/api/v4/search/search_items"
+        f"?by=ctime&keyword={encoded}&limit=50&newest=0"
+        "&order=desc&page_type=search&scenario=PAGE_GLOBAL_SEARCH&version=2"
+    )
+
+    try:
+        result = await page.evaluate(
+            """
+            async (url) => {
+                const res = await fetch(url, {
+                    headers: {
+                        'accept': 'application/json',
+                        'x-api-source': 'pc',
+                        'x-requested-with': 'XMLHttpRequest',
+                    },
+                    credentials: 'include',
+                });
+                if (!res.ok) return null;
+                return await res.json();
+            }
+            """,
+            api_url,
+        )
+    except Exception as exc:
+        logger.error("[shopee] API fetch error: %s", exc)
+        return []
+
+    if not result:
+        logger.warning("[shopee] API returned null/empty response")
+        return []
+
+    raw_items = result.get("items") or []
+    if not raw_items:
+        logger.info("[shopee] API: no items in response")
+        return []
+
+    items: list[WatcherItem] = []
+    seen_ids: set[str] = set()
+
+    for raw in raw_items[:25]:
+        try:
+            info = raw.get("item_basic") or {}
+            item_id = str(info.get("itemid", ""))
+            shop_id = str(info.get("shopid", ""))
+            if not item_id or item_id in seen_ids:
+                continue
+            seen_ids.add(item_id)
+
+            name = (info.get("name") or f"item-{item_id}")[:120]
+
+            # Shopee prices are in units of 100,000 (5 decimal places)
+            price: Optional[float] = None
+            price_text: Optional[str] = None
+            price_min = info.get("price_min")
+            price_max = info.get("price_max")
+            price_val = info.get("price")
+
+            if price_min is not None and price_max is not None:
+                p_min = price_min / 100_000
+                p_max = price_max / 100_000
+                price = p_min
+                if abs(p_min - p_max) >= 1:
+                    price_text = f"{int(p_min):,} ~ {int(p_max):,}"
+            elif price_val is not None:
+                price = price_val / 100_000
+
+            # Build item URL: name slug + shop_id.item_id
+            name_slug = re.sub(r"\s+", "-", name.strip())
+            url = f"https://shopee.tw/{name_slug}-i.{shop_id}.{item_id}"
+
+            # Image (CDN thumbnail)
+            image_url: Optional[str] = None
+            image = info.get("image")
+            if image:
+                image_url = f"https://cf.shopee.tw/file/{image}_tn"
+
+            seller_name: Optional[str] = info.get("shop_name") or None
+
+            items.append(
+                WatcherItem(
+                    platform="shopee",
+                    item_id=item_id,
+                    name=name,
+                    price=price,
+                    url=url,
+                    image_url=image_url,
+                    seller_name=seller_name,
+                    price_text=price_text,
+                )
+            )
+        except Exception as exc:
+            logger.debug("[shopee] API parse error: %s", exc)
+
+    logger.info("[shopee] API returned %d item(s) for keyword=%s", len(items), keyword)
+    return items
+
+
+async def _scrape_shopee_dom(page: Page, keyword: str) -> list[WatcherItem]:
+    """
+    DOM-based fallback scraper.  Navigates to the search page and parses
+    product cards.  Returns [] if no selectors match.
+    """
+    search_url = (
+        f"https://shopee.tw/search?keyword={quote(keyword)}&sortBy=ctime&order=desc"
+    )
+    try:
+        await page.goto(search_url, timeout=20_000, wait_until="domcontentloaded")
+        await asyncio.sleep(3)
+    except PWTimeout:
+        logger.error("[shopee] DOM: search page navigation timed out")
+        return []
+    except Exception as exc:
+        logger.error("[shopee] DOM: search page error: %s", exc)
+        return []
+
+    if "login" in page.url:
+        logger.warning("[shopee] DOM: search page redirected to login")
+        return []
+
+    # Wait for product cards
+    loaded = False
+    for sel in [
+        '[data-sqe="item"]',
+        ".shopee-search-item-result__item",
+        'a[href*="-i."]',
+        '[class*="search-item"]',
+        'li[class*="col-xs"]',
+    ]:
+        try:
+            await page.wait_for_selector(sel, timeout=SEARCH_TIMEOUT)
+            loaded = True
+            break
+        except PWTimeout:
+            continue
+
+    if not loaded:
+        logger.warning("[shopee] DOM: product selectors timed out for keyword=%s", keyword)
+        return []
+
+    links = await page.query_selector_all('a[href*="-i."]')
+    items: list[WatcherItem] = []
+    seen_ids: set[str] = set()
+
+    for a in links[:25]:
+        try:
+            href = await a.get_attribute("href") or ""
+            m = re.search(r"-i\.(\d+)\.(\d+)", href)
+            if not m:
+                continue
+            shop_id, item_id = m.group(1), m.group(2)
+            if item_id in seen_ids:
+                continue
+            seen_ids.add(item_id)
+
+            slug_match = re.match(r"/([^?]+)-i\.", href)
+            name = ""
+            if slug_match:
+                from urllib.parse import unquote
+                raw_slug = unquote(slug_match.group(1))
+                name = raw_slug.replace("-", " ").strip()
+            if not name:
+                name = f"item-{item_id}"
+
+            full_url = f"https://shopee.tw{href}" if href.startswith("/") else href
+
+            price = None
+            price_text = None
+            try:
+                price_el = await a.query_selector('[class*="price"]')
+                if not price_el:
+                    container = await a.evaluate_handle(
+                        "el => el.closest('[data-sqe]') || el.parentElement"
+                    )
+                    if container:
+                        price_el = await container.query_selector('[class*="price"]')
+                if price_el:
+                    raw_price_text = await price_el.inner_text()
+                    price = _parse_price(raw_price_text)
+                    price_text = _extract_price_text(raw_price_text)
+            except Exception:
+                pass
+
+            image_url = None
+            try:
+                img_el = await a.query_selector("img")
+                if img_el:
+                    src = await img_el.get_attribute("src") or ""
+                    image_url = None if src.startswith("data:") else src or None
+            except Exception:
+                pass
+
+            items.append(
+                WatcherItem(
+                    platform="shopee",
+                    item_id=item_id,
+                    name=name[:120],
+                    price=price,
+                    url=full_url,
+                    image_url=image_url,
+                    seller_name=None,
+                    price_text=price_text,
+                )
+            )
+        except Exception as exc:
+            logger.debug("[shopee] DOM parse error: %s", exc)
+
+    logger.info("[shopee] DOM returned %d item(s) for keyword=%s", len(items), keyword)
+    return items
+
+
 async def scrape_shopee(
     page: Page,
     keyword: str,
@@ -84,11 +305,13 @@ async def scrape_shopee(
     """
     Search Shopee for newest listings matching keyword.
 
+    Tries the internal JSON API first (faster, no DOM fragility).
+    Falls back to DOM scraping if the API returns no items.
+
     Returns list of WatcherItem, filtered by price range if configured.
     Never raises — returns [] on any error.
     """
     # ── Step 1: Homepage first to obtain session cookies ──────────────────
-    # Shopee search navigates to homepage first to obtain session cookies
     try:
         await page.goto(
             "https://shopee.tw/",
@@ -104,138 +327,13 @@ async def scrape_shopee(
         logger.warning("[shopee] Homepage redirected to login — bot detected")
         return []
 
-    # ── Step 2: Navigate to search page ───────────────────────────────────
-    search_url = (
-        f"https://shopee.tw/search?keyword={keyword}&sortBy=ctime&order=desc"
-    )
-    try:
-        await page.goto(
-            search_url, timeout=20_000, wait_until="domcontentloaded"
-        )
-        await asyncio.sleep(3)
-    except PWTimeout:
-        logger.error("[shopee] Search page navigation timed out")
-        return []
-    except Exception as exc:
-        logger.error("[shopee] Search page error: %s", exc)
-        return []
+    # ── Step 2: Try internal API ──────────────────────────────────────────
+    items = await _scrape_shopee_api(page, keyword)
 
-    if "login" in page.url:
-        logger.warning("[shopee] Search page redirected to login")
-        return []
+    # ── Step 3: DOM fallback if API yielded nothing ───────────────────────
+    if not items:
+        logger.info("[shopee] API returned 0 items, falling back to DOM scrape")
+        items = await _scrape_shopee_dom(page, keyword)
 
-    # ── Step 3: Wait for product cards ────────────────────────────────────
-    # Shopee search returns newest listings sorted by creation time
-    loaded = False
-    for sel in [
-        '[data-sqe="item"]',
-        ".shopee-search-item-result__item",
-        'a[href*="-i."]',
-    ]:
-        try:
-            await page.wait_for_selector(sel, timeout=SEARCH_TIMEOUT)
-            loaded = True
-            break
-        except PWTimeout:
-            continue
-
-    if not loaded:
-        # Shopee search timeout returns empty list
-        logger.warning("[shopee] Product selectors timed out for keyword=%s", keyword)
-        return []
-
-    # ── Step 4: Extract items ─────────────────────────────────────────────
-    links = await page.query_selector_all('a[href*="-i."]')
-    items: list[WatcherItem] = []
-    seen_ids: set[str] = set()
-
-    for a in links[:25]:
-        try:
-            href = await a.get_attribute("href") or ""
-            # Pattern: /{slug}-i.{shopid}.{itemid}
-            m = re.search(r"-i\.(\d+)\.(\d+)", href)
-            if not m:
-                continue
-            shop_id, item_id = m.group(1), m.group(2)
-            if item_id in seen_ids:
-                continue
-            seen_ids.add(item_id)
-
-            # Name: decode URL-encoded slug, take readable text
-            slug_match = re.match(r"/([^?]+)-i\.", href)
-            name = ""
-            if slug_match:
-                from urllib.parse import unquote
-                raw_slug = unquote(slug_match.group(1))
-                # Remove trailing duplicate product ID portion
-                name = raw_slug.replace("-", " ").strip()
-            if not name:
-                name = f"item-{item_id}"
-
-            # URL: Shopee item ID and shop ID are extracted from the product card link
-            full_url = f"https://shopee.tw{href}" if href.startswith("/") else href
-
-            # Price: extract from [class*="price"] element
-            price = None
-            price_text = None
-            try:
-                price_el = await a.query_selector('[class*="price"]')
-                if not price_el:
-                    # Try parent container
-                    container = await a.evaluate_handle(
-                        "el => el.closest('[data-sqe]') || el.parentElement"
-                    )
-                    if container:
-                        price_el = await container.query_selector('[class*="price"]')
-                if price_el:
-                    raw_price_text = await price_el.inner_text()
-                    price = _parse_price(raw_price_text)
-                    price_text = _extract_price_text(raw_price_text)
-            except Exception:
-                pass
-
-            # Image
-            image_url = None
-            try:
-                img_el = await a.query_selector("img")
-                if img_el:
-                    src = await img_el.get_attribute("src") or ""
-                    image_url = None if src.startswith("data:") else src or None
-            except Exception:
-                pass
-
-            # Seller name: try [class*="shop"] or [class*="seller"] inside card,
-            # then fall back to href pattern -s.{shopId} adjacent element
-            seller_name = None
-            try:
-                container = await a.evaluate_handle(
-                    "el => el.closest('[data-sqe]') || el.parentElement"
-                )
-                if container:
-                    for sel in ['[class*="shop"]', '[class*="seller"]']:
-                        seller_el = await container.query_selector(sel)
-                        if seller_el:
-                            text = (await seller_el.inner_text()).strip()
-                            if text:
-                                seller_name = text[:80]
-                                break
-            except Exception:
-                pass
-
-            items.append(
-                WatcherItem(
-                    platform="shopee",
-                    item_id=item_id,
-                    name=name[:120],
-                    price=price,
-                    url=full_url,
-                    image_url=image_url,
-                    seller_name=seller_name,
-                    price_text=price_text,
-                )
-            )
-        except Exception as exc:
-            logger.debug("[shopee] Parse error: %s", exc)
-
-    # ── Step 5: Apply price filter ────────────────────────────────────────
+    # ── Step 4: Apply price filter ────────────────────────────────────────
     return _apply_price_filter(items, min_price, max_price)
