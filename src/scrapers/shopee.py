@@ -78,65 +78,18 @@ def _apply_price_filter(
     return result
 
 
-async def _scrape_shopee_api(page: Page, keyword: str) -> list[WatcherItem]:
-    """
-    Fetch search results from Shopee's internal JSON API via browser fetch.
-    Inherits session cookies from the already-loaded homepage context.
-    Returns [] on any error.
-    """
-    encoded = quote(keyword)
-    api_url = (
-        "https://shopee.tw/api/v4/search/search_items"
-        f"?by=ctime&keyword={encoded}&limit=50&newest=0"
-        "&order=desc&page_type=search&scenario=PAGE_GLOBAL_SEARCH&version=2"
-    )
-
-    try:
-        cookies = await page.context.cookies("https://shopee.tw")
-        cookie_map = {c["name"]: c["value"] for c in cookies}
-        cookie_header = "; ".join(f"{c['name']}={c['value']}" for c in cookies)
-        # Shopee API requires the CSRF token from cookie as a request header
-        csrf_token = cookie_map.get("csrftoken", "")
-
-        response = await page.request.get(
-            api_url,
-            headers={
-                "accept": "application/json",
-                "referer": f"https://shopee.tw/search?keyword={quote(keyword)}",
-                "x-api-source": "pc",
-                "x-requested-with": "XMLHttpRequest",
-                "x-csrftoken": csrf_token,
-                "cookie": cookie_header,
-            },
-        )
-        if not response.ok:
-            body = await response.text()
-            logger.warning(
-                "[shopee] API HTTP %d for keyword=%s body=%s",
-                response.status, keyword, body[:200],
-            )
-            return []
-        result = await response.json()
-    except Exception as exc:
-        logger.error("[shopee] API fetch error: %s", exc)
-        return []
-
+def _parse_api_items(result: dict, keyword: str) -> list[WatcherItem]:
+    """Parse Shopee API JSON response into WatcherItem list."""
     if not result or not isinstance(result, dict):
-        logger.warning("[shopee] API returned null/empty response")
         return []
-
-    # Shopee API returns items as numeric string keys: {"0": {...}, "1": {...}, "error": 0}
-    # Also support nested {"items": [...]} and {"data": {"items": [...]}} formats
-    if result.get("error") not in (None, 0, ""):
-        logger.warning("[shopee] API returned error: %s", result.get("error"))
 
     raw_items = (
         result.get("items")
         or result.get("data", {}).get("items")
-        or [result[k] for k in result if k.isdigit()]
+        or [result[k] for k in result if isinstance(k, str) and k.isdigit()]
     )
     if not raw_items:
-        logger.warning("[shopee] API: no items in response (keys=%s)", list(result.keys()))
+        logger.warning("[shopee] API: no items in response (keys=%s)", list(result.keys())[:10])
         return []
 
     logger.info("[shopee] API: found %d raw items for keyword=%s", len(raw_items), keyword)
@@ -145,7 +98,6 @@ async def _scrape_shopee_api(page: Page, keyword: str) -> list[WatcherItem]:
 
     for raw in raw_items[:25]:
         try:
-            # Support {"item_basic": {...}} and raw item dict formats
             info = raw.get("item_basic") or raw
             item_id = str(info.get("itemid", ""))
             shop_id = str(info.get("shopid", ""))
@@ -171,11 +123,9 @@ async def _scrape_shopee_api(page: Page, keyword: str) -> list[WatcherItem]:
             elif price_val is not None:
                 price = price_val / 100_000
 
-            # Build item URL: name slug + shop_id.item_id
             name_slug = re.sub(r"\s+", "-", name.strip())
             url = f"https://shopee.tw/{name_slug}-i.{shop_id}.{item_id}"
 
-            # Image (CDN thumbnail)
             image_url: Optional[str] = None
             image = info.get("image")
             if image:
@@ -198,7 +148,56 @@ async def _scrape_shopee_api(page: Page, keyword: str) -> list[WatcherItem]:
         except Exception as exc:
             logger.debug("[shopee] API parse error: %s", exc)
 
-    logger.info("[shopee] API returned %d item(s) for keyword=%s", len(items), keyword)
+    return items
+
+
+async def _intercept_search_api(page: Page, keyword: str) -> list[WatcherItem]:
+    """
+    Navigate to the search page and intercept the API response that
+    Shopee's own JavaScript fires.  This approach reuses the browser's
+    real session/headers so Shopee cannot distinguish it from a human visit.
+    Returns [] if the API response is not captured within the timeout.
+    """
+    captured: dict = {}
+
+    async def on_response(response):
+        if "search_items" in response.url and not captured:
+            try:
+                captured["data"] = await response.json()
+            except Exception:
+                pass
+
+    page.on("response", on_response)
+
+    search_url = (
+        f"https://shopee.tw/search?keyword={quote(keyword)}&sortBy=ctime&order=desc"
+    )
+    try:
+        await page.goto(search_url, timeout=25_000, wait_until="domcontentloaded")
+    except Exception as exc:
+        logger.error("[shopee] Navigation error: %s", exc)
+        page.remove_listener("response", on_response)
+        return []
+
+    if "login" in page.url:
+        logger.warning("[shopee] Redirected to login for keyword=%s", keyword)
+        page.remove_listener("response", on_response)
+        return []
+
+    # Wait up to 12 s for the API response to be captured
+    for _ in range(24):
+        if captured:
+            break
+        await asyncio.sleep(0.5)
+
+    page.remove_listener("response", on_response)
+
+    if not captured:
+        logger.info("[shopee] API response not captured for keyword=%s", keyword)
+        return []
+
+    items = _parse_api_items(captured["data"], keyword)
+    logger.info("[shopee] Intercepted %d item(s) for keyword=%s", len(items), keyword)
     return items
 
 
@@ -308,45 +307,24 @@ async def scrape_shopee(
     """
     Search Shopee for newest listings matching keyword.
 
-    Strategy:
-    1. Navigate directly to the search URL (avoids repeated homepage bot detection).
-    2. Override navigator.webdriver to bypass basic headless detection.
-    3. Try internal JSON API via browser fetch (inherits cookies).
-    4. Fall back to DOM scraping if API returns nothing.
+    Strategy: intercept the JSON API response that Shopee's own JavaScript
+    fires during page load — no manual API calls, no bot detection issues.
+    Falls back to DOM scraping if the API response is not captured.
 
     Returns list of WatcherItem, filtered by price range if configured.
     Never raises — returns [] on any error.
     """
-    # ── Step 1: Override webdriver flag before any navigation ────────────
     await page.add_init_script(
         "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
     )
 
-    # ── Step 2: Navigate directly to search page ──────────────────────────
-    search_url = (
-        f"https://shopee.tw/search?keyword={quote(keyword)}&sortBy=ctime&order=desc"
-    )
-    try:
-        await page.goto(search_url, timeout=25_000, wait_until="domcontentloaded")
-        await asyncio.sleep(3)
-    except Exception as exc:
-        logger.error("[shopee] Navigation error: %s", exc)
-        return []
+    # ── Step 1: Intercept Shopee's own API call ───────────────────────────
+    items = await _intercept_search_api(page, keyword)
 
-    current_url = page.url
-    if "login" in current_url:
-        logger.warning("[shopee] Redirected to login for keyword=%s", keyword)
-        return []
-
-    logger.info("[shopee] Loaded search page for keyword=%s url=%s", keyword, current_url[:80])
-
-    # ── Step 3: Try internal API (cookies now set by search page) ────────
-    items = await _scrape_shopee_api(page, keyword)
-
-    # ── Step 4: DOM fallback if API yielded nothing ───────────────────────
+    # ── Step 2: DOM fallback if API was not captured ──────────────────────
     if not items:
-        logger.info("[shopee] API returned 0 items, falling back to DOM scrape for keyword=%s", keyword)
+        logger.info("[shopee] Falling back to DOM scrape for keyword=%s", keyword)
         items = await _scrape_shopee_dom_from_loaded_page(page, keyword)
 
-    # ── Step 5: Apply price filter ────────────────────────────────────────
+    # ── Step 3: Apply price filter ────────────────────────────────────────
     return _apply_price_filter(items, min_price, max_price)
