@@ -92,51 +92,56 @@ async def _scrape_shopee_api(page: Page, keyword: str) -> list[WatcherItem]:
     )
 
     try:
-        result = await page.evaluate(
-            """
-            async (url) => {
-                const res = await fetch(url, {
-                    headers: {
-                        'accept': 'application/json',
-                        'x-api-source': 'pc',
-                        'x-requested-with': 'XMLHttpRequest',
-                    },
-                    credentials: 'include',
-                });
-                if (!res.ok) return null;
-                return await res.json();
-            }
-            """,
+        # Use Playwright's built-in request (bypasses browser CSP/CORS restrictions)
+        # and manually attach cookies from the current browser context
+        cookies = await page.context.cookies("https://shopee.tw")
+        cookie_header = "; ".join(f"{c['name']}={c['value']}" for c in cookies)
+
+        response = await page.request.get(
             api_url,
+            headers={
+                "accept": "application/json",
+                "referer": page.url,
+                "x-api-source": "pc",
+                "x-requested-with": "XMLHttpRequest",
+                "cookie": cookie_header,
+            },
         )
+        if not response.ok:
+            logger.warning("[shopee] API HTTP %d for keyword=%s", response.status, keyword)
+            return []
+        result = await response.json()
     except Exception as exc:
         logger.error("[shopee] API fetch error: %s", exc)
         return []
 
-    if not result:
+    if not result or not isinstance(result, dict):
         logger.warning("[shopee] API returned null/empty response")
         return []
 
-    # Log top-level keys to help diagnose structure changes
-    top_keys = list(result.keys()) if isinstance(result, dict) else []
-    logger.info("[shopee] API response keys: %s", top_keys)
+    # Shopee API returns items as numeric string keys: {"0": {...}, "1": {...}, "error": 0}
+    # Also support nested {"items": [...]} and {"data": {"items": [...]}} formats
+    if result.get("error") not in (None, 0, ""):
+        logger.warning("[shopee] API returned error: %s", result.get("error"))
 
-    # Try multiple known response structures
     raw_items = (
         result.get("items")
         or result.get("data", {}).get("items")
-        or []
+        or [result[k] for k in result if k.isdigit()]
     )
     if not raw_items:
-        logger.warning("[shopee] API: no items in response (keys=%s)", top_keys)
+        logger.warning("[shopee] API: no items in response (keys=%s)", list(result.keys()))
         return []
+
+    logger.info("[shopee] API: found %d raw items", len(raw_items))
 
     items: list[WatcherItem] = []
     seen_ids: set[str] = set()
 
     for raw in raw_items[:25]:
         try:
-            info = raw.get("item_basic") or {}
+            # Support {"item_basic": {...}} and raw item dict formats
+            info = raw.get("item_basic") or raw
             item_id = str(info.get("itemid", ""))
             shop_id = str(info.get("shopid", ""))
             if not item_id or item_id in seen_ids:
