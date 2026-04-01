@@ -13,7 +13,7 @@ from typing import Optional
 from playwright.async_api import Page
 
 from src.watchers.base import WatcherItem
-from src.scrapers.shopee import _apply_price_filter, _parse_price
+from src.scrapers.shopee import _apply_price_filter, _parse_price, _extract_price_text
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +96,7 @@ async def scrape_ruten(
 
             # ── Price ─────────────────────────────────────────────────────
             price = None
+            price_text = None
             try:
                 container = await a.evaluate_handle(
                     "el => el.closest('li') || el.closest('article') || el.parentElement"
@@ -105,7 +106,9 @@ async def scrape_ruten(
                         '[class*="price"],[class*="Price"]'
                     )
                     if price_el:
-                        price = _parse_price(await price_el.inner_text())
+                        raw_price_text = await price_el.inner_text()
+                        price = _parse_price(raw_price_text)
+                        price_text = _extract_price_text(raw_price_text)
             except Exception:
                 pass
 
@@ -144,6 +147,7 @@ async def scrape_ruten(
                     url=full_url,
                     image_url=image_url,
                     seller_name=seller_name[:80] if seller_name else None,
+                    price_text=price_text,
                 )
             )
         except Exception as exc:

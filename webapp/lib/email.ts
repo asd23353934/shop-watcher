@@ -10,6 +10,7 @@ import { Resend } from 'resend'
 interface Item {
   name: string
   price: number | null
+  price_text?: string | null
   url: string
   image_url: string | null
   platform: string
@@ -51,8 +52,9 @@ export async function sendEmailNotification(
   const resend = new Resend(process.env.RESEND_API_KEY)
 
   const platformLabel = PLATFORM_LABELS[item.platform] ?? item.platform
-  const priceText =
-    item.price != null
+  const priceText = item.price_text
+    ? `NT$ ${item.price_text}`
+    : item.price != null
       ? `NT$ ${item.price.toLocaleString('zh-TW')}`
       : '價格未知'
 
@@ -147,8 +149,9 @@ export async function sendEmailBatchNotification(
   const rows = items
     .map((item) => {
       const platformLabel = PLATFORM_LABELS[item.platform] ?? item.platform
-      const priceText =
-        item.price != null
+      const priceText = item.price_text
+        ? `NT$ ${item.price_text}`
+        : item.price != null
           ? `NT$ ${item.price.toLocaleString('zh-TW')}`
           : '價格未知'
       const sellerText = item.seller_name ?? '未知'

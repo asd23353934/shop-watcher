@@ -1,0 +1,49 @@
+import { auth } from '@/auth'
+import { prisma } from '@/lib/prisma'
+import { NextResponse } from 'next/server'
+
+/**
+ * PATCH /api/keywords/[id]/blocklist
+ * Appends a single word to the keyword's blocklist (deduped).
+ * Returns 400 for empty/whitespace word.
+ * Returns 403 if the keyword belongs to a different user.
+ */
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { id } = await params
+  const existing = await prisma.keyword.findUnique({ where: { id } })
+
+  if (!existing) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
+  if (existing.userId !== session.user.id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const body = await request.json()
+  const word: string = typeof body.word === 'string' ? body.word.trim() : ''
+
+  if (!word) {
+    return NextResponse.json({ error: 'word cannot be empty' }, { status: 400 })
+  }
+
+  // Append only if not already present
+  if (existing.blocklist.includes(word)) {
+    return NextResponse.json({ blocklist: existing.blocklist })
+  }
+
+  const updated = await prisma.keyword.update({
+    where: { id },
+    data: { blocklist: { push: word } },
+  })
+
+  return NextResponse.json({ blocklist: updated.blocklist })
+}

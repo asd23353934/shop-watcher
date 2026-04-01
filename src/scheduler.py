@@ -31,6 +31,47 @@ def _get_check_interval() -> int:
         return 300
 
 
+def _apply_must_include_filter(items: list, must_include: list[str]) -> list:
+    """
+    Discard items whose name does NOT contain ALL terms in must_include (case-insensitive).
+    Returns items unchanged when must_include is empty.
+    """
+    if not must_include:
+        return items
+    lower_terms = [t.lower() for t in must_include if t.strip()]
+    if not lower_terms:
+        return items
+    return [item for item in items if all(t in item.name.lower() for t in lower_terms)]
+
+
+def _apply_match_mode_filter(items: list, keyword_text: str, match_mode: str) -> list:
+    """
+    Filter items by how keyword_text matches the item name (case-insensitive).
+
+    any   — item name contains at least one whitespace-split token (default / no-op)
+    all   — item name contains every whitespace-split token
+    exact — item name contains the full keyword_text as a substring
+    """
+    if match_mode == "any" or not keyword_text.strip():
+        return items
+
+    name_lower_getter = lambda item: item.name.lower()  # noqa: E731
+
+    if match_mode == "exact":
+        needle = keyword_text.lower()
+        return [item for item in items if needle in name_lower_getter(item)]
+
+    if match_mode == "all":
+        tokens = [t.lower() for t in keyword_text.split() if t.strip()]
+        if not tokens:
+            return items
+        return [item for item in items if all(t in name_lower_getter(item) for t in tokens)]
+
+    # Unknown mode — pass through without filtering
+    logger.warning("Unknown matchMode '%s', skipping matchMode filter", match_mode)
+    return items
+
+
 async def run_scan_cycle(api: WorkerApiClient) -> None:
     """
     Execute one full scan cycle:
@@ -77,6 +118,8 @@ async def run_scan_cycle(api: WorkerApiClient) -> None:
                 # Each keyword-platform pair is searched independently
                 # Blocklist: lower-cased forbidden terms for this keyword
                 blocklist = [w.lower() for w in kw.get("blocklist", []) if w.strip()]
+                must_include: list[str] = kw.get("mustInclude", [])
+                match_mode: str = kw.get("matchMode", "any")
 
                 # Each keyword-platform pair is searched independently
                 for platform in platforms:
@@ -115,6 +158,24 @@ async def run_scan_cycle(api: WorkerApiClient) -> None:
                                 "[%s] %s — blocked %d item(s) by blocklist",
                                 platform, keyword_text, filtered,
                             )
+
+                    # Scraped items are filtered by mustInclude before notification
+                    before = len(items)
+                    items = _apply_must_include_filter(items, must_include)
+                    if len(items) < before:
+                        logger.debug(
+                            "[%s] %s — mustInclude filtered %d item(s)",
+                            platform, keyword_text, before - len(items),
+                        )
+
+                    # Scraped items are filtered by matchMode before notification
+                    before = len(items)
+                    items = _apply_match_mode_filter(items, keyword_text, match_mode)
+                    if len(items) < before:
+                        logger.debug(
+                            "[%s] %s — matchMode(%s) filtered %d item(s)",
+                            platform, keyword_text, match_mode, before - len(items),
+                        )
 
                     # Batch-report all filtered items in a single API call
                     result = await api.notify_batch(keyword_id, items)

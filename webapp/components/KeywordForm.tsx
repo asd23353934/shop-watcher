@@ -6,12 +6,22 @@ interface KeywordFormProps {
   onSuccess?: () => void
 }
 
+const MATCH_MODE_LABELS: Record<string, string> = {
+  any: '寬鬆比對（含任一詞）',
+  all: '每詞都要有',
+  exact: '完整字串',
+}
+
 export default function KeywordForm({ onSuccess }: KeywordFormProps) {
   const [keyword, setKeyword] = useState('')
   const [platforms, setPlatforms] = useState<string[]>(['shopee', 'ruten'])
   const [minPrice, setMinPrice] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
-  const [blocklist, setBlocklist] = useState('')
+  const [blocklist, setBlocklist] = useState<string[]>([])
+  const [blocklistInput, setBlocklistInput] = useState('')
+  const [mustInclude, setMustInclude] = useState<string[]>([])
+  const [mustIncludeInput, setMustIncludeInput] = useState('')
+  const [matchMode, setMatchMode] = useState('any')
   const [active, setActive] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -20,6 +30,28 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
     setPlatforms((prev) =>
       prev.includes(platform) ? prev.filter((p) => p !== platform) : [...prev, platform]
     )
+  }
+
+  const handleAddBlockword = () => {
+    const word = blocklistInput.trim()
+    if (!word || blocklist.includes(word)) return
+    setBlocklist((prev) => [...prev, word])
+    setBlocklistInput('')
+  }
+
+  const handleRemoveBlockword = (word: string) => {
+    setBlocklist((prev) => prev.filter((w) => w !== word))
+  }
+
+  const handleAddMustInclude = () => {
+    const word = mustIncludeInput.trim()
+    if (!word || mustInclude.includes(word)) return
+    setMustInclude((prev) => [...prev, word])
+    setMustIncludeInput('')
+  }
+
+  const handleRemoveMustInclude = (word: string) => {
+    setMustInclude((prev) => prev.filter((w) => w !== word))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,10 +68,9 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
           platforms,
           minPrice: minPrice ? Number(minPrice) : null,
           maxPrice: maxPrice ? Number(maxPrice) : null,
-          blocklist: blocklist
-            .split(',')
-            .map((w) => w.trim())
-            .filter((w) => w.length > 0),
+          blocklist,
+          mustInclude,
+          matchMode,
           active,
         }),
       })
@@ -55,7 +86,11 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
       setPlatforms(['shopee', 'ruten'])
       setMinPrice('')
       setMaxPrice('')
-      setBlocklist('')
+      setBlocklist([])
+      setBlocklistInput('')
+      setMustInclude([])
+      setMustIncludeInput('')
+      setMatchMode('any')
       setActive(true)
       onSuccess?.()
     } catch {
@@ -108,6 +143,23 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
         </div>
       </div>
 
+      {/* Match mode */}
+      <div className="mb-4">
+        <label className="mb-1 block text-sm font-medium text-gray-700">搜尋精確度</label>
+        <select
+          value={matchMode}
+          onChange={(e) => setMatchMode(e.target.value)}
+          className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          {Object.entries(MATCH_MODE_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-gray-400">
+          寬鬆：含任一詞即通知｜每詞都要有：以空格分詞，全部都要有｜完整字串：名稱須包含完整關鍵字
+        </p>
+      </div>
+
       {/* Price range */}
       <div className="mb-4 flex gap-3">
         <div className="flex-1">
@@ -134,18 +186,93 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
         </div>
       </div>
 
+      {/* Must-include */}
+      <div className="mb-4">
+        <label className="mb-1 block text-sm font-medium text-gray-700">必包詞（選填）</label>
+        {mustInclude.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-1">
+            {mustInclude.map((word) => (
+              <span
+                key={word}
+                className="flex items-center gap-1 rounded bg-green-100 px-2 py-0.5 text-xs text-green-700"
+              >
+                {word}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveMustInclude(word)}
+                  className="ml-0.5 text-green-400 hover:text-green-600"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={mustIncludeInput}
+            onChange={(e) => setMustIncludeInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); handleAddMustInclude() }
+            }}
+            placeholder="輸入必包詞後按新增"
+            className="flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <button
+            type="button"
+            onClick={handleAddMustInclude}
+            className="rounded-md border px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            新增
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-gray-400">商品名稱必須包含所有必包詞才會發送通知</p>
+      </div>
+
       {/* Blocklist */}
       <div className="mb-4">
         <label className="mb-1 block text-sm font-medium text-gray-700">
           禁詞（選填）
         </label>
-        <input
-          type="text"
-          value={blocklist}
-          onChange={(e) => setBlocklist(e.target.value)}
-          placeholder="廣告,整組,代工（逗號分隔）"
-          className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
+        {blocklist.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-1">
+            {blocklist.map((word) => (
+              <span
+                key={word}
+                className="flex items-center gap-1 rounded bg-red-100 px-2 py-0.5 text-xs text-red-700"
+              >
+                {word}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveBlockword(word)}
+                  className="ml-0.5 text-red-400 hover:text-red-600"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={blocklistInput}
+            onChange={(e) => setBlocklistInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); handleAddBlockword() }
+            }}
+            placeholder="輸入禁詞後按新增"
+            className="flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <button
+            type="button"
+            onClick={handleAddBlockword}
+            className="rounded-md border px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            新增
+          </button>
+        </div>
         <p className="mt-1 text-xs text-gray-400">商品名稱包含禁詞時不會發送通知</p>
       </div>
 

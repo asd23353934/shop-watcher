@@ -8,10 +8,11 @@ class WatcherItem:
     platform: str
     item_id: str
     name: str
-    price: Optional[float]      # TWD
+    price: Optional[float]      # TWD (min price for ranges; used for filtering/price-drop)
     url: str
     image_url: Optional[str] = None
     seller_name: Optional[str] = None
+    price_text: Optional[str] = None  # Display text for price ranges, e.g. "100 ~ 1,000"
 
 
 class BaseWatcher(ABC):

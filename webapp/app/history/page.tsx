@@ -2,6 +2,7 @@ import { auth, signOut } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import HistoryFeedbackButton from '@/components/HistoryFeedbackButton'
 
 const PLATFORM_LABELS: Record<string, string> = {
   shopee: '蝦皮',
@@ -89,6 +90,7 @@ export default async function HistoryPage() {
                   <th className="px-4 py-3 text-left font-medium text-gray-600">平台</th>
                   <th className="px-4 py-3 text-left font-medium text-gray-600">商品 ID</th>
                   <th className="px-4 py-3 text-left font-medium text-gray-600">首次通知時間</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -109,6 +111,9 @@ export default async function HistoryPage() {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
+                    </td>
+                    <td className="px-4 py-3">
+                      <HistoryFeedbackButton keywordId={item.keywordId ?? null} />
                     </td>
                   </tr>
                 ))}

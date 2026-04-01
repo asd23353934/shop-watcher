@@ -30,16 +30,18 @@ export default async function DashboardPage() {
   const hasNotification =
     !!notificationSetting?.discordWebhookUrl || !!notificationSetting?.emailAddress
 
-  // Format relative time for last scan
+  // Format last scan as absolute date/time in Taiwan timezone
   const lastScanLabel = (() => {
     if (!scanLog?.scannedAt) return '尚未掃描'
-    const diffMs = Date.now() - new Date(scanLog.scannedAt).getTime()
-    const diffMin = Math.floor(diffMs / 60_000)
-    if (diffMin < 1) return '剛剛'
-    if (diffMin < 60) return `${diffMin} 分鐘前`
-    const diffHr = Math.floor(diffMin / 60)
-    if (diffHr < 24) return `${diffHr} 小時前`
-    return `${Math.floor(diffHr / 24)} 天前`
+    return new Date(scanLog.scannedAt).toLocaleString('zh-TW', {
+      timeZone: 'Asia/Taipei',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
   })()
 
   return (

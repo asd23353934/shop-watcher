@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface Keyword {
   id: string
@@ -8,6 +8,9 @@ interface Keyword {
   platforms: string[]
   minPrice: number | null
   maxPrice: number | null
+  blocklist: string[]
+  mustInclude: string[]
+  matchMode: string
   active: boolean
   createdAt: string
 }
@@ -22,11 +25,24 @@ const PLATFORM_LABELS: Record<string, string> = {
   ruten: '露天',
 }
 
+const MATCH_MODE_LABELS: Record<string, string> = {
+  any: '寬鬆',
+  all: '每詞都要有',
+  exact: '完整字串',
+}
+
 export default function KeywordList({ initialKeywords, onRefresh }: KeywordListProps) {
   const [keywords, setKeywords] = useState<Keyword[]>(initialKeywords)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Keyword>>({})
+  const [editBlocklistInput, setEditBlocklistInput] = useState('')
+  const [editMustIncludeInput, setEditMustIncludeInput] = useState('')
   const [loading, setLoading] = useState<string | null>(null)
+
+  // Sync when server re-renders after router.refresh()
+  useEffect(() => {
+    setKeywords(initialKeywords)
+  }, [initialKeywords])
 
   // Empty keyword list shows a call-to-action
   if (keywords.length === 0) {
@@ -47,7 +63,6 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
         body: JSON.stringify({ active: !kw.active }),
       })
       if (res.ok) {
-        // User can toggle a keyword's active status
         setKeywords((prev) =>
           prev.map((k) => (k.id === kw.id ? { ...k, active: !kw.active } : k))
         )
@@ -73,12 +88,51 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
 
   const handleEdit = (kw: Keyword) => {
     setEditingId(kw.id)
+    setEditBlocklistInput('')
+    setEditMustIncludeInput('')
     setEditForm({
       keyword: kw.keyword,
       platforms: [...kw.platforms],
       minPrice: kw.minPrice,
       maxPrice: kw.maxPrice,
+      blocklist: [...(kw.blocklist ?? [])],
+      mustInclude: [...(kw.mustInclude ?? [])],
+      matchMode: kw.matchMode ?? 'any',
     })
+  }
+
+  const handleEditAddBlockword = () => {
+    const word = editBlocklistInput.trim()
+    if (!word) return
+    setEditForm((prev) => ({
+      ...prev,
+      blocklist: [...(prev.blocklist ?? []), word],
+    }))
+    setEditBlocklistInput('')
+  }
+
+  const handleEditRemoveBlockword = (word: string) => {
+    setEditForm((prev) => ({
+      ...prev,
+      blocklist: (prev.blocklist ?? []).filter((w) => w !== word),
+    }))
+  }
+
+  const handleEditAddMustInclude = () => {
+    const word = editMustIncludeInput.trim()
+    if (!word) return
+    setEditForm((prev) => ({
+      ...prev,
+      mustInclude: [...(prev.mustInclude ?? []), word],
+    }))
+    setEditMustIncludeInput('')
+  }
+
+  const handleEditRemoveMustInclude = (word: string) => {
+    setEditForm((prev) => ({
+      ...prev,
+      mustInclude: (prev.mustInclude ?? []).filter((w) => w !== word),
+    }))
   }
 
   const handleEditSave = async (id: string) => {
@@ -136,6 +190,19 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
                   </label>
                 ))}
               </div>
+              {/* Match mode */}
+              <div>
+                <p className="mb-1 text-xs font-medium text-gray-600">搜尋精確度</p>
+                <select
+                  value={editForm.matchMode ?? 'any'}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, matchMode: e.target.value }))}
+                  className="w-full rounded-md border px-2 py-1 text-sm"
+                >
+                  {Object.entries(MATCH_MODE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
               <div className="flex gap-2">
                 <input
                   type="number"
@@ -162,6 +229,86 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
                   className="w-full rounded-md border px-3 py-2 text-sm"
                 />
               </div>
+              {/* Must-include edit */}
+              <div>
+                <p className="mb-1 text-xs font-medium text-gray-600">必包詞</p>
+                <div className="mb-1 flex flex-wrap gap-1">
+                  {(editForm.mustInclude ?? []).map((word) => (
+                    <span
+                      key={word}
+                      className="flex items-center gap-1 rounded bg-green-100 px-2 py-0.5 text-xs text-green-700"
+                    >
+                      {word}
+                      <button
+                        type="button"
+                        onClick={() => handleEditRemoveMustInclude(word)}
+                        className="ml-0.5 text-green-400 hover:text-green-600"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-1">
+                  <input
+                    type="text"
+                    value={editMustIncludeInput}
+                    onChange={(e) => setEditMustIncludeInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); handleEditAddMustInclude() }
+                    }}
+                    placeholder="輸入必包詞"
+                    className="flex-1 rounded-md border px-2 py-1 text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleEditAddMustInclude}
+                    className="rounded-md border px-2 py-1 text-xs text-gray-600 hover:bg-gray-50"
+                  >
+                    新增
+                  </button>
+                </div>
+              </div>
+              {/* Blocklist edit */}
+              <div>
+                <p className="mb-1 text-xs font-medium text-gray-600">禁詞</p>
+                <div className="mb-1 flex flex-wrap gap-1">
+                  {(editForm.blocklist ?? []).map((word) => (
+                    <span
+                      key={word}
+                      className="flex items-center gap-1 rounded bg-red-100 px-2 py-0.5 text-xs text-red-700"
+                    >
+                      {word}
+                      <button
+                        type="button"
+                        onClick={() => handleEditRemoveBlockword(word)}
+                        className="ml-0.5 text-red-400 hover:text-red-600"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-1">
+                  <input
+                    type="text"
+                    value={editBlocklistInput}
+                    onChange={(e) => setEditBlocklistInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); handleEditAddBlockword() }
+                    }}
+                    placeholder="輸入禁詞"
+                    className="flex-1 rounded-md border px-2 py-1 text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleEditAddBlockword}
+                    className="rounded-md border px-2 py-1 text-xs text-gray-600 hover:bg-gray-50"
+                  >
+                    新增
+                  </button>
+                </div>
+              </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => handleEditSave(kw.id)}
@@ -182,7 +329,7 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
             // View mode
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium text-gray-900">{kw.keyword}</span>
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -193,6 +340,11 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
                   >
                     {kw.active ? '監控中' : '已停用'}
                   </span>
+                  {kw.matchMode && kw.matchMode !== 'any' && (
+                    <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs text-indigo-600">
+                      {MATCH_MODE_LABELS[kw.matchMode] ?? kw.matchMode}
+                    </span>
+                  )}
                 </div>
                 <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">
                   {kw.platforms.map((p) => (
@@ -205,6 +357,16 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
                       NT${kw.minPrice ?? '0'} ~ NT${kw.maxPrice ?? '∞'}
                     </span>
                   )}
+                  {kw.mustInclude?.map((word) => (
+                    <span key={word} className="rounded bg-green-100 px-2 py-0.5 text-green-700">
+                      +{word}
+                    </span>
+                  ))}
+                  {kw.blocklist?.map((word) => (
+                    <span key={word} className="rounded bg-red-100 px-2 py-0.5 text-red-700">
+                      -{word}
+                    </span>
+                  ))}
                 </div>
               </div>
 

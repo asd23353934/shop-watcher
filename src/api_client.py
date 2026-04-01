@@ -130,6 +130,7 @@ class WorkerApiClient:
                     "item_id": item.item_id,
                     "name": item.name,
                     "price": item.price,
+                    "price_text": item.price_text,
                     "url": item.url,
                     "image_url": item.image_url,
                     "seller_name": item.seller_name,

@@ -21,14 +21,36 @@ HOMEPAGE_WAIT = 3  # seconds after homepage load
 
 
 def _parse_price(text: str) -> Optional[float]:
-    """Parse TWD price string → float. Returns None if unparseable."""
+    """Parse TWD price string → float (min price for ranges). Returns None if unparseable."""
     if not text:
         return None
-    digits = re.sub(r"[^\d.]", "", text.replace(",", ""))
+    numbers = re.findall(r"[\d,]+", text)
+    if not numbers:
+        return None
     try:
-        return float(digits) if digits else None
+        return float(numbers[0].replace(",", ""))
     except ValueError:
         return None
+
+
+def _extract_price_text(text: str) -> Optional[str]:
+    """
+    Extract display price text for price ranges (e.g. '100 ~ 1,000').
+    Returns None for single prices (let the caller format normally).
+    """
+    if not text:
+        return None
+    numbers = re.findall(r"[\d,]+", text)
+    if len(numbers) < 2:
+        return None
+    try:
+        first = int(numbers[0].replace(",", ""))
+        second = int(numbers[1].replace(",", ""))
+        if first != second:
+            return f"{first:,} ~ {second:,}"
+    except ValueError:
+        pass
+    return None
 
 
 def _apply_price_filter(
@@ -155,6 +177,7 @@ async def scrape_shopee(
 
             # Price: extract from [class*="price"] element
             price = None
+            price_text = None
             try:
                 price_el = await a.query_selector('[class*="price"]')
                 if not price_el:
@@ -165,7 +188,9 @@ async def scrape_shopee(
                     if container:
                         price_el = await container.query_selector('[class*="price"]')
                 if price_el:
-                    price = _parse_price(await price_el.inner_text())
+                    raw_price_text = await price_el.inner_text()
+                    price = _parse_price(raw_price_text)
+                    price_text = _extract_price_text(raw_price_text)
             except Exception:
                 pass
 
@@ -206,6 +231,7 @@ async def scrape_shopee(
                     url=full_url,
                     image_url=image_url,
                     seller_name=seller_name,
+                    price_text=price_text,
                 )
             )
         except Exception as exc:

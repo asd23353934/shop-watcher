@@ -9,6 +9,7 @@ interface BatchItem {
   item_id: string
   name: string
   price: number | null
+  price_text?: string | null
   url: string
   image_url: string | null
   seller_name: string | null

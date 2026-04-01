@@ -30,9 +30,11 @@ model Keyword {
   platforms String[]
   minPrice  Float?
   maxPrice  Float?
-  active    Boolean  @default(true)
-  blocklist String[] @default([])
-  createdAt DateTime @default(now())
+  active       Boolean  @default(true)
+  blocklist    String[] @default([])
+  mustInclude  String[] @default([])
+  matchMode    String   @default("any")
+  createdAt    DateTime @default(now())
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   seenItems SeenItem[]

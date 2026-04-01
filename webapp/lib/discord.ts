@@ -9,6 +9,7 @@
 interface Item {
   name: string
   price: number | null
+  price_text?: string | null
   url: string
   image_url: string | null
   platform: string
@@ -43,8 +44,9 @@ export async function sendDiscordNotification(
   // Discord notification is skipped when no Webhook URL is configured
   if (!webhookUrl) return
 
-  const priceText =
-    item.price != null
+  const priceText = item.price_text
+    ? `NT$ ${item.price_text}`
+    : item.price != null
       ? `NT$ ${item.price.toLocaleString('zh-TW')}`
       : '價格未知'
 
@@ -125,8 +127,9 @@ export async function sendDiscordBatchNotification(
     const color = item.isPriceDrop
       ? 0x57f287
       : (PLATFORM_COLORS[item.platform] ?? 0x7289da)
-    const priceText =
-      item.price != null
+    const priceText = item.price_text
+      ? `NT$ ${item.price_text}`
+      : item.price != null
         ? `NT$ ${item.price.toLocaleString('zh-TW')}`
         : '價格未知'
 

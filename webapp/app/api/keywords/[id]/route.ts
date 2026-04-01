@@ -25,7 +25,12 @@ export async function PATCH(
   }
 
   const body = await request.json()
-  const { keyword, platforms, minPrice, maxPrice, active, blocklist } = body
+  const { keyword, platforms, minPrice, maxPrice, active, blocklist, mustInclude, matchMode } = body
+
+  const validMatchModes = ['any', 'all', 'exact']
+  if (matchMode !== undefined && !validMatchModes.includes(matchMode)) {
+    return NextResponse.json({ error: `Invalid matchMode: must be one of ${validMatchModes.join(', ')}` }, { status: 400 })
+  }
 
   const updated = await prisma.keyword.update({
     where: { id },
@@ -40,6 +45,12 @@ export async function PATCH(
           ? blocklist.map((w: string) => w.trim()).filter((w: string) => w.length > 0)
           : [],
       }),
+      ...(mustInclude !== undefined && {
+        mustInclude: Array.isArray(mustInclude)
+          ? mustInclude.map((w: string) => w.trim()).filter((w: string) => w.length > 0)
+          : [],
+      }),
+      ...(matchMode !== undefined && { matchMode }),
     },
   })
 
