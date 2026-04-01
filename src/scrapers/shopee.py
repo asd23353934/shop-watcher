@@ -89,7 +89,9 @@ def _parse_api_items(result: dict, keyword: str) -> list[WatcherItem]:
         or [v for k, v in result.items() if isinstance(k, str) and k.isdigit() and isinstance(v, dict)]
     )
     if not raw_items:
-        logger.warning("[shopee] API: no items in response (keys=%s)", list(result.keys())[:10])
+        # Log value types to diagnose structure
+        sample = {k: type(result[k]).__name__ for k in list(result.keys())[:8]}
+        logger.warning("[shopee] API: no items (key→type: %s)", sample)
         return []
 
     logger.info("[shopee] API: found %d raw items for keyword=%s", len(raw_items), keyword)
@@ -167,10 +169,11 @@ async def _intercept_search_api(page: Page, keyword: str) -> list[WatcherItem]:
 
     async def on_response(response):
         if "search_items" in response.url and not captured:
+            logger.info("[shopee] Intercepted URL: %s", response.url[:120])
             try:
                 captured["data"] = await response.json()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("[shopee] Failed to parse intercepted response: %s", exc)
 
     page.on("response", on_response)
 
