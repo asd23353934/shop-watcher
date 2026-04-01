@@ -168,6 +168,47 @@ def _parse_api_items(result: dict, keyword: str) -> list[WatcherItem]:
     return items
 
 
+async def _extract_from_page_state(page: Page, keyword: str) -> list[WatcherItem]:
+    """
+    After the search page has loaded, attempt to extract item data directly
+    from Shopee's client-side JavaScript state (window store / __NEXT_DATA__ / etc).
+    Returns [] if nothing useful is found.
+    """
+    try:
+        data = await page.evaluate("""
+            () => {
+                // Next.js SSR data
+                const next = window.__NEXT_DATA__;
+                if (next) {
+                    try {
+                        const props = next.props?.pageProps;
+                        if (props?.initialData?.data?.items) return {source:'next', items: props.initialData.data.items};
+                        if (props?.data?.items) return {source:'next2', items: props.data.items};
+                    } catch(e) {}
+                }
+                // Redux store
+                const stores = Object.keys(window).filter(k => {
+                    try { return window[k] && typeof window[k].getState === 'function'; } catch(e) { return false; }
+                });
+                for (const s of stores) {
+                    try {
+                        const state = window[s].getState();
+                        const items = state?.search?.items || state?.searchResult?.items;
+                        if (items && items.length > 0) return {source: s, items};
+                    } catch(e) {}
+                }
+                return null;
+            }
+        """)
+        if not data or not data.get("items"):
+            return []
+        logger.info("[shopee] Extracted %d items from page state (source=%s)", len(data["items"]), data.get("source"))
+        return _parse_api_items({"items": data["items"]}, keyword)
+    except Exception as exc:
+        logger.debug("[shopee] Page state extraction failed: %s", exc)
+        return []
+
+
 async def _intercept_search_api(page: Page, keyword: str) -> list[WatcherItem]:
     """
     Navigate to the search page and intercept the API response that
@@ -230,8 +271,9 @@ async def _intercept_search_api(page: Page, keyword: str) -> list[WatcherItem]:
     page.remove_listener("response", on_response)
 
     if not captured:
-        logger.info("[shopee] API response not captured for keyword=%s", keyword)
-        return []
+        logger.info("[shopee] API response not captured for keyword=%s, trying page state", keyword)
+        items = await _extract_from_page_state(page, keyword)
+        return items
 
     items = _parse_api_items(captured["data"], keyword)
     logger.info("[shopee] Intercepted %d item(s) for keyword=%s", len(items), keyword)
