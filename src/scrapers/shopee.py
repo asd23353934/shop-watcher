@@ -83,15 +83,25 @@ def _parse_api_items(result: dict, keyword: str) -> list[WatcherItem]:
     if not result or not isinstance(result, dict):
         return []
 
+    # Try all known response structures
+    bff = result.get("bff_info") or {}
     raw_items = (
         result.get("items")
         or result.get("data", {}).get("items")
+        or bff.get("items")
+        or bff.get("data", {}).get("items") if isinstance(bff, dict) else None
         or [v for k, v in result.items() if isinstance(k, str) and k.isdigit() and isinstance(v, dict)]
     )
     if not raw_items:
-        # Log value types to diagnose structure
-        sample = {k: type(result[k]).__name__ for k in list(result.keys())[:8]}
-        logger.warning("[shopee] API: no items (key→type: %s)", sample)
+        # Log full top-level structure to find where items are
+        def _summarize(v):
+            if isinstance(v, list):
+                return f"list[{len(v)}]"
+            if isinstance(v, dict):
+                return f"dict({list(v.keys())[:5]})"
+            return type(v).__name__
+        summary = {k: _summarize(result[k]) for k in list(result.keys())}
+        logger.warning("[shopee] API: no items — structure: %s", summary)
         return []
 
     logger.info("[shopee] API: found %d raw items for keyword=%s", len(raw_items), keyword)
