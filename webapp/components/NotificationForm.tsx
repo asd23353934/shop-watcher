@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 
 interface NotificationSettings {
   discordWebhookUrl: string | null
@@ -8,7 +9,13 @@ interface NotificationSettings {
   emailAddress: string | null
 }
 
+// 5.1: Module-level cache — avoids re-fetching when revisiting the settings page
+// within the same SPA session (single user, no cross-user sharing)
+let cachedSettings: NotificationSettings | null = null
+let cachedUserId: string | null = null
+
 export default function NotificationForm() {
+  const { data: session } = useSession()
   const [form, setForm] = useState<NotificationSettings>({
     discordWebhookUrl: null,
     discordUserId: null,
@@ -21,20 +28,40 @@ export default function NotificationForm() {
   const [webhookTesting, setWebhookTesting] = useState(false)
   const [webhookTestResult, setWebhookTestResult] = useState<{ ok: boolean; message: string } | null>(null)
 
-  // Settings are pre-filled with existing values on load
+  // Settings are pre-filled with existing values on load.
+  // 5.1: Use module-level cache on subsequent loads within the same session.
+  // 5.4: Reset cache if the user changes (logout → login as different user).
   useEffect(() => {
+    const currentUserId = session?.user?.id ?? null
+
+    // 5.4: If a different user is now logged in, invalidate the cache
+    if (currentUserId !== cachedUserId) {
+      cachedSettings = null
+      cachedUserId = currentUserId
+    }
+
+    if (cachedSettings !== null) {
+      // 5.1: Serve from cache — skip API call
+      setForm(cachedSettings)
+      setLoading(false)
+      return
+    }
+
+    // 5.3: First load — fetch from API
     fetch('/api/settings')
       .then((res) => res.json())
       .then((data) => {
-        setForm({
+        const loaded: NotificationSettings = {
           discordWebhookUrl: data.discordWebhookUrl ?? '',
           discordUserId: data.discordUserId ?? '',
           emailAddress: data.emailAddress ?? '',
-        })
+        }
+        setForm(loaded)
+        cachedSettings = loaded
       })
       .catch(() => setError('載入設定失敗'))
       .finally(() => setLoading(false))
-  }, [])
+  }, [session?.user?.id])
 
   const handleTestWebhook = async () => {
     setWebhookTestResult(null)
@@ -80,6 +107,13 @@ export default function NotificationForm() {
         const data = await res.json()
         setError(data.error ?? '儲存失敗')
         return
+      }
+
+      // 5.2: Update cache after successful save so next visit skips the API call
+      cachedSettings = {
+        discordWebhookUrl: form.discordWebhookUrl || null,
+        discordUserId: form.discordUserId || null,
+        emailAddress: form.emailAddress || null,
       }
 
       setSuccess(true)

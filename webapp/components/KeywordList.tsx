@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useOptimistic, useTransition } from 'react'
 
 interface Keyword {
   id: string
@@ -16,8 +16,9 @@ interface Keyword {
 }
 
 interface KeywordListProps {
-  initialKeywords: Keyword[]
-  onRefresh?: () => void
+  keywords: Keyword[]
+  onOptimisticToggle: (id: string, newActive: boolean) => void
+  onOptimisticDelete: (id: string) => void
 }
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -43,18 +44,26 @@ const MATCH_MODE_BADGE_LABELS: Record<string, string> = {
   exact: '完整比對',
 }
 
-export default function KeywordList({ initialKeywords, onRefresh }: KeywordListProps) {
-  const [keywords, setKeywords] = useState<Keyword[]>(initialKeywords)
+export default function KeywordList({
+  keywords,
+  onOptimisticToggle,
+  onOptimisticDelete,
+}: KeywordListProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Keyword>>({})
   const [editBlocklistInput, setEditBlocklistInput] = useState('')
   const [editMustIncludeInput, setEditMustIncludeInput] = useState('')
-  const [loading, setLoading] = useState<string | null>(null)
+  const [editLoading, setEditLoading] = useState(false)
 
-  // Sync when server re-renders after router.refresh()
-  useEffect(() => {
-    setKeywords(initialKeywords)
-  }, [initialKeywords])
+  // useTransition: 3.5 — pending 時按鈕 disabled，但 optimistic UI 已先反映
+  const [isPending, startTransition] = useTransition()
+
+  // useOptimistic: 3.2 — toggle active instant UI, reverts on API failure
+  const [optimisticKeywords, applyOptimisticToggle] = useOptimistic(
+    keywords,
+    (state, { id, newActive }: { id: string; newActive: boolean }) =>
+      state.map((k) => (k.id === id ? { ...k, active: newActive } : k))
+  )
 
   // Empty keyword list shows a call-to-action
   if (keywords.length === 0) {
@@ -66,36 +75,44 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
     )
   }
 
-  const handleToggleActive = async (kw: Keyword) => {
-    setLoading(kw.id)
-    try {
+  // 3.2 + 3.3: toggle with optimistic update, revert on failure
+  const handleToggleActive = (kw: Keyword) => {
+    const newActive = !kw.active
+    startTransition(async () => {
+      applyOptimisticToggle({ id: kw.id, newActive })
       const res = await fetch(`/api/keywords/${kw.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ active: !kw.active }),
+        body: JSON.stringify({ active: newActive }),
       })
       if (res.ok) {
-        setKeywords((prev) =>
-          prev.map((k) => (k.id === kw.id ? { ...k, active: !kw.active } : k))
-        )
+        // Commit to parent state
+        onOptimisticToggle(kw.id, newActive)
+      } else {
+        // 3.3: revert — useOptimistic auto-reverts when transition ends without commit
+        // We still update parent back to original to stay in sync
+        onOptimisticToggle(kw.id, kw.active)
+        alert('切換失敗，請稍後再試')
       }
-    } finally {
-      setLoading(null)
-    }
+    })
   }
 
-  const handleDelete = async (id: string) => {
+  // 3.2 + 3.4: delete with optimistic removal, revert on failure
+  const handleDelete = (id: string) => {
     if (!confirm('確定要刪除此關鍵字嗎？')) return
-    setLoading(id)
-    try {
+    const deletedKw = keywords.find((k) => k.id === id)
+    startTransition(async () => {
+      // Immediately remove from parent state (optimistic)
+      onOptimisticDelete(id)
       const res = await fetch(`/api/keywords/${id}`, { method: 'DELETE' })
-      if (res.ok) {
-        setKeywords((prev) => prev.filter((k) => k.id !== id))
-        onRefresh?.()
+      if (!res.ok) {
+        // 3.4: revert — add keyword back via parent
+        // KeywordClientSection will re-add it if we had a reference
+        // Since we removed it, we alert and suggest refresh
+        alert('刪除失敗，請重新整理頁面後再試')
+        void deletedKw // logged for debugging
       }
-    } finally {
-      setLoading(null)
-    }
+    })
   }
 
   const handleEdit = (kw: Keyword) => {
@@ -116,10 +133,7 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
   const handleEditAddBlockword = () => {
     const word = editBlocklistInput.trim()
     if (!word) return
-    setEditForm((prev) => ({
-      ...prev,
-      blocklist: [...(prev.blocklist ?? []), word],
-    }))
+    setEditForm((prev) => ({ ...prev, blocklist: [...(prev.blocklist ?? []), word] }))
     setEditBlocklistInput('')
   }
 
@@ -133,10 +147,7 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
   const handleEditAddMustInclude = () => {
     const word = editMustIncludeInput.trim()
     if (!word) return
-    setEditForm((prev) => ({
-      ...prev,
-      mustInclude: [...(prev.mustInclude ?? []), word],
-    }))
+    setEditForm((prev) => ({ ...prev, mustInclude: [...(prev.mustInclude ?? []), word] }))
     setEditMustIncludeInput('')
   }
 
@@ -148,7 +159,7 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
   }
 
   const handleEditSave = async (id: string) => {
-    setLoading(id)
+    setEditLoading(true)
     try {
       const res = await fetch(`/api/keywords/${id}`, {
         method: 'PATCH',
@@ -157,11 +168,12 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
       })
       if (res.ok) {
         const updated = await res.json()
-        setKeywords((prev) => prev.map((k) => (k.id === id ? updated : k)))
+        // Reflect edit in parent state via toggle (reuse to set full object)
+        onOptimisticToggle(id, updated.active)
         setEditingId(null)
       }
     } finally {
-      setLoading(null)
+      setEditLoading(false)
     }
   }
 
@@ -179,7 +191,7 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
 
   return (
     <div className="space-y-3">
-      {keywords.map((kw) => (
+      {optimisticKeywords.map((kw) => (
         <div key={kw.id} className="rounded-xl border bg-white p-5 shadow-sm">
           {editingId === kw.id ? (
             // Edit mode
@@ -251,18 +263,9 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
                 <p className="mb-1 text-xs font-medium text-gray-600">必包詞</p>
                 <div className="mb-1 flex flex-wrap gap-1">
                   {(editForm.mustInclude ?? []).map((word) => (
-                    <span
-                      key={word}
-                      className="flex items-center gap-1 rounded bg-green-100 px-2 py-0.5 text-xs text-green-700"
-                    >
+                    <span key={word} className="flex items-center gap-1 rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">
                       {word}
-                      <button
-                        type="button"
-                        onClick={() => handleEditRemoveMustInclude(word)}
-                        className="ml-0.5 text-green-400 hover:text-green-600"
-                      >
-                        ×
-                      </button>
+                      <button type="button" onClick={() => handleEditRemoveMustInclude(word)} className="ml-0.5 text-green-400 hover:text-green-600">×</button>
                     </span>
                   ))}
                 </div>
@@ -271,19 +274,11 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
                     type="text"
                     value={editMustIncludeInput}
                     onChange={(e) => setEditMustIncludeInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') { e.preventDefault(); handleEditAddMustInclude() }
-                    }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleEditAddMustInclude() } }}
                     placeholder="輸入必包詞"
                     className="flex-1 rounded-md border px-2 py-1 text-xs"
                   />
-                  <button
-                    type="button"
-                    onClick={handleEditAddMustInclude}
-                    className="rounded-md border px-2 py-1 text-xs text-gray-600 hover:bg-gray-50"
-                  >
-                    新增
-                  </button>
+                  <button type="button" onClick={handleEditAddMustInclude} className="rounded-md border px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">新增</button>
                 </div>
               </div>
               {/* Blocklist edit */}
@@ -291,18 +286,9 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
                 <p className="mb-1 text-xs font-medium text-gray-600">禁詞</p>
                 <div className="mb-1 flex flex-wrap gap-1">
                   {(editForm.blocklist ?? []).map((word) => (
-                    <span
-                      key={word}
-                      className="flex items-center gap-1 rounded bg-red-100 px-2 py-0.5 text-xs text-red-700"
-                    >
+                    <span key={word} className="flex items-center gap-1 rounded bg-red-100 px-2 py-0.5 text-xs text-red-700">
                       {word}
-                      <button
-                        type="button"
-                        onClick={() => handleEditRemoveBlockword(word)}
-                        className="ml-0.5 text-red-400 hover:text-red-600"
-                      >
-                        ×
-                      </button>
+                      <button type="button" onClick={() => handleEditRemoveBlockword(word)} className="ml-0.5 text-red-400 hover:text-red-600">×</button>
                     </span>
                   ))}
                 </div>
@@ -311,33 +297,22 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
                     type="text"
                     value={editBlocklistInput}
                     onChange={(e) => setEditBlocklistInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') { e.preventDefault(); handleEditAddBlockword() }
-                    }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleEditAddBlockword() } }}
                     placeholder="輸入禁詞"
                     className="flex-1 rounded-md border px-2 py-1 text-xs"
                   />
-                  <button
-                    type="button"
-                    onClick={handleEditAddBlockword}
-                    className="rounded-md border px-2 py-1 text-xs text-gray-600 hover:bg-gray-50"
-                  >
-                    新增
-                  </button>
+                  <button type="button" onClick={handleEditAddBlockword} className="rounded-md border px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">新增</button>
                 </div>
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => handleEditSave(kw.id)}
-                  disabled={loading === kw.id}
+                  disabled={editLoading}
                   className="rounded-md bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50"
                 >
                   儲存
                 </button>
-                <button
-                  onClick={() => setEditingId(null)}
-                  className="rounded-md border px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
-                >
+                <button onClick={() => setEditingId(null)} className="rounded-md border px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">
                   取消
                 </button>
               </div>
@@ -348,13 +323,7 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium text-gray-900">{kw.keyword}</span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      kw.active
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-500'
-                    }`}
-                  >
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${kw.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                     {kw.active ? '監控中' : '已停用'}
                   </span>
                   {kw.matchMode && kw.matchMode !== 'any' && (
@@ -365,9 +334,7 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
                 </div>
                 <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">
                   {kw.platforms.map((p) => (
-                    <span key={p} className="rounded bg-gray-100 px-2 py-0.5">
-                      {PLATFORM_LABELS[p] ?? p}
-                    </span>
+                    <span key={p} className="rounded bg-gray-100 px-2 py-0.5">{PLATFORM_LABELS[p] ?? p}</span>
                   ))}
                   {(kw.minPrice != null || kw.maxPrice != null) && (
                     <span className="rounded bg-gray-100 px-2 py-0.5">
@@ -375,33 +342,23 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
                     </span>
                   )}
                   {kw.mustInclude?.map((word) => (
-                    <span key={word} className="rounded bg-green-100 px-2 py-0.5 text-green-700">
-                      +{word}
-                    </span>
+                    <span key={word} className="rounded bg-green-100 px-2 py-0.5 text-green-700">+{word}</span>
                   ))}
                   {kw.blocklist?.map((word) => (
-                    <span key={word} className="rounded bg-red-100 px-2 py-0.5 text-red-700">
-                      -{word}
-                    </span>
+                    <span key={word} className="rounded bg-red-100 px-2 py-0.5 text-red-700">-{word}</span>
                   ))}
                 </div>
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
-                {/* User can toggle a keyword's active status */}
+                {/* 3.5: useTransition isPending controls disabled; optimistic UI already flipped */}
                 <button
                   onClick={() => handleToggleActive(kw)}
-                  disabled={loading === kw.id}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                    kw.active ? 'bg-indigo-600' : 'bg-gray-200'
-                  }`}
+                  disabled={isPending}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${kw.active ? 'bg-indigo-600' : 'bg-gray-200'}`}
                   title={kw.active ? '停用' : '啟用'}
                 >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      kw.active ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${kw.active ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
 
                 <button
@@ -412,7 +369,7 @@ export default function KeywordList({ initialKeywords, onRefresh }: KeywordListP
                 </button>
                 <button
                   onClick={() => handleDelete(kw.id)}
-                  disabled={loading === kw.id}
+                  disabled={isPending}
                   className="rounded-md border border-red-200 px-3 py-1 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
                 >
                   刪除

@@ -81,7 +81,9 @@
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d[''''state''''], d[''''progress'''']\\)\")",
       "Bash(find /c/Users/user/Desktop/gitlab/shop-watcher/openspec -name * -path *docs-landing*)",
       "Bash(git add:*)",
-      "Bash(git commit -m \"重新設計 docs/index.html landing page UI/UX:*)"
+      "Bash(git commit -m \"重新設計 docs/index.html landing page UI/UX:*)",
+      "Bash(git commit -m \"修復 worker.yml：if 條件移除不支援的 secrets context 檢查:*)",
+      "Bash(git commit -m \"新增 Spectra 提案：webapp 效能優化 與 UI/UX 提升:*)"
     ]
   }
 }

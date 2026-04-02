@@ -2,8 +2,21 @@
 
 import { useState } from 'react'
 
+interface Keyword {
+  id: string
+  keyword: string
+  platforms: string[]
+  minPrice: number | null
+  maxPrice: number | null
+  blocklist: string[]
+  mustInclude: string[]
+  matchMode: string
+  active: boolean
+  createdAt: string
+}
+
 interface KeywordFormProps {
-  onSuccess?: () => void
+  onSuccess?: (keyword: Keyword) => void
 }
 
 const MATCH_MODE_LABELS: Record<string, string> = {
@@ -87,6 +100,8 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
         return
       }
 
+      const newKeyword: Keyword = await res.json()
+
       // Reset form
       setKeyword('')
       setPlatforms(['shopee', 'ruten'])
@@ -98,7 +113,7 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
       setMustIncludeInput('')
       setMatchMode('any')
       setActive(true)
-      onSuccess?.()
+      onSuccess?.(newKeyword)
     } catch {
       setError('網路錯誤，請再試一次')
     } finally {

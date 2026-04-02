@@ -1,71 +1,50 @@
 import { auth } from '@/auth'
-import { prisma } from '@/lib/prisma'
-import { redirect } from 'next/navigation'
-import KeywordList from '@/components/KeywordList'
-import KeywordFormWrapper from '@/components/KeywordFormWrapper'
-import NotificationBanner from '@/components/NotificationBanner'
+import { Suspense } from 'react'
+import ScanLogSection from '@/components/ScanLogSection'
+import KeywordSection from '@/components/KeywordSection'
+import NotificationStatus from '@/components/NotificationStatus'
 
 export default async function DashboardPage() {
+  // layout.tsx already redirects unauthenticated users; no duplicate redirect needed
   const session = await auth()
-
-  if (!session?.user?.id) {
-    redirect('/login')
-  }
-
-  // Authenticated user can create a keyword, Authenticated user can edit an existing keyword,
-  // Authenticated user can delete a keyword
-  const [keywords, notificationSetting, scanLog] = await Promise.all([
-    prisma.keyword.findMany({
-      where: { userId: session.user.id },
-      orderBy: { createdAt: 'desc' },
-    }),
-    // Dashboard warns user when no notification method is configured
-    prisma.notificationSetting.findUnique({
-      where: { userId: session.user.id },
-    }),
-    // Dashboard shows last scan time
-    prisma.scanLog.findUnique({ where: { id: 'global' } }),
-  ])
-
-  const hasNotification =
-    !!notificationSetting?.discordWebhookUrl || !!notificationSetting?.emailAddress
-
-  // Format last scan as absolute date/time in Taiwan timezone
-  const lastScanLabel = (() => {
-    if (!scanLog?.scannedAt) return '尚未掃描'
-    return new Date(scanLog.scannedAt).toLocaleString('zh-TW', {
-      timeZone: 'Asia/Taipei',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    })
-  })()
+  const userId = session!.user!.id!
 
   return (
     <div>
       <div className="mb-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">關鍵字監控</h1>
-          <span className="text-xs text-gray-400">上次掃描：{lastScanLabel}</span>
+          {/* Dashboard shows last scan time — streamed independently */}
+          <Suspense fallback={
+            <span className="h-4 w-32 animate-pulse rounded bg-gray-200 inline-block" />
+          }>
+            <ScanLogSection />
+          </Suspense>
         </div>
         <p className="mt-1 text-sm text-gray-500">
           管理您的商品監控關鍵字，發現新商品時即時通知
         </p>
       </div>
 
-      {!hasNotification && <NotificationBanner />}
+      {/* Dashboard warns user when no notification method is configured */}
+      <Suspense fallback={null}>
+        <NotificationStatus userId={userId} />
+      </Suspense>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <KeywordList initialKeywords={JSON.parse(JSON.stringify(keywords))} />
-        </div>
-        <div>
-          <KeywordFormWrapper />
-        </div>
-      </div>
+      {/* KeywordSection fetches keywords, KeywordClientSection handles grid + state */}
+      <Suspense fallback={<KeywordSectionSkeleton />}>
+        <KeywordSection userId={userId} />
+      </Suspense>
+    </div>
+  )
+}
+
+function KeywordSectionSkeleton() {
+  return (
+    <div className="space-y-3">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="h-20 w-full animate-pulse rounded-xl bg-gray-100" />
+      ))}
     </div>
   )
 }

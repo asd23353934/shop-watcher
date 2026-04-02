@@ -1,16 +1,24 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import KeywordForm from './KeywordForm'
 
-export default function KeywordFormWrapper() {
-  const router = useRouter()
+interface Keyword {
+  id: string
+  keyword: string
+  platforms: string[]
+  minPrice: number | null
+  maxPrice: number | null
+  blocklist: string[]
+  mustInclude: string[]
+  matchMode: string
+  active: boolean
+  createdAt: string
+}
 
-  return (
-    <KeywordForm
-      onSuccess={() => {
-        router.refresh()
-      }}
-    />
-  )
+interface KeywordFormWrapperProps {
+  onAdd: (keyword: Keyword) => void
+}
+
+export default function KeywordFormWrapper({ onAdd }: KeywordFormWrapperProps) {
+  return <KeywordForm onSuccess={onAdd} />
 }
