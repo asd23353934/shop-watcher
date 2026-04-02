@@ -28,6 +28,13 @@ jobs:
       - name: 安裝 Playwright Chromium
         run: python -m playwright install chromium --with-deps
 
+      - name: 還原 Shopee session 快取
+        uses: actions/cache@v4
+        with:
+          path: shopee_storage_state.json
+          key: shopee-storage-state-${{ github.run_id }}
+          restore-keys: shopee-storage-state-
+
       - name: 執行單次掃描
         env:
           WORKER_SECRET: ${{ secrets.WORKER_SECRET }}

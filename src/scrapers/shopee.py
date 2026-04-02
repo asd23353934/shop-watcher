@@ -23,6 +23,10 @@ from src.watchers.base import WatcherItem
 
 logger = logging.getLogger(__name__)
 
+
+class ShopeeSessionExpiredError(Exception):
+    """Raised when Shopee redirects to the login page, indicating the session has expired."""
+
 SEARCH_TIMEOUT = 15_000  # ms (DOM fallback only)
 
 _HTTP_HEADERS = {
@@ -427,16 +431,16 @@ async def _intercept_search_api(page: Page, keyword: str) -> list[WatcherItem]:
         return []
 
     if "login" in page.url:
-        if "fu_tracking_id" in page.url:
-            logger.warning(
-                "[shopee] Fraud detection blocked search for keyword=%s — "
-                "set SHOPEE_COOKIES_JSON env var with real session cookies to bypass",
-                keyword,
-            )
-        else:
-            logger.warning("[shopee] Redirected to login for keyword=%s", keyword)
         page.remove_listener("response", on_response)
-        return []
+        if "fu_tracking_id" in page.url:
+            raise ShopeeSessionExpiredError(
+                f"Fraud detection blocked search for keyword={keyword} — "
+                "session cookies rejected, please update SHOPEE_COOKIES_JSON"
+            )
+        raise ShopeeSessionExpiredError(
+            f"Redirected to login for keyword={keyword} — "
+            "session expired, please update SHOPEE_COOKIES_JSON"
+        )
 
     # Wait up to 20 s for the actual search API response (JS fires it after page init)
     for _ in range(40):

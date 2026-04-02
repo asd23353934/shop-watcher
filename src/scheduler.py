@@ -19,10 +19,37 @@ import httpx
 from playwright.async_api import async_playwright
 
 from src.api_client import WorkerApiClient
-from src.scrapers.shopee import scrape_shopee
+from src.scrapers.shopee import scrape_shopee, ShopeeSessionExpiredError
 from src.scrapers.ruten import scrape_ruten
 
 logger = logging.getLogger(__name__)
+
+
+async def _notify_shopee_session_expired(detail: str) -> None:
+    """Send a Discord notification when Shopee session cookies have expired."""
+    webhook_url = os.environ.get("DISCORD_ERROR_WEBHOOK", "")
+    if not webhook_url:
+        return
+    payload = {
+        "embeds": [{
+            "title": "🔑 蝦皮 Session 已過期",
+            "color": 0xFF6600,
+            "description": (
+                "蝦皮 session cookies 已失效，掃描已暫停。\n"
+                "請重新登入蝦皮並更新 `SHOPEE_COOKIES_JSON` Secret，"
+                "同時刪除 GitHub Actions Cache 中的 `shopee-storage-state-` 條目。"
+            ),
+            "fields": [
+                {"name": "錯誤詳情", "value": detail[:1000]},
+            ],
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }]
+    }
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(webhook_url, json=payload)
+    except Exception as exc:
+        logger.warning("Failed to send session expired notification: %s", exc)
 
 
 async def _notify_scrape_error(platform: str, keyword: str, error: Exception) -> None:
@@ -122,7 +149,10 @@ async def run_scan_cycle(api: WorkerApiClient) -> None:
                 "--disable-dev-shm-usage",
             ],
         )
-        context = await browser.new_context(
+        # Load Shopee storage state from file if available (persisted across runs via CI cache)
+        # Falls back to SHOPEE_COOKIES_JSON env var as initial seed when no state file exists
+        storage_state_path = os.environ.get("SHOPEE_STORAGE_STATE_PATH", "shopee_storage_state.json")
+        context_kwargs = dict(
             viewport={"width": 1280, "height": 900},
             locale="zh-TW",
             timezone_id="Asia/Taipei",
@@ -132,23 +162,29 @@ async def run_scan_cycle(api: WorkerApiClient) -> None:
                 "Chrome/124.0.0.0 Safari/537.36"
             ),
         )
+        if os.path.exists(storage_state_path):
+            context_kwargs["storage_state"] = storage_state_path
+            logger.info("Shopee storage state loaded from %s", storage_state_path)
+        context = await browser.new_context(**context_kwargs)
 
-        # Inject Shopee session cookies if provided (bypasses fraud detection)
-        shopee_cookies_json = os.environ.get("SHOPEE_COOKIES_JSON", "")
-        if shopee_cookies_json:
-            try:
-                shopee_cookies = json.loads(shopee_cookies_json)
-                # Normalize sameSite: Playwright only accepts Strict|Lax|None
-                _valid_samesite = {"Strict", "Lax", "None"}
-                for c in shopee_cookies:
-                    if c.get("sameSite") not in _valid_samesite:
-                        c["sameSite"] = "Lax"
-                await context.add_cookies(shopee_cookies)
-                logger.info("Shopee cookies injected: %d cookies", len(shopee_cookies))
-            except Exception as exc:
-                logger.warning("Failed to inject Shopee cookies: %s", exc)
-                await _notify_scrape_error("shopee", "cookie-injection", exc)
+        # Inject SHOPEE_COOKIES_JSON as seed when no storage state file exists
+        if not os.path.exists(storage_state_path):
+            shopee_cookies_json = os.environ.get("SHOPEE_COOKIES_JSON", "")
+            if shopee_cookies_json:
+                try:
+                    shopee_cookies = json.loads(shopee_cookies_json)
+                    # Normalize sameSite: Playwright only accepts Strict|Lax|None
+                    _valid_samesite = {"Strict", "Lax", "None"}
+                    for c in shopee_cookies:
+                        if c.get("sameSite") not in _valid_samesite:
+                            c["sameSite"] = "Lax"
+                    await context.add_cookies(shopee_cookies)
+                    logger.info("Shopee cookies injected from env: %d cookies", len(shopee_cookies))
+                except Exception as exc:
+                    logger.warning("Failed to inject Shopee cookies: %s", exc)
+                    await _notify_scrape_error("shopee", "cookie-injection", exc)
 
+        shopee_session_expired = False  # flag to skip remaining shopee keywords after session failure
         try:
             for kw in keywords:
                 keyword_id: str = kw.get("id", "")
@@ -165,6 +201,10 @@ async def run_scan_cycle(api: WorkerApiClient) -> None:
 
                 # Each keyword-platform pair is searched independently
                 for platform in platforms:
+                    if platform == "shopee" and shopee_session_expired:
+                        logger.info("[shopee] %s — skipped (session expired)", keyword_text)
+                        continue
+
                     page = await context.new_page()
                     try:
                         if platform == "shopee":
@@ -178,6 +218,18 @@ async def run_scan_cycle(api: WorkerApiClient) -> None:
                         else:
                             logger.warning("Unknown platform: %s", platform)
                             items = []
+                    except ShopeeSessionExpiredError as exc:
+                        logger.error("[shopee] Session expired: %s", exc)
+                        shopee_session_expired = True
+                        # Remove stale storage state so next run re-seeds from SHOPEE_COOKIES_JSON
+                        if os.path.exists(storage_state_path):
+                            try:
+                                os.remove(storage_state_path)
+                                logger.info("Removed stale storage state: %s", storage_state_path)
+                            except Exception as rm_exc:
+                                logger.warning("Failed to remove storage state: %s", rm_exc)
+                        await _notify_shopee_session_expired(str(exc))
+                        items = []
                     except Exception as exc:
                         logger.error(
                             "[%s] %s — unhandled error: %s",
@@ -231,6 +283,12 @@ async def run_scan_cycle(api: WorkerApiClient) -> None:
                         platform, keyword_text, len(items), new_count, dup_count,
                     )
         finally:
+            # Persist Shopee cookies for next run before closing browser
+            try:
+                await context.storage_state(path=storage_state_path)
+                logger.info("Shopee storage state saved to %s", storage_state_path)
+            except Exception as exc:
+                logger.warning("Failed to save Shopee storage state: %s", exc)
             # Browser is always closed after a scan cycle
             await browser.close()
 
