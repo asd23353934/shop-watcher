@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import HistoryFeedbackButton from '@/components/HistoryFeedbackButton'
+import EmptyState from '@/components/EmptyState'
 
 const PLATFORM_LABELS: Record<string, string> = {
   shopee: '蝦皮',
@@ -74,12 +75,12 @@ export default async function HistoryPage() {
         </div>
 
         {items.length === 0 ? (
-          // Empty history shows placeholder
-          <div className="rounded-xl border bg-white p-12 text-center shadow-sm">
-            <p className="text-gray-400">目前尚無通知記錄</p>
-            <p className="mt-1 text-sm text-gray-400">
-              設定關鍵字並等待掃描後，通知過的商品會顯示在這裡
-            </p>
+          // Empty history shows guided empty state
+          <div className="rounded-xl border bg-white shadow-sm">
+            <EmptyState
+              heading="尚無通知紀錄"
+              subtitle="當有新商品符合你的關鍵字時，通知紀錄會顯示在這裡"
+            />
           </div>
         ) : (
           <div className="overflow-hidden rounded-xl border bg-white shadow-sm">

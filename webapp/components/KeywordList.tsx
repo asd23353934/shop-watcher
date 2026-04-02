@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, useOptimistic, useTransition } from 'react'
+import { toast } from 'sonner'
+import KeywordCard from '@/components/KeywordCard'
+import EmptyState from '@/components/EmptyState'
 
 interface Keyword {
   id: string
@@ -21,11 +24,6 @@ interface KeywordListProps {
   onOptimisticDelete: (id: string) => void
 }
 
-const PLATFORM_LABELS: Record<string, string> = {
-  shopee: '蝦皮',
-  ruten: '露天',
-}
-
 const MATCH_MODE_LABELS: Record<string, string> = {
   any: '寬鬆 — 含任一關鍵詞即通知',
   all: '嚴格 — 每個詞都必須出現',
@@ -36,12 +34,6 @@ const MATCH_MODE_EXAMPLES: Record<string, string> = {
   any: '含任一詞即通知，範圍較廣',
   all: '所有詞都必須同時出現',
   exact: '名稱須包含完整關鍵字字串',
-}
-
-const MATCH_MODE_BADGE_LABELS: Record<string, string> = {
-  any: '寬鬆',
-  all: '嚴格',
-  exact: '完整比對',
 }
 
 export default function KeywordList({
@@ -55,29 +47,25 @@ export default function KeywordList({
   const [editMustIncludeInput, setEditMustIncludeInput] = useState('')
   const [editLoading, setEditLoading] = useState(false)
 
-  // useTransition: 3.5 — pending 時按鈕 disabled，但 optimistic UI 已先反映
   const [isPending, startTransition] = useTransition()
 
-  // useOptimistic: 3.2 — toggle active instant UI, reverts on API failure
   const [optimisticKeywords, applyOptimisticToggle] = useOptimistic(
     keywords,
     (state, { id, newActive }: { id: string; newActive: boolean }) =>
       state.map((k) => (k.id === id ? { ...k, active: newActive } : k))
   )
 
-  // Empty keyword list shows a call-to-action
+  // Empty keyword list shows guided empty state
   if (keywords.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed bg-white p-10 text-center">
-        <p className="mb-2 text-gray-500">還沒有關鍵字</p>
-        <p className="text-sm text-gray-400">使用右側的表單新增第一個監控關鍵字</p>
-      </div>
+      <EmptyState
+        heading="尚無監控關鍵字"
+        subtitle="新增你的第一個監控關鍵字，開始接收商品通知"
+      />
     )
   }
 
-  // 3.2 + 3.3: toggle with optimistic update, revert on failure
-  const handleToggleActive = (kw: Keyword) => {
-    const newActive = !kw.active
+  const handleToggleActive = (kw: Keyword, newActive: boolean) => {
     startTransition(async () => {
       applyOptimisticToggle({ id: kw.id, newActive })
       const res = await fetch(`/api/keywords/${kw.id}`, {
@@ -86,31 +74,23 @@ export default function KeywordList({
         body: JSON.stringify({ active: newActive }),
       })
       if (res.ok) {
-        // Commit to parent state
         onOptimisticToggle(kw.id, newActive)
       } else {
-        // 3.3: revert — useOptimistic auto-reverts when transition ends without commit
-        // We still update parent back to original to stay in sync
         onOptimisticToggle(kw.id, kw.active)
-        alert('切換失敗，請稍後再試')
+        toast.error('切換失敗，請稍後再試')
       }
     })
   }
 
-  // 3.2 + 3.4: delete with optimistic removal, revert on failure
   const handleDelete = (id: string) => {
     if (!confirm('確定要刪除此關鍵字嗎？')) return
-    const deletedKw = keywords.find((k) => k.id === id)
     startTransition(async () => {
-      // Immediately remove from parent state (optimistic)
       onOptimisticDelete(id)
       const res = await fetch(`/api/keywords/${id}`, { method: 'DELETE' })
-      if (!res.ok) {
-        // 3.4: revert — add keyword back via parent
-        // KeywordClientSection will re-add it if we had a reference
-        // Since we removed it, we alert and suggest refresh
-        alert('刪除失敗，請重新整理頁面後再試')
-        void deletedKw // logged for debugging
+      if (res.ok) {
+        toast.success('關鍵字已刪除')
+      } else {
+        toast.error('刪除失敗，請重新整理頁面後再試')
       }
     })
   }
@@ -168,10 +148,14 @@ export default function KeywordList({
       })
       if (res.ok) {
         const updated = await res.json()
-        // Reflect edit in parent state via toggle (reuse to set full object)
         onOptimisticToggle(id, updated.active)
         setEditingId(null)
+        toast.success('關鍵字已更新')
+      } else {
+        toast.error('更新失敗，請稍後再試')
       }
+    } catch {
+      toast.error('網路錯誤，請再試一次')
     } finally {
       setEditLoading(false)
     }
@@ -210,7 +194,7 @@ export default function KeywordList({
                       checked={(editForm.platforms ?? []).includes(p)}
                       onChange={() => toggleEditPlatform(p)}
                     />
-                    {PLATFORM_LABELS[p]}
+                    {p === 'shopee' ? '蝦皮' : '露天'}
                   </label>
                 ))}
               </div>
@@ -318,64 +302,14 @@ export default function KeywordList({
               </div>
             </div>
           ) : (
-            // View mode
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium text-gray-900">{kw.keyword}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${kw.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                    {kw.active ? '監控中' : '已停用'}
-                  </span>
-                  {kw.matchMode && kw.matchMode !== 'any' && (
-                    <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs text-indigo-600">
-                      {MATCH_MODE_BADGE_LABELS[kw.matchMode] ?? kw.matchMode}
-                    </span>
-                  )}
-                </div>
-                <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">
-                  {kw.platforms.map((p) => (
-                    <span key={p} className="rounded bg-gray-100 px-2 py-0.5">{PLATFORM_LABELS[p] ?? p}</span>
-                  ))}
-                  {(kw.minPrice != null || kw.maxPrice != null) && (
-                    <span className="rounded bg-gray-100 px-2 py-0.5">
-                      NT${kw.minPrice ?? '0'} ~ NT${kw.maxPrice ?? '∞'}
-                    </span>
-                  )}
-                  {kw.mustInclude?.map((word) => (
-                    <span key={word} className="rounded bg-green-100 px-2 py-0.5 text-green-700">+{word}</span>
-                  ))}
-                  {kw.blocklist?.map((word) => (
-                    <span key={word} className="rounded bg-red-100 px-2 py-0.5 text-red-700">-{word}</span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex shrink-0 items-center gap-2">
-                {/* 3.5: useTransition isPending controls disabled; optimistic UI already flipped */}
-                <button
-                  onClick={() => handleToggleActive(kw)}
-                  disabled={isPending}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${kw.active ? 'bg-indigo-600' : 'bg-gray-200'}`}
-                  title={kw.active ? '停用' : '啟用'}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${kw.active ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-
-                <button
-                  onClick={() => handleEdit(kw)}
-                  className="rounded-md border px-3 py-1 text-sm text-gray-600 hover:bg-gray-50"
-                >
-                  編輯
-                </button>
-                <button
-                  onClick={() => handleDelete(kw.id)}
-                  disabled={isPending}
-                  className="rounded-md border border-red-200 px-3 py-1 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
-                >
-                  刪除
-                </button>
-              </div>
-            </div>
+            // View mode — uses KeywordCard with shadcn/ui primitives
+            <KeywordCard
+              keyword={kw}
+              onEdit={() => handleEdit(kw)}
+              onDelete={() => handleDelete(kw.id)}
+              onToggle={(newActive) => handleToggleActive(kw, newActive)}
+              toggleDisabled={isPending}
+            />
           )}
         </div>
       ))}

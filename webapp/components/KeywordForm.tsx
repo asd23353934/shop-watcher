@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { toast } from 'sonner'
 
 interface Keyword {
   id: string
@@ -43,7 +44,6 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
   const [matchMode, setMatchMode] = useState('any')
   const [active, setActive] = useState(true)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const togglePlatform = (platform: string) => {
     setPlatforms((prev) =>
@@ -75,7 +75,6 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null)
     setLoading(true)
 
     try {
@@ -96,7 +95,7 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
 
       if (!res.ok) {
         const data = await res.json()
-        setError(data.error ?? '建立失敗')
+        toast.error(data.error ?? '建立失敗')
         return
       }
 
@@ -113,9 +112,10 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
       setMustIncludeInput('')
       setMatchMode('any')
       setActive(true)
+      toast.success('關鍵字已新增')
       onSuccess?.(newKeyword)
     } catch {
-      setError('網路錯誤，請再試一次')
+      toast.error('網路錯誤，請再試一次')
     } finally {
       setLoading(false)
     }
@@ -124,10 +124,6 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
   return (
     <form onSubmit={handleSubmit} className="rounded-xl border bg-white p-6 shadow-sm">
       <h2 className="mb-4 text-lg font-semibold text-gray-800">新增關鍵字</h2>
-
-      {error && (
-        <div className="mb-4 rounded-md bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>
-      )}
 
       {/* Keyword */}
       <div className="mb-4">
