@@ -186,7 +186,7 @@ code:
 ---
 ### Requirement: Notification settings are isolated per user
 
-The system SHALL ensure each user's notification settings are private and cannot be read or modified by other users.
+The system SHALL ensure each user's notification settings are private and cannot be read or modified by other users. The settings page SHALL load existing values by fetching from `GET /api/settings`. Within a single browser session, the result of the first successful fetch SHALL be cached in memory; subsequent mounts of the settings form SHALL use the cached values and SHALL NOT re-fetch from the API. The cache SHALL be invalidated and updated after a successful save operation.
 
 #### Scenario: Settings page shows only the authenticated user's settings
 
@@ -194,75 +194,65 @@ The system SHALL ensure each user's notification settings are private and cannot
 - **THEN** only the `NotificationSetting` row where `userId` matches the session user SHALL be loaded
 - **AND** other users' webhook URLs or email addresses SHALL NOT be exposed
 
-#### Scenario: Settings are pre-filled with existing values on load
+#### Scenario: Settings are pre-filled with existing values on first load
 
-- **WHEN** a user opens `/settings` and already has a `NotificationSetting` record
-- **THEN** the form fields SHALL be pre-populated with the stored values
+- **WHEN** a user opens `/settings` for the first time in a browser session and already has a `NotificationSetting` record
+- **THEN** the form fields SHALL be pre-populated with the stored values fetched from `GET /api/settings`
 - **AND** the user SHALL be able to update individual fields without re-entering all values
 
+#### Scenario: Settings are pre-filled from cache on subsequent loads within same session
+
+- **WHEN** a user navigates away from `/settings` and returns to it within the same browser session
+- **AND** a prior successful fetch has already been cached
+- **THEN** the form fields SHALL be pre-populated immediately without issuing a new `GET /api/settings` request
+- **AND** the loading spinner SHALL NOT be shown on the second visit
+
+#### Scenario: Cache is updated after successful save
+
+- **WHEN** a user saves updated notification settings successfully
+- **THEN** the in-memory cache SHALL be updated with the newly saved values
+- **AND** the next visit to `/settings` within the same session SHALL show the updated values without a network fetch
+
+
 <!-- @trace
-source: saas-webapp
-updated: 2026-03-31
+source: fix-webapp-performance
+updated: 2026-04-02
 code:
-  - webapp/app/api/keywords/[id]/route.ts
-  - src/scrapers/ruten.py
-  - webapp/app/globals.css
-  - webapp/package.json
-  - webapp/app/favicon.ico
-  - webapp/public/file.svg
-  - webapp/tsconfig.json
-  - webapp/middleware.ts
-  - webapp/prisma/migrations/migration_lock.toml
-  - webapp/app/api/worker/notify/route.ts
-  - webapp/app/login/page.tsx
-  - webapp/eslint.config.mjs
-  - webapp/public/globe.svg
-  - webapp/types/next-auth.d.ts
-  - webapp/next.config.ts
-  - webapp/public/vercel.svg
-  - webapp/vercel.json
-  - main.py
-  - poc/screenshots/shopee.png
-  - webapp/app/dashboard/layout.tsx
-  - .github/workflows/worker.yml
-  - .env.example
-  - webapp/lib/email.ts
-  - webapp/lib/prisma.ts
-  - webapp/components/KeywordForm.tsx
-  - webapp/app/api/worker/keywords/route.ts
-  - webapp/components/NotificationForm.tsx
-  - fly.toml
-  - src/database.py
-  - webapp/app/api/keywords/route.ts
-  - src/api_client.py
-  - webapp/app/api/settings/route.ts
-  - webapp/postcss.config.mjs
   - webapp/app/dashboard/page.tsx
-  - config.example.yaml
-  - webapp/app/page.tsx
-  - webapp/components/KeywordFormWrapper.tsx
-  - poc/screenshots/ruten.png
-  - webapp/lib/worker-auth.ts
-  - src/config.py
-  - webapp/app/settings/page.tsx
-  - webapp/prisma/migrations/20260331075111_init/migration.sql
-  - requirements.txt
-  - webapp/components/KeywordList.tsx
-  - webapp/prisma/schema.prisma
-  - .github/workflows/ci.yml
-  - src/scheduler.py
-  - src/scrapers/shopee.py
-  - webapp/app/api/auth/[...nextauth]/route.ts
-  - webapp/auth.ts
-  - webapp/lib/discord.ts
-  - webapp/public/window.svg
+  - webapp/actions/auth.ts
+  - webapp/components/NotificationStatus.tsx
+  - webapp/components/ui/sonner.tsx
+  - webapp/components/DashboardStats.tsx
   - webapp/app/layout.tsx
-  - webapp/public/next.svg
-  - src/scrapers/__init__.py
-  - src/notifier.py
-  - Dockerfile
-  - run_once.py
-  - webapp/README.md
+  - webapp/components/KeywordCard.tsx
+  - webapp/app/globals.css
+  - webapp/components/ui/skeleton.tsx
+  - webapp/components/ui/SkeletonCard.tsx
+  - webapp/constants/matchMode.ts
+  - webapp/package.json
+  - webapp/types/keyword.ts
+  - webapp/app/dashboard/layout.tsx
+  - webapp/components/NotificationForm.tsx
+  - webapp/components/ui/badge.tsx
+  - webapp/lib/utils.ts
+  - webapp/components/KeywordClientSection.tsx
+  - webapp/components/ui/alert-dialog.tsx
+  - webapp/components/KeywordForm.tsx
+  - webapp/app/history/layout.tsx
+  - .github/workflows/worker.yml
+  - webapp/app/settings/layout.tsx
+  - webapp/components/EmptyState.tsx
+  - webapp/components/Navbar.tsx
+  - webapp/components/ScanLogSection.tsx
+  - webapp/app/settings/page.tsx
+  - webapp/components.json
+  - webapp/components/KeywordFormWrapper.tsx
+  - webapp/components/ui/button.tsx
+  - webapp/components/KeywordSection.tsx
+  - webapp/app/history/page.tsx
+  - webapp/constants/platform.ts
+  - webapp/components/KeywordList.tsx
+  - webapp/components/ui/switch.tsx
 -->
 
 ---

@@ -1,3 +1,5 @@
+import { timingSafeEqual } from 'crypto'
+
 /**
  * Verifies the Worker Bearer token from the Authorization header.
  * Returns a Response with 401 if invalid, or null if valid.
@@ -25,7 +27,13 @@ export function verifyWorkerToken(request: Request): Response | null {
     )
   }
 
-  if (token !== secret) {
+  const tokenBuf = Buffer.from(token)
+  const secretBuf = Buffer.from(secret)
+  const valid =
+    tokenBuf.length === secretBuf.length &&
+    timingSafeEqual(tokenBuf, secretBuf)
+
+  if (!valid) {
     return new Response(
       JSON.stringify({ error: 'Invalid token' }),
       { status: 401, headers: { 'Content-Type': 'application/json' } }

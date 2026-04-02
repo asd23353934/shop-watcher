@@ -1,4 +1,5 @@
 import { auth } from '@/auth'
+import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 import ScanLogSection from '@/components/ScanLogSection'
 import KeywordSection from '@/components/KeywordSection'
@@ -7,9 +8,9 @@ import DashboardStats from '@/components/DashboardStats'
 import { SkeletonCard, SkeletonRow } from '@/components/ui/SkeletonCard'
 
 export default async function DashboardPage() {
-  // layout.tsx already redirects unauthenticated users; no duplicate redirect needed
   const session = await auth()
-  const userId = session!.user!.id!
+  if (!session?.user?.id) redirect('/login')
+  const userId = session.user.id
 
   return (
     <div className="space-y-6">

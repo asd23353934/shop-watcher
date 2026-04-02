@@ -22,8 +22,19 @@ export default function KeywordClientSection({ initialKeywords }: Props) {
     )
   }
 
+  const handleUpdate = (updated: Keyword) => {
+    setKeywords((prev) => prev.map((k) => (k.id === updated.id ? updated : k)))
+  }
+
   const handleDelete = (id: string) => {
     setKeywords((prev) => prev.filter((k) => k.id !== id))
+  }
+
+  const handleRestore = (keyword: Keyword) => {
+    setKeywords((prev) => {
+      if (prev.some((k) => k.id === keyword.id)) return prev
+      return [...prev, keyword]
+    })
   }
 
   return (
@@ -32,7 +43,9 @@ export default function KeywordClientSection({ initialKeywords }: Props) {
         <KeywordList
           keywords={keywords}
           onOptimisticToggle={handleToggle}
+          onOptimisticUpdate={handleUpdate}
           onOptimisticDelete={handleDelete}
+          onOptimisticRestore={handleRestore}
         />
       </div>
       <div>

@@ -13,18 +13,20 @@ export async function POST(request: Request) {
   const authError = verifyWorkerToken(request)
   if (authError) return authError
 
-  let scannedAt: string
+  let scannedAt: Date
   try {
     const body = await request.json()
-    scannedAt = body?.scannedAt ?? new Date().toISOString()
+    const raw = body?.scannedAt
+    const parsed = raw ? new Date(raw) : new Date()
+    scannedAt = isNaN(parsed.getTime()) ? new Date() : parsed
   } catch {
-    scannedAt = new Date().toISOString()
+    scannedAt = new Date()
   }
 
   await prisma.scanLog.upsert({
     where: { id: 'global' },
-    update: { scannedAt: new Date(scannedAt) },
-    create: { id: 'global', scannedAt: new Date(scannedAt) },
+    update: { scannedAt },
+    create: { id: 'global', scannedAt },
   })
 
   return NextResponse.json({ ok: true })

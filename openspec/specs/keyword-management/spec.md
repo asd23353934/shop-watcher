@@ -8,14 +8,15 @@ TBD - created by archiving change 'saas-webapp'. Update Purpose after archive.
 
 ### Requirement: Authenticated user can create a keyword
 
-The system SHALL allow an authenticated user to create a new keyword with platform selection, optional price range, and active status. After a successful creation, the keyword list SHALL be updated without requiring a full page reload.
+The system SHALL allow an authenticated user to create a new keyword with platform selection, optional price range, and active status. After a successful creation, the keyword list SHALL be updated without requiring a full page reload. The new keyword SHALL appear in the list immediately upon successful API response, by merging it into local client state, without triggering a full server re-render or `router.refresh()`.
 
 #### Scenario: User creates a keyword with required fields
 
 - **WHEN** a user submits the keyword creation form with a non-empty `keyword` string and at least one platform selected (`shopee` or `ruten`)
 - **THEN** a `Keyword` row SHALL be created in the database with `userId` set to the authenticated user's ID
 - **AND** `active` SHALL default to `true`
-- **AND** the keyword list SHALL refresh and display the new keyword without a full page reload
+- **AND** the keyword list SHALL immediately display the new keyword by updating local client state
+- **AND** no full page reload or `router.refresh()` SHALL occur
 
 #### Scenario: Keyword creation with price range
 
@@ -37,108 +38,125 @@ The system SHALL allow an authenticated user to create a new keyword with platfo
 
 
 <!-- @trace
-source: keyword-ux-improvements
-updated: 2026-04-01
+source: fix-webapp-performance
+updated: 2026-04-02
 code:
   - webapp/app/dashboard/page.tsx
-  - webapp/app/api/keywords/route.ts
-  - webapp/components/NotificationBanner.tsx
+  - webapp/actions/auth.ts
+  - webapp/components/NotificationStatus.tsx
+  - webapp/components/ui/sonner.tsx
+  - webapp/components/DashboardStats.tsx
+  - webapp/app/layout.tsx
+  - webapp/components/KeywordCard.tsx
+  - webapp/app/globals.css
+  - webapp/components/ui/skeleton.tsx
+  - webapp/components/ui/SkeletonCard.tsx
+  - webapp/constants/matchMode.ts
+  - webapp/package.json
+  - webapp/types/keyword.ts
+  - webapp/app/dashboard/layout.tsx
+  - webapp/components/NotificationForm.tsx
+  - webapp/components/ui/badge.tsx
+  - webapp/lib/utils.ts
+  - webapp/components/KeywordClientSection.tsx
+  - webapp/components/ui/alert-dialog.tsx
+  - webapp/components/KeywordForm.tsx
+  - webapp/app/history/layout.tsx
+  - .github/workflows/worker.yml
+  - webapp/app/settings/layout.tsx
+  - webapp/components/EmptyState.tsx
+  - webapp/components/Navbar.tsx
+  - webapp/components/ScanLogSection.tsx
+  - webapp/app/settings/page.tsx
+  - webapp/components.json
+  - webapp/components/KeywordFormWrapper.tsx
+  - webapp/components/ui/button.tsx
+  - webapp/components/KeywordSection.tsx
+  - webapp/app/history/page.tsx
+  - webapp/constants/platform.ts
+  - webapp/components/KeywordList.tsx
+  - webapp/components/ui/switch.tsx
 -->
 
 ---
 ### Requirement: Authenticated user can edit an existing keyword
 
-The system SHALL allow a user to update any field of a keyword they own.
+The system SHALL allow a user to update any field of a keyword they own. On success, the system SHALL display a `success` Toast notification with the message "關鍵字已更新". On failure, the system SHALL display an `error` Toast.
 
 #### Scenario: User updates keyword text
 
 - **WHEN** a user submits an edit form for their own keyword with a new `keyword` string
 - **THEN** the `Keyword` row SHALL be updated in the database
 - **AND** the updated value SHALL appear in the keyword list
+- **AND** a `success` Toast SHALL appear with the message "關鍵字已更新"
 
 #### Scenario: User cannot edit another user's keyword
 
 - **WHEN** a user attempts to update a `Keyword` row that belongs to a different `userId`
 - **THEN** the API SHALL return HTTP 403
 - **AND** the `Keyword` row SHALL remain unchanged
+- **AND** an `error` Toast SHALL appear with an appropriate error message
 
 
 <!-- @trace
-source: saas-webapp
-updated: 2026-03-31
+source: improve-webapp-ux
+updated: 2026-04-02
 code:
-  - webapp/app/api/keywords/[id]/route.ts
-  - src/scrapers/ruten.py
-  - webapp/app/globals.css
-  - webapp/package.json
-  - webapp/app/favicon.ico
-  - webapp/public/file.svg
-  - webapp/tsconfig.json
-  - webapp/middleware.ts
-  - webapp/prisma/migrations/migration_lock.toml
-  - webapp/app/api/worker/notify/route.ts
-  - webapp/app/login/page.tsx
-  - webapp/eslint.config.mjs
-  - webapp/public/globe.svg
-  - webapp/types/next-auth.d.ts
-  - webapp/next.config.ts
-  - webapp/public/vercel.svg
-  - webapp/vercel.json
-  - main.py
-  - poc/screenshots/shopee.png
-  - webapp/app/dashboard/layout.tsx
-  - .github/workflows/worker.yml
-  - .env.example
-  - webapp/lib/email.ts
-  - webapp/lib/prisma.ts
-  - webapp/components/KeywordForm.tsx
-  - webapp/app/api/worker/keywords/route.ts
-  - webapp/components/NotificationForm.tsx
-  - fly.toml
-  - src/database.py
-  - webapp/app/api/keywords/route.ts
-  - src/api_client.py
-  - webapp/app/api/settings/route.ts
-  - webapp/postcss.config.mjs
-  - webapp/app/dashboard/page.tsx
-  - config.example.yaml
-  - webapp/app/page.tsx
-  - webapp/components/KeywordFormWrapper.tsx
-  - poc/screenshots/ruten.png
-  - webapp/lib/worker-auth.ts
-  - src/config.py
-  - webapp/app/settings/page.tsx
-  - webapp/prisma/migrations/20260331075111_init/migration.sql
-  - requirements.txt
-  - webapp/components/KeywordList.tsx
-  - webapp/prisma/schema.prisma
-  - .github/workflows/ci.yml
-  - src/scheduler.py
-  - src/scrapers/shopee.py
-  - webapp/app/api/auth/[...nextauth]/route.ts
-  - webapp/auth.ts
-  - webapp/lib/discord.ts
-  - webapp/public/window.svg
+  - webapp/components/KeywordSection.tsx
+  - webapp/components/ui/alert-dialog.tsx
+  - webapp/components/ui/button.tsx
+  - webapp/components.json
+  - webapp/types/keyword.ts
+  - webapp/components/ui/switch.tsx
   - webapp/app/layout.tsx
-  - webapp/public/next.svg
-  - src/scrapers/__init__.py
-  - src/notifier.py
-  - Dockerfile
-  - run_once.py
-  - webapp/README.md
+  - webapp/app/settings/page.tsx
+  - webapp/components/EmptyState.tsx
+  - webapp/components/KeywordClientSection.tsx
+  - webapp/components/KeywordForm.tsx
+  - webapp/components/NotificationForm.tsx
+  - webapp/components/ui/skeleton.tsx
+  - webapp/app/history/page.tsx
+  - .github/workflows/worker.yml
+  - webapp/package.json
+  - webapp/app/settings/layout.tsx
+  - webapp/components/ScanLogSection.tsx
+  - webapp/components/ui/sonner.tsx
+  - webapp/constants/platform.ts
+  - webapp/components/KeywordFormWrapper.tsx
+  - webapp/components/ui/badge.tsx
+  - webapp/components/DashboardStats.tsx
+  - webapp/constants/matchMode.ts
+  - webapp/components/KeywordList.tsx
+  - webapp/actions/auth.ts
+  - webapp/lib/utils.ts
+  - webapp/app/dashboard/layout.tsx
+  - webapp/app/history/layout.tsx
+  - webapp/components/Navbar.tsx
+  - webapp/components/ui/SkeletonCard.tsx
+  - webapp/components/NotificationStatus.tsx
+  - webapp/components/KeywordCard.tsx
+  - webapp/app/globals.css
+  - webapp/app/dashboard/page.tsx
 -->
 
 ---
 ### Requirement: Authenticated user can delete a keyword
 
-The system SHALL allow a user to permanently delete a keyword they own.
+The system SHALL allow a user to permanently delete a keyword they own. The deletion SHALL apply optimistically: the keyword SHALL be removed from the UI immediately upon user confirmation, without waiting for the API response. If the API call fails, the keyword SHALL reappear in the list.
 
 #### Scenario: User deletes their own keyword
 
 - **WHEN** a user confirms deletion of a keyword they own
-- **THEN** the `Keyword` row SHALL be deleted from the database
-- **AND** the keyword SHALL no longer appear in the user's list
+- **THEN** the keyword SHALL immediately disappear from the list in the UI
+- **AND** the `Keyword` row SHALL be deleted from the database upon API success
 - **AND** the associated `SeenItem` rows SHALL NOT be deleted (historical record preserved)
+
+#### Scenario: Deletion fails and keyword reappears
+
+- **WHEN** a user confirms deletion of a keyword
+- **AND** the DELETE API call returns a non-2xx response or network error
+- **THEN** the keyword SHALL reappear in the list at its original position
+- **AND** an error indicator SHALL be shown to the user
 
 #### Scenario: User cannot delete another user's keyword
 
@@ -148,68 +166,44 @@ The system SHALL allow a user to permanently delete a keyword they own.
 
 
 <!-- @trace
-source: saas-webapp
-updated: 2026-03-31
+source: fix-webapp-performance
+updated: 2026-04-02
 code:
-  - webapp/app/api/keywords/[id]/route.ts
-  - src/scrapers/ruten.py
-  - webapp/app/globals.css
-  - webapp/package.json
-  - webapp/app/favicon.ico
-  - webapp/public/file.svg
-  - webapp/tsconfig.json
-  - webapp/middleware.ts
-  - webapp/prisma/migrations/migration_lock.toml
-  - webapp/app/api/worker/notify/route.ts
-  - webapp/app/login/page.tsx
-  - webapp/eslint.config.mjs
-  - webapp/public/globe.svg
-  - webapp/types/next-auth.d.ts
-  - webapp/next.config.ts
-  - webapp/public/vercel.svg
-  - webapp/vercel.json
-  - main.py
-  - poc/screenshots/shopee.png
-  - webapp/app/dashboard/layout.tsx
-  - .github/workflows/worker.yml
-  - .env.example
-  - webapp/lib/email.ts
-  - webapp/lib/prisma.ts
-  - webapp/components/KeywordForm.tsx
-  - webapp/app/api/worker/keywords/route.ts
-  - webapp/components/NotificationForm.tsx
-  - fly.toml
-  - src/database.py
-  - webapp/app/api/keywords/route.ts
-  - src/api_client.py
-  - webapp/app/api/settings/route.ts
-  - webapp/postcss.config.mjs
   - webapp/app/dashboard/page.tsx
-  - config.example.yaml
-  - webapp/app/page.tsx
-  - webapp/components/KeywordFormWrapper.tsx
-  - poc/screenshots/ruten.png
-  - webapp/lib/worker-auth.ts
-  - src/config.py
-  - webapp/app/settings/page.tsx
-  - webapp/prisma/migrations/20260331075111_init/migration.sql
-  - requirements.txt
-  - webapp/components/KeywordList.tsx
-  - webapp/prisma/schema.prisma
-  - .github/workflows/ci.yml
-  - src/scheduler.py
-  - src/scrapers/shopee.py
-  - webapp/app/api/auth/[...nextauth]/route.ts
-  - webapp/auth.ts
-  - webapp/lib/discord.ts
-  - webapp/public/window.svg
+  - webapp/actions/auth.ts
+  - webapp/components/NotificationStatus.tsx
+  - webapp/components/ui/sonner.tsx
+  - webapp/components/DashboardStats.tsx
   - webapp/app/layout.tsx
-  - webapp/public/next.svg
-  - src/scrapers/__init__.py
-  - src/notifier.py
-  - Dockerfile
-  - run_once.py
-  - webapp/README.md
+  - webapp/components/KeywordCard.tsx
+  - webapp/app/globals.css
+  - webapp/components/ui/skeleton.tsx
+  - webapp/components/ui/SkeletonCard.tsx
+  - webapp/constants/matchMode.ts
+  - webapp/package.json
+  - webapp/types/keyword.ts
+  - webapp/app/dashboard/layout.tsx
+  - webapp/components/NotificationForm.tsx
+  - webapp/components/ui/badge.tsx
+  - webapp/lib/utils.ts
+  - webapp/components/KeywordClientSection.tsx
+  - webapp/components/ui/alert-dialog.tsx
+  - webapp/components/KeywordForm.tsx
+  - webapp/app/history/layout.tsx
+  - .github/workflows/worker.yml
+  - webapp/app/settings/layout.tsx
+  - webapp/components/EmptyState.tsx
+  - webapp/components/Navbar.tsx
+  - webapp/components/ScanLogSection.tsx
+  - webapp/app/settings/page.tsx
+  - webapp/components.json
+  - webapp/components/KeywordFormWrapper.tsx
+  - webapp/components/ui/button.tsx
+  - webapp/components/KeywordSection.tsx
+  - webapp/app/history/page.tsx
+  - webapp/constants/platform.ts
+  - webapp/components/KeywordList.tsx
+  - webapp/components/ui/switch.tsx
 -->
 
 ---
@@ -298,83 +292,69 @@ code:
 ---
 ### Requirement: User can toggle a keyword's active status
 
-The system SHALL allow a user to enable or disable a keyword without deleting it.
+The system SHALL allow a user to enable or disable a keyword without deleting it. The toggle SHALL apply optimistically: the UI SHALL reflect the new state immediately upon user interaction, without waiting for the API response. If the API call fails, the UI SHALL revert to the previous state.
 
 #### Scenario: User deactivates a keyword
 
 - **WHEN** a user toggles a keyword's active switch to off
-- **THEN** the `Keyword.active` field SHALL be set to `false`
-- **AND** the keyword SHALL NOT appear in the `GET /api/worker/keywords` response
+- **THEN** the keyword card SHALL immediately display as inactive (grey badge) in the UI
+- **AND** the `Keyword.active` field SHALL be set to `false` in the database upon API success
+- **AND** the keyword SHALL NOT appear in the `GET /api/worker/keywords` response after the update
 
 #### Scenario: User reactivates a keyword
 
 - **WHEN** a user toggles a keyword's active switch to on
-- **THEN** the `Keyword.active` field SHALL be set to `true`
+- **THEN** the keyword card SHALL immediately display as active (green badge) in the UI
+- **AND** the `Keyword.active` field SHALL be set to `true` in the database upon API success
 - **AND** the keyword SHALL appear in the next `GET /api/worker/keywords` response
 
+#### Scenario: Toggle fails and UI reverts
+
+- **WHEN** a user toggles a keyword's active switch
+- **AND** the PATCH API call returns a non-2xx response or network error
+- **THEN** the keyword card SHALL revert to its previous active state in the UI
+- **AND** an error indicator SHALL be shown to the user
+
+
 <!-- @trace
-source: saas-webapp
-updated: 2026-03-31
+source: fix-webapp-performance
+updated: 2026-04-02
 code:
-  - webapp/app/api/keywords/[id]/route.ts
-  - src/scrapers/ruten.py
-  - webapp/app/globals.css
-  - webapp/package.json
-  - webapp/app/favicon.ico
-  - webapp/public/file.svg
-  - webapp/tsconfig.json
-  - webapp/middleware.ts
-  - webapp/prisma/migrations/migration_lock.toml
-  - webapp/app/api/worker/notify/route.ts
-  - webapp/app/login/page.tsx
-  - webapp/eslint.config.mjs
-  - webapp/public/globe.svg
-  - webapp/types/next-auth.d.ts
-  - webapp/next.config.ts
-  - webapp/public/vercel.svg
-  - webapp/vercel.json
-  - main.py
-  - poc/screenshots/shopee.png
-  - webapp/app/dashboard/layout.tsx
-  - .github/workflows/worker.yml
-  - .env.example
-  - webapp/lib/email.ts
-  - webapp/lib/prisma.ts
-  - webapp/components/KeywordForm.tsx
-  - webapp/app/api/worker/keywords/route.ts
-  - webapp/components/NotificationForm.tsx
-  - fly.toml
-  - src/database.py
-  - webapp/app/api/keywords/route.ts
-  - src/api_client.py
-  - webapp/app/api/settings/route.ts
-  - webapp/postcss.config.mjs
   - webapp/app/dashboard/page.tsx
-  - config.example.yaml
-  - webapp/app/page.tsx
-  - webapp/components/KeywordFormWrapper.tsx
-  - poc/screenshots/ruten.png
-  - webapp/lib/worker-auth.ts
-  - src/config.py
-  - webapp/app/settings/page.tsx
-  - webapp/prisma/migrations/20260331075111_init/migration.sql
-  - requirements.txt
-  - webapp/components/KeywordList.tsx
-  - webapp/prisma/schema.prisma
-  - .github/workflows/ci.yml
-  - src/scheduler.py
-  - src/scrapers/shopee.py
-  - webapp/app/api/auth/[...nextauth]/route.ts
-  - webapp/auth.ts
-  - webapp/lib/discord.ts
-  - webapp/public/window.svg
+  - webapp/actions/auth.ts
+  - webapp/components/NotificationStatus.tsx
+  - webapp/components/ui/sonner.tsx
+  - webapp/components/DashboardStats.tsx
   - webapp/app/layout.tsx
-  - webapp/public/next.svg
-  - src/scrapers/__init__.py
-  - src/notifier.py
-  - Dockerfile
-  - run_once.py
-  - webapp/README.md
+  - webapp/components/KeywordCard.tsx
+  - webapp/app/globals.css
+  - webapp/components/ui/skeleton.tsx
+  - webapp/components/ui/SkeletonCard.tsx
+  - webapp/constants/matchMode.ts
+  - webapp/package.json
+  - webapp/types/keyword.ts
+  - webapp/app/dashboard/layout.tsx
+  - webapp/components/NotificationForm.tsx
+  - webapp/components/ui/badge.tsx
+  - webapp/lib/utils.ts
+  - webapp/components/KeywordClientSection.tsx
+  - webapp/components/ui/alert-dialog.tsx
+  - webapp/components/KeywordForm.tsx
+  - webapp/app/history/layout.tsx
+  - .github/workflows/worker.yml
+  - webapp/app/settings/layout.tsx
+  - webapp/components/EmptyState.tsx
+  - webapp/components/Navbar.tsx
+  - webapp/components/ScanLogSection.tsx
+  - webapp/app/settings/page.tsx
+  - webapp/components.json
+  - webapp/components/KeywordFormWrapper.tsx
+  - webapp/components/ui/button.tsx
+  - webapp/components/KeywordSection.tsx
+  - webapp/app/history/page.tsx
+  - webapp/constants/platform.ts
+  - webapp/components/KeywordList.tsx
+  - webapp/components/ui/switch.tsx
 -->
 
 ---
@@ -550,5 +530,213 @@ code:
   - src/api_client.py
   - src/scheduler.py
   - webapp/app/api/worker/keywords/route.ts
+  - webapp/app/dashboard/page.tsx
+-->
+
+---
+### Requirement: Dashboard displays statistics summary block
+
+The system SHALL display a statistics block at the top of the Dashboard showing the total number of active keywords and the count of notifications sent today.
+
+#### Scenario: Statistics block shows keyword count
+
+- **WHEN** an authenticated user navigates to `/dashboard`
+- **THEN** the statistics block SHALL display the total number of keywords owned by that user
+- **AND** the label SHALL read "監控關鍵字"
+
+#### Scenario: Statistics block shows today's notification count
+
+- **WHEN** an authenticated user navigates to `/dashboard`
+- **THEN** the statistics block SHALL display the count of SeenItem rows created today (UTC+8) for that user
+- **AND** the label SHALL read "今日通知"
+
+#### Scenario: Statistics block shows Skeleton while loading
+
+- **WHEN** the statistics data is being fetched
+- **THEN** the statistics block SHALL display 2 Skeleton stat card placeholders
+- **AND** once data is received, the Skeleton cards SHALL be replaced by real numbers
+
+
+<!-- @trace
+source: improve-webapp-ux
+updated: 2026-04-02
+code:
+  - webapp/components/KeywordSection.tsx
+  - webapp/components/ui/alert-dialog.tsx
+  - webapp/components/ui/button.tsx
+  - webapp/components.json
+  - webapp/types/keyword.ts
+  - webapp/components/ui/switch.tsx
+  - webapp/app/layout.tsx
+  - webapp/app/settings/page.tsx
+  - webapp/components/EmptyState.tsx
+  - webapp/components/KeywordClientSection.tsx
+  - webapp/components/KeywordForm.tsx
+  - webapp/components/NotificationForm.tsx
+  - webapp/components/ui/skeleton.tsx
+  - webapp/app/history/page.tsx
+  - .github/workflows/worker.yml
+  - webapp/package.json
+  - webapp/app/settings/layout.tsx
+  - webapp/components/ScanLogSection.tsx
+  - webapp/components/ui/sonner.tsx
+  - webapp/constants/platform.ts
+  - webapp/components/KeywordFormWrapper.tsx
+  - webapp/components/ui/badge.tsx
+  - webapp/components/DashboardStats.tsx
+  - webapp/constants/matchMode.ts
+  - webapp/components/KeywordList.tsx
+  - webapp/actions/auth.ts
+  - webapp/lib/utils.ts
+  - webapp/app/dashboard/layout.tsx
+  - webapp/app/history/layout.tsx
+  - webapp/components/Navbar.tsx
+  - webapp/components/ui/SkeletonCard.tsx
+  - webapp/components/NotificationStatus.tsx
+  - webapp/components/KeywordCard.tsx
+  - webapp/app/globals.css
+  - webapp/app/dashboard/page.tsx
+-->
+
+---
+### Requirement: Keyword card displays platform badge, price range, toggle state, and last scan time
+
+The system SHALL display each keyword card with a platform badge per selected platform, the configured price range (if set), and a visually distinct active/inactive toggle (green when active, gray when inactive).
+
+#### Scenario: Keyword card shows Shopee platform badge
+
+- **WHEN** a keyword has `platforms` containing `"shopee"`
+- **THEN** the keyword card SHALL display a badge with the text "蝦皮" using `bg-orange-100 text-orange-700` styling
+
+#### Scenario: Keyword card shows Ruten platform badge
+
+- **WHEN** a keyword has `platforms` containing `"ruten"`
+- **THEN** the keyword card SHALL display a badge with the text "露天" using `bg-blue-100 text-blue-700` styling
+
+#### Scenario: Keyword card shows price range when configured
+
+- **WHEN** a keyword has `minPrice` or `maxPrice` set (non-null)
+- **THEN** the keyword card SHALL display the price range in the format "NT$ {minPrice} – {maxPrice}"
+- **AND** if only `minPrice` is set, the format SHALL be "NT$ {minPrice} 以上"
+- **AND** if only `maxPrice` is set, the format SHALL be "NT$ {maxPrice} 以下"
+
+#### Scenario: Keyword card shows no price range when not configured
+
+- **WHEN** both `minPrice` and `maxPrice` are null
+- **THEN** no price range text SHALL be shown on the keyword card
+
+#### Scenario: Active keyword toggle is visually green
+
+- **WHEN** a keyword has `active: true`
+- **THEN** the toggle control on the keyword card SHALL render with green styling (`bg-green-500`)
+
+#### Scenario: Inactive keyword toggle is visually gray
+
+- **WHEN** a keyword has `active: false`
+- **THEN** the toggle control on the keyword card SHALL render with gray styling (`bg-gray-300`)
+
+
+<!-- @trace
+source: improve-webapp-ux
+updated: 2026-04-02
+code:
+  - webapp/components/KeywordSection.tsx
+  - webapp/components/ui/alert-dialog.tsx
+  - webapp/components/ui/button.tsx
+  - webapp/components.json
+  - webapp/types/keyword.ts
+  - webapp/components/ui/switch.tsx
+  - webapp/app/layout.tsx
+  - webapp/app/settings/page.tsx
+  - webapp/components/EmptyState.tsx
+  - webapp/components/KeywordClientSection.tsx
+  - webapp/components/KeywordForm.tsx
+  - webapp/components/NotificationForm.tsx
+  - webapp/components/ui/skeleton.tsx
+  - webapp/app/history/page.tsx
+  - .github/workflows/worker.yml
+  - webapp/package.json
+  - webapp/app/settings/layout.tsx
+  - webapp/components/ScanLogSection.tsx
+  - webapp/components/ui/sonner.tsx
+  - webapp/constants/platform.ts
+  - webapp/components/KeywordFormWrapper.tsx
+  - webapp/components/ui/badge.tsx
+  - webapp/components/DashboardStats.tsx
+  - webapp/constants/matchMode.ts
+  - webapp/components/KeywordList.tsx
+  - webapp/actions/auth.ts
+  - webapp/lib/utils.ts
+  - webapp/app/dashboard/layout.tsx
+  - webapp/app/history/layout.tsx
+  - webapp/components/Navbar.tsx
+  - webapp/components/ui/SkeletonCard.tsx
+  - webapp/components/NotificationStatus.tsx
+  - webapp/components/KeywordCard.tsx
+  - webapp/app/globals.css
+  - webapp/app/dashboard/page.tsx
+-->
+
+---
+### Requirement: Navbar includes hamburger menu for mobile navigation
+
+The system SHALL display a hamburger menu icon on viewports narrower than `md` breakpoint (768px). Tapping the icon SHALL expand a vertical navigation list. Tapping a nav item or the icon again SHALL collapse the menu.
+
+#### Scenario: Hamburger icon is visible on mobile
+
+- **WHEN** the viewport width is less than 768px
+- **THEN** a hamburger icon button (three horizontal lines) SHALL be visible in the Navbar
+- **AND** the regular horizontal nav links SHALL NOT be visible
+
+#### Scenario: Tapping hamburger expands mobile nav
+
+- **WHEN** a user taps the hamburger icon on a mobile viewport
+- **THEN** a vertical navigation list SHALL appear below the Navbar header
+- **AND** the hamburger icon SHALL change to an X (close) icon
+
+#### Scenario: Tapping a mobile nav link collapses the menu
+
+- **WHEN** a user taps a navigation link in the expanded mobile nav
+- **THEN** the mobile nav list SHALL collapse
+- **AND** the browser SHALL navigate to the selected page
+
+<!-- @trace
+source: improve-webapp-ux
+updated: 2026-04-02
+code:
+  - webapp/components/KeywordSection.tsx
+  - webapp/components/ui/alert-dialog.tsx
+  - webapp/components/ui/button.tsx
+  - webapp/components.json
+  - webapp/types/keyword.ts
+  - webapp/components/ui/switch.tsx
+  - webapp/app/layout.tsx
+  - webapp/app/settings/page.tsx
+  - webapp/components/EmptyState.tsx
+  - webapp/components/KeywordClientSection.tsx
+  - webapp/components/KeywordForm.tsx
+  - webapp/components/NotificationForm.tsx
+  - webapp/components/ui/skeleton.tsx
+  - webapp/app/history/page.tsx
+  - .github/workflows/worker.yml
+  - webapp/package.json
+  - webapp/app/settings/layout.tsx
+  - webapp/components/ScanLogSection.tsx
+  - webapp/components/ui/sonner.tsx
+  - webapp/constants/platform.ts
+  - webapp/components/KeywordFormWrapper.tsx
+  - webapp/components/ui/badge.tsx
+  - webapp/components/DashboardStats.tsx
+  - webapp/constants/matchMode.ts
+  - webapp/components/KeywordList.tsx
+  - webapp/actions/auth.ts
+  - webapp/lib/utils.ts
+  - webapp/app/dashboard/layout.tsx
+  - webapp/app/history/layout.tsx
+  - webapp/components/Navbar.tsx
+  - webapp/components/ui/SkeletonCard.tsx
+  - webapp/components/NotificationStatus.tsx
+  - webapp/components/KeywordCard.tsx
+  - webapp/app/globals.css
   - webapp/app/dashboard/page.tsx
 -->

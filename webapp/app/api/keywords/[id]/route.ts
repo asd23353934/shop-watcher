@@ -32,6 +32,20 @@ export async function PATCH(
     return NextResponse.json({ error: `Invalid matchMode: must be one of ${validMatchModes.join(', ')}` }, { status: 400 })
   }
 
+  const validPlatforms = ['shopee', 'ruten']
+  if (platforms !== undefined) {
+    if (!Array.isArray(platforms) || platforms.some((p: unknown) => !validPlatforms.includes(p as string))) {
+      return NextResponse.json({ error: 'Invalid platforms: must be array of shopee and/or ruten' }, { status: 400 })
+    }
+  }
+
+  if (minPrice !== undefined && minPrice !== null && Number(minPrice) < 0) {
+    return NextResponse.json({ error: 'minPrice cannot be negative' }, { status: 400 })
+  }
+  if (maxPrice !== undefined && maxPrice !== null && Number(maxPrice) < 0) {
+    return NextResponse.json({ error: 'maxPrice cannot be negative' }, { status: 400 })
+  }
+
   const updated = await prisma.keyword.update({
     where: { id },
     data: {

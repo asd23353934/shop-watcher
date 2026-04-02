@@ -18,42 +18,54 @@ The system SHALL provide a notification history page at /history listing the mos
 - **AND** results SHALL be sorted by firstSeen descending (newest first)
 - **AND** at most 50 items SHALL be shown per page
 
-#### Scenario: Empty history shows placeholder
+#### Scenario: Empty history shows EmptyState component
 
 - **WHEN** an authenticated user has no SeenItem rows
-- **THEN** the history page SHALL display a message indicating no notifications have been sent yet
+- **THEN** the history page SHALL display the `EmptyState` component
+- **AND** the heading SHALL read "尚無通知紀錄"
+- **AND** the subtitle SHALL read "當有新商品符合你的關鍵字時，通知紀錄會顯示在這裡"
+- **AND** no table or list element SHALL be rendered
+
 
 <!-- @trace
-source: dashboard-observability
-updated: 2026-04-01
+source: improve-webapp-ux
+updated: 2026-04-02
 code:
-  - webapp/app/api/history/route.ts
-  - src/scrapers/ruten.py
-  - webapp/app/dashboard/page.tsx
-  - webapp/prisma/migrations/20260401023619_add_seen_item_last_price/migration.sql
-  - webapp/prisma/schema.prisma
-  - webapp/app/api/keywords/route.ts
-  - webapp/app/api/worker/keywords/route.ts
-  - src/api_client.py
-  - src/scheduler.py
-  - webapp/prisma/migrations/20260401020513_add_keyword_blocklist/migration.sql
-  - webapp/app/api/worker/notify/batch/route.ts
-  - webapp/components/NotificationForm.tsx
-  - webapp/lib/discord.ts
-  - src/scrapers/shopee.py
-  - webapp/package.json
-  - webapp/scripts/cleanup.ts
-  - webapp/app/history/page.tsx
-  - webapp/app/api/settings/test-webhook/route.ts
-  - .github/workflows/cleanup.yml
-  - webapp/app/api/keywords/[id]/route.ts
-  - webapp/app/dashboard/layout.tsx
-  - src/watchers/base.py
+  - webapp/components/KeywordSection.tsx
+  - webapp/components/ui/alert-dialog.tsx
+  - webapp/components/ui/button.tsx
+  - webapp/components.json
+  - webapp/types/keyword.ts
+  - webapp/components/ui/switch.tsx
+  - webapp/app/layout.tsx
   - webapp/app/settings/page.tsx
+  - webapp/components/EmptyState.tsx
+  - webapp/components/KeywordClientSection.tsx
   - webapp/components/KeywordForm.tsx
-  - webapp/lib/email.ts
-  - webapp/prisma/migrations/20260401023108_add_scan_log/migration.sql
-  - webapp/app/api/worker/scan-log/route.ts
+  - webapp/components/NotificationForm.tsx
+  - webapp/components/ui/skeleton.tsx
+  - webapp/app/history/page.tsx
+  - .github/workflows/worker.yml
+  - webapp/package.json
+  - webapp/app/settings/layout.tsx
+  - webapp/components/ScanLogSection.tsx
+  - webapp/components/ui/sonner.tsx
+  - webapp/constants/platform.ts
+  - webapp/components/KeywordFormWrapper.tsx
+  - webapp/components/ui/badge.tsx
+  - webapp/components/DashboardStats.tsx
+  - webapp/constants/matchMode.ts
+  - webapp/components/KeywordList.tsx
+  - webapp/actions/auth.ts
+  - webapp/lib/utils.ts
+  - webapp/app/dashboard/layout.tsx
+  - webapp/app/history/layout.tsx
+  - webapp/components/Navbar.tsx
+  - webapp/components/ui/SkeletonCard.tsx
+  - webapp/components/NotificationStatus.tsx
+  - webapp/components/KeywordCard.tsx
+  - webapp/app/globals.css
+  - webapp/app/dashboard/page.tsx
 -->
 
 ---

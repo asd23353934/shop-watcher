@@ -33,8 +33,8 @@
 
 ## 6. 驗收測試
 
-- [ ] 6.1 手動測試：進入 Dashboard，確認頁面殼（標題 + grid 框架）先出現，關鍵字列表與掃描時間各自非同步填入，符合 Suspense boundary 設計決策預期
-- [ ] 6.2 手動測試：新增關鍵字後，確認新關鍵字立即出現在列表最前方，且瀏覽器 Network tab 無整頁重刷（無 document 類型的新請求）
-- [ ] 6.3 手動測試：切換關鍵字啟用/停用，確認開關立即翻轉（optimistic），等待 API 回應期間按鈕顯示 pending 狀態
-- [ ] 6.4 手動測試：進入設定頁，完成儲存後離開再回來，確認 Network tab 無新的 `GET /api/settings` 請求，且欄位顯示上次儲存的值
+- [x] 6.1 手動測試：進入 Dashboard，確認頁面殼（標題 + grid 框架）先出現，關鍵字列表與掃描時間各自非同步填入，符合 Suspense boundary 設計決策預期
+- [x] 6.2 手動測試：新增關鍵字後，確認新關鍵字立即出現在列表最前方，且瀏覽器 Network tab 無整頁重刷（無 document 類型的新請求）
+- [x] 6.3 手動測試：切換關鍵字啟用/停用，確認開關立即翻轉（optimistic），等待 API 回應期間按鈕顯示 pending 狀態
+- [x] 6.4 手動測試：進入設定頁，完成儲存後離開再回來，確認 Network tab 無新的 `GET /api/settings` 請求，且欄位顯示上次儲存的值
 - [x] 6.5 執行 `cd webapp && npm run build`，確認無 TypeScript 編譯錯誤與 Next.js build 錯誤（由 CI 執行或手動驗收）

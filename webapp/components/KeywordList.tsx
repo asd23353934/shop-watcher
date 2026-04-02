@@ -21,13 +21,17 @@ import {
 interface KeywordListProps {
   keywords: Keyword[]
   onOptimisticToggle: (id: string, newActive: boolean) => void
+  onOptimisticUpdate: (updated: Keyword) => void
   onOptimisticDelete: (id: string) => void
+  onOptimisticRestore: (keyword: Keyword) => void
 }
 
 export default function KeywordList({
   keywords,
   onOptimisticToggle,
+  onOptimisticUpdate,
   onOptimisticDelete,
+  onOptimisticRestore,
 }: KeywordListProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Keyword>>({})
@@ -73,6 +77,7 @@ export default function KeywordList({
   const confirmDelete = () => {
     if (!deleteTargetId) return
     const id = deleteTargetId
+    const original = keywords.find((k) => k.id === id)
     setDeleteTargetId(null)
     startTransition(async () => {
       onOptimisticDelete(id)
@@ -80,7 +85,8 @@ export default function KeywordList({
       if (res.ok) {
         toast.success('關鍵字已刪除')
       } else {
-        toast.error('刪除失敗，請重新整理頁面後再試')
+        if (original) onOptimisticRestore(original)
+        toast.error('刪除失敗，請稍後再試')
       }
     })
   }
@@ -110,7 +116,7 @@ export default function KeywordList({
       })
       if (res.ok) {
         const updated = await res.json()
-        onOptimisticToggle(id, updated.active)
+        onOptimisticUpdate(updated)
         setEditingId(null)
         toast.success('關鍵字已更新')
       } else {

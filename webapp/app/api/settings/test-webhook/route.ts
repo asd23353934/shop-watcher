@@ -23,7 +23,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'Invalid request body' }, { status: 400 })
   }
 
-  if (!webhookUrl || typeof webhookUrl !== 'string' || !webhookUrl.startsWith('https://')) {
+  if (
+    !webhookUrl ||
+    typeof webhookUrl !== 'string' ||
+    !webhookUrl.startsWith('https://discord.com/api/webhooks/')
+  ) {
     return NextResponse.json({ ok: false, error: 'Invalid Webhook URL' }, { status: 400 })
   }
 
@@ -43,9 +47,8 @@ export async function POST(request: Request) {
     })
 
     if (!res.ok) {
-      const text = await res.text().catch(() => '')
       return NextResponse.json(
-        { ok: false, error: `Discord 回傳錯誤 ${res.status}：${text.slice(0, 200)}` },
+        { ok: false, error: `Discord 回傳錯誤 ${res.status}` },
         { status: 200 }
       )
     }

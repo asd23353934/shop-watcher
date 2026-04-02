@@ -20,6 +20,15 @@ interface Item {
   originalPrice?: number
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 const PLATFORM_LABELS: Record<string, string> = {
   shopee: '蝦皮購物',
   ruten: '露天拍賣',
@@ -51,9 +60,9 @@ export async function sendEmailNotification(
 
   const resend = new Resend(process.env.RESEND_API_KEY)
 
-  const platformLabel = PLATFORM_LABELS[item.platform] ?? item.platform
+  const platformLabel = escapeHtml(PLATFORM_LABELS[item.platform] ?? item.platform)
   const priceText = item.price_text
-    ? `NT$ ${item.price_text}`
+    ? `NT$ ${escapeHtml(item.price_text)}`
     : item.price != null
       ? `NT$ ${item.price.toLocaleString('zh-TW')}`
       : '價格未知'
@@ -63,23 +72,28 @@ export async function sendEmailNotification(
   const subject =
     rawSubject.length > 60 ? rawSubject.slice(0, 57) + '...' : rawSubject
 
+  const safeItemName = escapeHtml(item.name)
+  const safeKeyword = escapeHtml(keyword)
+  const safeUrl = item.url.startsWith('https://') ? item.url : '#'
+  const safeImageUrl = item.image_url?.startsWith('https://') ? item.image_url : null
+
   const html = `
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <title>${subject}</title>
+  <title>${escapeHtml(subject)}</title>
 </head>
 <body style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
   <h2 style="color: #4f46e5;">🛍️ Shop Watcher — 發現新商品</h2>
-  <p>關鍵字「<strong>${keyword}</strong>」出現新商品：</p>
+  <p>關鍵字「<strong>${safeKeyword}</strong>」出現新商品：</p>
 
-  ${item.image_url ? `<img src="${item.image_url}" alt="${item.name}" style="max-width: 200px; border-radius: 8px; margin-bottom: 12px;" />` : ''}
+  ${safeImageUrl ? `<img src="${safeImageUrl}" alt="${safeItemName}" style="max-width: 200px; border-radius: 8px; margin-bottom: 12px;" />` : ''}
 
   <table style="border-collapse: collapse; width: 100%;">
     <tr>
       <td style="padding: 8px; border: 1px solid #eee; font-weight: bold; width: 30%;">商品名稱</td>
-      <td style="padding: 8px; border: 1px solid #eee;">${item.name}</td>
+      <td style="padding: 8px; border: 1px solid #eee;">${safeItemName}</td>
     </tr>
     <tr>
       <td style="padding: 8px; border: 1px solid #eee; font-weight: bold;">平台</td>
@@ -92,7 +106,7 @@ export async function sendEmailNotification(
     <tr>
       <td style="padding: 8px; border: 1px solid #eee; font-weight: bold;">連結</td>
       <td style="padding: 8px; border: 1px solid #eee;">
-        <a href="${item.url}" style="color: #4f46e5;">查看商品</a>
+        <a href="${safeUrl}" style="color: #4f46e5;">查看商品</a>
       </td>
     </tr>
   </table>
@@ -144,19 +158,23 @@ export async function sendEmailBatchNotification(
 
   const resend = new Resend(process.env.RESEND_API_KEY)
 
+  const safeKeyword = escapeHtml(keyword)
   const subject = `[Shop Watcher] 關鍵字「${keyword}」發現 ${items.length} 個新商品`
 
   const rows = items
     .map((item) => {
-      const platformLabel = PLATFORM_LABELS[item.platform] ?? item.platform
+      const platformLabel = escapeHtml(PLATFORM_LABELS[item.platform] ?? item.platform)
       const priceText = item.price_text
-        ? `NT$ ${item.price_text}`
+        ? `NT$ ${escapeHtml(item.price_text)}`
         : item.price != null
           ? `NT$ ${item.price.toLocaleString('zh-TW')}`
           : '價格未知'
-      const sellerText = item.seller_name ?? '未知'
-      const thumbnail = item.image_url
-        ? `<img src="${item.image_url}" alt="" style="width:60px;height:60px;object-fit:cover;border-radius:4px;" />`
+      const sellerText = escapeHtml(item.seller_name ?? '未知')
+      const safeImageUrl = item.image_url?.startsWith('https://') ? item.image_url : null
+      const safeUrl = item.url.startsWith('https://') ? item.url : '#'
+      const safeItemName = escapeHtml(item.name)
+      const thumbnail = safeImageUrl
+        ? `<img src="${safeImageUrl}" alt="" style="width:60px;height:60px;object-fit:cover;border-radius:4px;" />`
         : ''
 
       // Price drop: show badge and original price
@@ -172,7 +190,7 @@ export async function sendEmailBatchNotification(
       <tr style="${item.isPriceDrop ? 'background:#f0fdf4;' : ''}">
         <td style="padding:8px;border:1px solid #eee;text-align:center;">${thumbnail}</td>
         <td style="padding:8px;border:1px solid #eee;">
-          ${priceDropBadge}<a href="${item.url}" style="color:#4f46e5;text-decoration:none;">${item.name}</a>
+          ${priceDropBadge}<a href="${safeUrl}" style="color:#4f46e5;text-decoration:none;">${safeItemName}</a>
         </td>
         <td style="padding:8px;border:1px solid #eee;">${platformLabel}</td>
         <td style="padding:8px;border:1px solid #eee;">${originalPriceCell}${priceText}</td>
@@ -186,11 +204,11 @@ export async function sendEmailBatchNotification(
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <title>${subject}</title>
+  <title>${escapeHtml(subject)}</title>
 </head>
 <body style="font-family:sans-serif;max-width:700px;margin:0 auto;padding:20px;color:#333;">
   <h2 style="color:#4f46e5;">🛍️ Shop Watcher — 發現新商品</h2>
-  <p>關鍵字「<strong>${keyword}</strong>」共發現 <strong>${items.length}</strong> 個新商品：</p>
+  <p>關鍵字「<strong>${safeKeyword}</strong>」共發現 <strong>${items.length}</strong> 個新商品：</p>
   <table style="border-collapse:collapse;width:100%;">
     <thead>
       <tr style="background:#f3f4f6;">
