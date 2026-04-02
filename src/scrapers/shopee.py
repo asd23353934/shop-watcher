@@ -27,6 +27,10 @@ logger = logging.getLogger(__name__)
 class ShopeeSessionExpiredError(Exception):
     """Raised when Shopee redirects to the login page, indicating the session has expired."""
 
+
+class ShopeeBlockedError(Exception):
+    """Raised when Shopee returns HTTP 403 on all strategies, indicating IP/session blocking."""
+
 SEARCH_TIMEOUT = 15_000  # ms (DOM fallback only)
 
 _HTTP_HEADERS = {
@@ -195,11 +199,11 @@ def _parse_api_items(result: dict, keyword: str) -> list[WatcherItem]:
 
 async def _call_search_api_with_cookies(
     keyword: str, cookies: list[dict]
-) -> list[WatcherItem]:
+) -> tuple[list[WatcherItem], bool]:
     """
     Call Shopee's search_items API via httpx using a cookie list
     (e.g. extracted from a Playwright browser context).
-    Returns [] on any failure.
+    Returns (items, http_blocked). http_blocked=True means HTTP 403 was received.
     """
     api_url = (
         "https://shopee.tw/api/v4/search/search_items"
@@ -225,8 +229,10 @@ async def _call_search_api_with_cookies(
                 },
             )
         logger.info("[shopee] cookie-API: status=%s csrftoken=%s", api_resp.status_code, bool(csrf_token))
+        if api_resp.status_code == 403:
+            return [], True
         if api_resp.status_code != 200:
-            return []
+            return [], False
         data = api_resp.json()
         error_code = data.get("error")
         def _summarize(v):
@@ -238,19 +244,19 @@ async def _call_search_api_with_cookies(
         logger.info("[shopee] cookie-API: error=%s structure=%s", error_code,
                     {k: _summarize(data[k]) for k in list(data.keys())})
         if error_code and error_code != 0:
-            return []
-        return _parse_api_items(data, keyword)
+            return [], False
+        return _parse_api_items(data, keyword), False
     except Exception as exc:
         logger.warning("[shopee] cookie-API call failed: %s", exc)
-        return []
+        return [], False
 
 
-async def _scrape_shopee_http(keyword: str) -> list[WatcherItem]:
+async def _scrape_shopee_http(keyword: str) -> tuple[list[WatcherItem], bool]:
     """
     Pure HTTP approach: visit homepage with httpx to pick up any HTTP-set
     cookies, then call the search API with those cookies.
     Note: csrftoken is JS-set so usually won't be available here.
-    Returns [] on any failure.
+    Returns (items, http_blocked). http_blocked=True means HTTP 403 was received.
     """
     try:
         async with httpx.AsyncClient(
@@ -262,7 +268,7 @@ async def _scrape_shopee_http(keyword: str) -> list[WatcherItem]:
         return await _call_search_api_with_cookies(keyword, cookies_list)
     except Exception as exc:
         logger.warning("[shopee] HTTP scrape failed: %s", exc)
-        return []
+        return [], False
 
 
 async def _fetch_via_browser(page: Page, keyword: str) -> list[WatcherItem]:
@@ -583,7 +589,7 @@ async def scrape_shopee(
     Never raises — returns [] on any error.
     """
     # ── Step 1: Pure HTTP (no headless signals) ───────────────────────────
-    items = await _scrape_shopee_http(keyword)
+    items, http_blocked = await _scrape_shopee_http(keyword)
     if items:
         logger.info("[shopee] HTTP strategy succeeded for keyword=%s", keyword)
         return _apply_price_filter(items, min_price, max_price)
@@ -614,13 +620,19 @@ async def scrape_shopee(
         logger.info("[shopee] Playwright cookies available: %d (names: %s)",
                     len(pw_cookies), [c["name"] for c in pw_cookies[:10]])
         if pw_cookies:
-            items = await _call_search_api_with_cookies(keyword, pw_cookies)
-            if items:
+            hybrid_items, hybrid_blocked = await _call_search_api_with_cookies(keyword, pw_cookies)
+            if hybrid_blocked:
+                http_blocked = True
+            if hybrid_items:
+                items = hybrid_items
                 logger.info("[shopee] Hybrid cookie strategy succeeded for keyword=%s", keyword)
 
     # DOM fallback if all API strategies failed
     if not items:
         logger.info("[shopee] Falling back to DOM scrape for keyword=%s", keyword)
         items = await _scrape_shopee_dom_from_loaded_page(page, keyword)
+
+    if not items and http_blocked:
+        raise ShopeeBlockedError(f"蝦皮封鎖所有爬取策略（關鍵字={keyword}）")
 
     return _apply_price_filter(items, min_price, max_price)

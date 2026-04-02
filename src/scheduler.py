@@ -19,7 +19,7 @@ import httpx
 from playwright.async_api import async_playwright
 
 from src.api_client import WorkerApiClient
-from src.scrapers.shopee import scrape_shopee, ShopeeSessionExpiredError
+from src.scrapers.shopee import scrape_shopee, ShopeeSessionExpiredError, ShopeeBlockedError
 from src.scrapers.ruten import scrape_ruten
 
 logger = logging.getLogger(__name__)
@@ -50,6 +50,30 @@ async def _notify_shopee_session_expired(detail: str) -> None:
             await client.post(webhook_url, json=payload)
     except Exception as exc:
         logger.warning("Failed to send session expired notification: %s", exc)
+
+
+async def _notify_shopee_blocked() -> None:
+    """Send a Discord notification when Shopee blocks all scraping strategies. No-op if DISCORD_ERROR_WEBHOOK is not set."""
+    webhook_url = os.environ.get("DISCORD_ERROR_WEBHOOK", "")
+    if not webhook_url:
+        return
+    payload = {
+        "embeds": [{
+            "title": "🚫 蝦皮封鎖偵測",
+            "color": 0xFF4500,
+            "description": (
+                "蝦皮對本次掃描回傳 HTTP 403，所有爬取策略均失敗。\n"
+                "本次掃描蝦皮商品結果為空，**非真實無新品**。\n"
+                "若持續發生，可能需要更新 `SHOPEE_COOKIES_JSON`。"
+            ),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }]
+    }
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(webhook_url, json=payload)
+    except Exception as exc:
+        logger.warning("Failed to send Shopee blocked notification: %s", exc)
 
 
 async def _notify_scrape_error(platform: str, keyword: str, error: Exception) -> None:
@@ -185,6 +209,8 @@ async def run_scan_cycle(api: WorkerApiClient) -> None:
                     await _notify_scrape_error("shopee", "cookie-injection", exc)
 
         shopee_session_expired = False  # flag to skip remaining shopee keywords after session failure
+        shopee_blocked = False          # flag to skip remaining shopee keywords after IP blocking
+        shopee_blocked_notified = False  # send at most one blocking notification per scan cycle
         try:
             for kw in keywords:
                 keyword_id: str = kw.get("id", "")
@@ -203,6 +229,9 @@ async def run_scan_cycle(api: WorkerApiClient) -> None:
                 for platform in platforms:
                     if platform == "shopee" and shopee_session_expired:
                         logger.info("[shopee] %s — skipped (session expired)", keyword_text)
+                        continue
+                    if platform == "shopee" and shopee_blocked:
+                        logger.info("[shopee] %s — skipped (blocked)", keyword_text)
                         continue
 
                     page = await context.new_page()
@@ -229,6 +258,13 @@ async def run_scan_cycle(api: WorkerApiClient) -> None:
                             except Exception as rm_exc:
                                 logger.warning("Failed to remove storage state: %s", rm_exc)
                         await _notify_shopee_session_expired(str(exc))
+                        items = []
+                    except ShopeeBlockedError as exc:
+                        logger.warning("[shopee] Blocked for keyword=%s: %s", keyword_text, exc)
+                        shopee_blocked = True
+                        if not shopee_blocked_notified:
+                            shopee_blocked_notified = True
+                            await _notify_shopee_blocked()
                         items = []
                     except Exception as exc:
                         logger.error(
