@@ -1,33 +1,18 @@
 'use client'
 
 import { useState } from 'react'
+import type { Keyword } from '@/types/keyword'
 import KeywordList from '@/components/KeywordList'
 import KeywordFormWrapper from '@/components/KeywordFormWrapper'
-
-interface Keyword {
-  id: string
-  keyword: string
-  platforms: string[]
-  minPrice: number | null
-  maxPrice: number | null
-  blocklist: string[]
-  mustInclude: string[]
-  matchMode: string
-  active: boolean
-  createdAt: string
-}
 
 interface Props {
   initialKeywords: Keyword[]
 }
 
-// Holds shared keyword state so KeywordForm and KeywordList can communicate
-// without triggering a full router.refresh()
 export default function KeywordClientSection({ initialKeywords }: Props) {
   const [keywords, setKeywords] = useState<Keyword[]>(initialKeywords)
 
   const handleAdd = (newKeyword: Keyword) => {
-    // 4.3: prepend so newest appears first (matches orderBy: { createdAt: 'desc' })
     setKeywords((prev) => [newKeyword, ...prev])
   }
 

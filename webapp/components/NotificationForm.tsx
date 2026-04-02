@@ -8,10 +8,6 @@ interface NotificationSettings {
   emailAddress: string | null
 }
 
-// Module-level cache — avoids re-fetching when revisiting the settings page
-// within the same SPA session. Resets on full page reload (memory cleared).
-let cachedSettings: NotificationSettings | null = null
-
 export default function NotificationForm() {
   const [form, setForm] = useState<NotificationSettings>({
     discordWebhookUrl: null,
@@ -25,30 +21,25 @@ export default function NotificationForm() {
   const [webhookTesting, setWebhookTesting] = useState(false)
   const [webhookTestResult, setWebhookTestResult] = useState<{ ok: boolean; message: string } | null>(null)
 
-  // Settings are pre-filled with existing values on load.
-  // Use module-level cache on subsequent loads within the same session.
+  // Settings are pre-filled with existing values on load
   useEffect(() => {
-    if (cachedSettings !== null) {
-      // Serve from cache — skip API call
-      setForm(cachedSettings)
-      setLoading(false)
-      return
-    }
+    const controller = new AbortController()
 
-    // First load — fetch from API
-    fetch('/api/settings')
+    fetch('/api/settings', { signal: controller.signal })
       .then((res) => res.json())
       .then((data) => {
-        const loaded: NotificationSettings = {
+        setForm({
           discordWebhookUrl: data.discordWebhookUrl ?? '',
           discordUserId: data.discordUserId ?? '',
           emailAddress: data.emailAddress ?? '',
-        }
-        setForm(loaded)
-        cachedSettings = loaded
+        })
       })
-      .catch(() => setError('載入設定失敗'))
+      .catch((err) => {
+        if (err.name !== 'AbortError') setError('載入設定失敗')
+      })
       .finally(() => setLoading(false))
+
+    return () => controller.abort()
   }, [])
 
   const handleTestWebhook = async () => {
@@ -95,13 +86,6 @@ export default function NotificationForm() {
         const data = await res.json()
         setError(data.error ?? '儲存失敗')
         return
-      }
-
-      // 5.2: Update cache after successful save so next visit skips the API call
-      cachedSettings = {
-        discordWebhookUrl: form.discordWebhookUrl || null,
-        discordUserId: form.discordUserId || null,
-        emailAddress: form.emailAddress || null,
       }
 
       setSuccess(true)

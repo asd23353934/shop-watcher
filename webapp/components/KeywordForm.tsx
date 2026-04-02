@@ -2,31 +2,14 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
-
-interface Keyword {
-  id: string
-  keyword: string
-  platforms: string[]
-  minPrice: number | null
-  maxPrice: number | null
-  blocklist: string[]
-  mustInclude: string[]
-  matchMode: string
-  active: boolean
-  createdAt: string
-}
+import type { Keyword } from '@/types/keyword'
+import { MATCH_MODE_LABELS, MATCH_MODE_EXAMPLES } from '@/constants/matchMode'
 
 interface KeywordFormProps {
   onSuccess?: (keyword: Keyword) => void
 }
 
-const MATCH_MODE_LABELS: Record<string, string> = {
-  any: '寬鬆 — 含任一關鍵詞即通知',
-  all: '嚴格 — 每個詞都必須出現',
-  exact: '完整比對 — 名稱須包含完整字串',
-}
-
-const MATCH_MODE_EXAMPLES: Record<string, string> = {
+const MATCH_MODE_EXAMPLES_FORM: Record<string, string> = {
   any: '關鍵字「機械 鍵盤」→ 商品名含「機械」或「鍵盤」任一詞即通知，範圍較廣',
   all: '關鍵字「機械 鍵盤」→ 商品名必須同時含「機械」和「鍵盤」，過濾不相關商品',
   exact: '關鍵字「機械鍵盤」→ 商品名必須包含「機械鍵盤」這段完整字串，最精確',
@@ -172,9 +155,9 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
             <option key={value} value={value}>{label}</option>
           ))}
         </select>
-        {matchMode && MATCH_MODE_EXAMPLES[matchMode] && (
+        {matchMode && MATCH_MODE_EXAMPLES_FORM[matchMode] && (
           <p className="mt-1 text-xs text-gray-400">
-            範例：{MATCH_MODE_EXAMPLES[matchMode]}
+            範例：{MATCH_MODE_EXAMPLES_FORM[matchMode]}
           </p>
         )}
       </div>

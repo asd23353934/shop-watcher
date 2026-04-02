@@ -85,7 +85,9 @@
       "Bash(git commit -m \"修復 worker.yml：if 條件移除不支援的 secrets context 檢查:*)",
       "Bash(git commit -m \"新增 Spectra 提案：webapp 效能優化 與 UI/UX 提升:*)",
       "Bash(npx shadcn@latest init -d)",
-      "Bash(npx shadcn@latest add sonner skeleton badge switch -y)"
+      "Bash(npx shadcn@latest add sonner skeleton badge switch -y)",
+      "Bash(grep -r \"any\\\\|unknown\" C:UsersuserDesktopgitlabshop-watcherwebappcomponents*.tsx)",
+      "Bash(npx shadcn@latest add alert-dialog -y)"
     ]
   }
 }

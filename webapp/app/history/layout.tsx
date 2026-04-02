@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import { logoutAction } from '@/actions/auth'
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function HistoryLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
   if (!session?.user) redirect('/login')
 
@@ -12,7 +12,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <Navbar
         user={{ name: session.user.name, image: session.user.image }}
         signOutAction={logoutAction}
-        activeHref="/dashboard"
+        activeHref="/history"
       />
       <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
     </div>
