@@ -78,7 +78,10 @@
       "Bash(python -c \"import httpx; r = httpx.get\\(''https://shopee.tw/'', timeout=10, follow_redirects=False, headers={''User-Agent'':''Mozilla/5.0''}\\); print\\(r.status_code, r.headers.get\\(''location'',''''\\)\\)\")",
       "Bash(python /tmp/test_shopee_prod.py \"PS5\")",
       "Bash(python -c \"from playwright_stealth import Stealth, stealth; help\\(stealth\\)\")",
-      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d[''''state''''], d[''''progress'''']\\)\")"
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d[''''state''''], d[''''progress'''']\\)\")",
+      "Bash(find /c/Users/user/Desktop/gitlab/shop-watcher/openspec -name * -path *docs-landing*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"重新設計 docs/index.html landing page UI/UX:*)"
     ]
   }
 }

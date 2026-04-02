@@ -40,10 +40,14 @@ jobs:
         run: python run_once.py
 
       - name: 通知 Discord（workflow 失敗時）
-        if: failure() && secrets.DISCORD_ERROR_WEBHOOK != ''
+        if: failure()
         env:
           DISCORD_ERROR_WEBHOOK: ${{ secrets.DISCORD_ERROR_WEBHOOK }}
         run: |
+          if [ -z "$DISCORD_ERROR_WEBHOOK" ]; then
+            echo "DISCORD_ERROR_WEBHOOK 未設定，跳過通知"
+            exit 0
+          fi
           curl -s -X POST "$DISCORD_ERROR_WEBHOOK" \
             -H "Content-Type: application/json" \
             -d '{
