@@ -49,7 +49,7 @@ export default function NotificationForm() {
       })
       .catch(() => setError('載入設定失敗'))
       .finally(() => setLoading(false))
-  }, [session?.user?.id])
+  }, [])
 
   const handleTestWebhook = async () => {
     setWebhookTestResult(null)
