@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
 
 interface NotificationSettings {
   discordWebhookUrl: string | null
@@ -9,13 +8,11 @@ interface NotificationSettings {
   emailAddress: string | null
 }
 
-// 5.1: Module-level cache — avoids re-fetching when revisiting the settings page
-// within the same SPA session (single user, no cross-user sharing)
+// Module-level cache — avoids re-fetching when revisiting the settings page
+// within the same SPA session. Resets on full page reload (memory cleared).
 let cachedSettings: NotificationSettings | null = null
-let cachedUserId: string | null = null
 
 export default function NotificationForm() {
-  const { data: session } = useSession()
   const [form, setForm] = useState<NotificationSettings>({
     discordWebhookUrl: null,
     discordUserId: null,
@@ -29,25 +26,16 @@ export default function NotificationForm() {
   const [webhookTestResult, setWebhookTestResult] = useState<{ ok: boolean; message: string } | null>(null)
 
   // Settings are pre-filled with existing values on load.
-  // 5.1: Use module-level cache on subsequent loads within the same session.
-  // 5.4: Reset cache if the user changes (logout → login as different user).
+  // Use module-level cache on subsequent loads within the same session.
   useEffect(() => {
-    const currentUserId = session?.user?.id ?? null
-
-    // 5.4: If a different user is now logged in, invalidate the cache
-    if (currentUserId !== cachedUserId) {
-      cachedSettings = null
-      cachedUserId = currentUserId
-    }
-
     if (cachedSettings !== null) {
-      // 5.1: Serve from cache — skip API call
+      // Serve from cache — skip API call
       setForm(cachedSettings)
       setLoading(false)
       return
     }
 
-    // 5.3: First load — fetch from API
+    // First load — fetch from API
     fetch('/api/settings')
       .then((res) => res.json())
       .then((data) => {
