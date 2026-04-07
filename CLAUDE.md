@@ -30,7 +30,7 @@ Changes can be parked（暫存）— temporarily moved out of `openspec/changes/
 
 # 專案說明
 
-**Shop Watcher** — 電商新品監控 SaaS，自動監控蝦皮（Shopee）與露天拍賣（Ruten）最新上架商品，透過 Discord Webhook 或 Email 即時通知用戶。
+**Shop Watcher** — 多販售平台新品監控 SaaS，自動監控台灣電商、拍賣、動漫專門店及同人誌販售平台的最新上架商品與作品，透過 Discord Webhook 或 Email 即時通知用戶。
 
 ## 技術架構
 

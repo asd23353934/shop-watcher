@@ -154,15 +154,15 @@ export default function KeywordList({
                   onChange={(e) => setEditForm((p) => ({ ...p, keyword: e.target.value }))}
                   className="w-full rounded-md border px-3 py-2 text-sm"
                 />
-                <div className="flex gap-4">
-                  {['shopee', 'ruten'].map((p) => (
+                <div className="flex flex-wrap gap-4">
+                  {Object.entries(PLATFORM_LABELS).map(([p, label]) => (
                     <label key={p} className="flex items-center gap-2 text-sm">
                       <input
                         type="checkbox"
                         checked={(editForm.platforms ?? []).includes(p)}
                         onChange={() => toggleEditPlatform(p)}
                       />
-                      {PLATFORM_LABELS[p]}
+                      {label}
                     </label>
                   ))}
                 </div>

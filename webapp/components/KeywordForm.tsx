@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import type { Keyword } from '@/types/keyword'
 import { MATCH_MODE_LABELS, MATCH_MODE_EXAMPLES } from '@/constants/matchMode'
+import { PLATFORM_LABELS } from '@/constants/platform'
 
 interface KeywordFormProps {
   onSuccess?: (keyword: Keyword) => void
@@ -17,7 +18,7 @@ const MATCH_MODE_EXAMPLES_FORM: Record<string, string> = {
 
 export default function KeywordForm({ onSuccess }: KeywordFormProps) {
   const [keyword, setKeyword] = useState('')
-  const [platforms, setPlatforms] = useState<string[]>(['shopee', 'ruten'])
+  const [platforms, setPlatforms] = useState<string[]>(['ruten'])
   const [minPrice, setMinPrice] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
   const [blocklist, setBlocklist] = useState<string[]>([])
@@ -86,7 +87,7 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
 
       // Reset form
       setKeyword('')
-      setPlatforms(['shopee', 'ruten'])
+      setPlatforms(['ruten'])
       setMinPrice('')
       setMaxPrice('')
       setBlocklist([])
@@ -128,8 +129,8 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
         <label className="mb-2 block text-sm font-medium text-gray-700">
           平台 <span className="text-red-500">*</span>
         </label>
-        <div className="flex gap-4">
-          {['shopee', 'ruten'].map((platform) => (
+        <div className="flex flex-wrap gap-4">
+          {Object.entries(PLATFORM_LABELS).map(([platform, label]) => (
             <label key={platform} className="flex items-center gap-2 text-sm text-gray-700">
               <input
                 type="checkbox"
@@ -137,7 +138,7 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
                 onChange={() => togglePlatform(platform)}
                 className="h-4 w-4 rounded border-gray-300 text-indigo-600"
               />
-              {platform === 'shopee' ? '蝦皮' : '露天'}
+              {label}
             </label>
           ))}
         </div>
