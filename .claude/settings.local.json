@@ -163,7 +163,8 @@
       "Bash(WORKER_SECRET=shopwatcher-dev-2026 node --env-file=.env.local scripts/test-batch-api.mjs)",
       "Bash(taskkill /F /IM node.exe)",
       "Bash(Get-Process node:*)",
-      "Bash(npx next:*)"
+      "Bash(npx next:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

@@ -5,7 +5,6 @@ import ScanLogSection from '@/components/ScanLogSection'
 import KeywordSection from '@/components/KeywordSection'
 import NotificationStatus from '@/components/NotificationStatus'
 import DashboardStats from '@/components/DashboardStats'
-import PlatformScanHealthSection from '@/components/PlatformScanHealthSection'
 import { SkeletonCard, SkeletonRow } from '@/components/ui/SkeletonCard'
 
 export default async function DashboardPage() {
@@ -33,7 +32,7 @@ export default async function DashboardPage() {
 
       {/* Stats block */}
       <section>
-        <Suspense fallback={<SkeletonCard count={2} />}>
+        <Suspense fallback={<SkeletonCard count={3} />}>
           <DashboardStats userId={userId} />
         </Suspense>
       </section>
@@ -45,10 +44,6 @@ export default async function DashboardPage() {
         <NotificationStatus userId={userId} />
       </Suspense>
 
-      {/* Platform scan health — shows last success time and failure count per platform */}
-      <Suspense fallback={<SkeletonCard count={1} />}>
-        <PlatformScanHealthSection userId={userId} />
-      </Suspense>
 
       <hr className="border-gray-100" />
 
@@ -63,14 +58,5 @@ export default async function DashboardPage() {
 }
 
 function KeywordSectionSkeleton() {
-  return (
-    <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-      <div className="lg:col-span-2">
-        <SkeletonRow count={3} />
-      </div>
-      <div>
-        <div className="h-96 w-full animate-pulse rounded-xl bg-gray-100" />
-      </div>
-    </div>
-  )
+  return <SkeletonRow count={3} />
 }
