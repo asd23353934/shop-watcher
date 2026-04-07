@@ -152,5 +152,43 @@ class WorkerApiClient:
             logger.error("notify_batch: network error — %s", exc)
             return {"new": 0, "duplicate": 0}
 
+    async def update_platform_scan_status(
+        self,
+        platform: str,
+        success: bool,
+        error: Optional[str] = None,
+        user_id: str = "",
+    ) -> bool:
+        """
+        PATCH /api/worker/platform-status
+
+        Upserts PlatformScanStatus for the given userId + platform.
+        - success=True: updates lastSuccess, resets failCount to 0
+        - success=False: increments failCount, records error message
+
+        Returns True on HTTP 200, False on any error.
+        """
+        url = f"{self._base_url}/api/worker/platform-status"
+        payload: dict = {
+            "userId": user_id,
+            "platform": platform,
+            "success": success,
+        }
+        if error is not None:
+            payload["error"] = error[:500]  # truncate long stack traces
+        try:
+            resp = await self._client.patch(url, json=payload)
+            if resp.status_code == 200:
+                return True
+            logger.error(
+                "update_platform_scan_status: HTTP %s — %s",
+                resp.status_code,
+                resp.text[:200],
+            )
+            return False
+        except httpx.HTTPError as exc:
+            logger.error("update_platform_scan_status: network error — %s", exc)
+            return False
+
     async def close(self) -> None:
         await self._client.aclose()

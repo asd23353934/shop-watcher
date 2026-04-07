@@ -18,9 +18,10 @@ model User {
   image     String?
   createdAt DateTime @default(now())
 
-  keywords            Keyword[]
-  notificationSetting NotificationSetting?
-  seenItems           SeenItem[]
+  keywords              Keyword[]
+  notificationSetting   NotificationSetting?
+  seenItems             SeenItem[]
+  platformScanStatuses  PlatformScanStatus[]
 }
 
 model Keyword {
@@ -54,6 +55,20 @@ model ScanLog {
   id        String   @id @default(cuid())
   scannedAt DateTime
   createdAt DateTime @default(now())
+}
+
+model PlatformScanStatus {
+  id          String    @id @default(cuid())
+  userId      String
+  platform    String
+  lastSuccess DateTime?
+  lastError   String?
+  failCount   Int       @default(0)
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platform])
 }
 
 model SeenItem {

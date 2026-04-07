@@ -1,11 +1,17 @@
 # GitHub Actions Worker — 定時執行一次掃描循環
-# 每 10 分鐘觸發，抓取蝦皮與露天最新商品並通知用戶
+# 每 10 分鐘觸發，抓取各販售平台最新商品並通知用戶
 name: Worker Scan
 
 on:
   schedule:
     - cron: '*/10 * * * *'   # 每 10 分鐘執行一次
   workflow_dispatch:           # 支援手動觸發
+
+# 防止上一輪 job 尚未結束時下一輪重疊啟動
+# cancel-in-progress: false 確保正在執行的掃描不被取消
+concurrency:
+  group: worker-scan
+  cancel-in-progress: false
 
 jobs:
   scan:
@@ -42,12 +48,15 @@ jobs:
           # 可選：蝦皮 session cookies（JSON 陣列格式）用於繞過 fraud detection
           # 從真實 Chrome 匯出 shopee.tw cookies 後存入此 secret
           SHOPEE_COOKIES_JSON: ${{ secrets.SHOPEE_COOKIES_JSON }}
-          # 可選：爬取失敗時的 Discord Webhook 通知
+          # 可選：爬取失敗時的 Discord Webhook 通知（逐筆爬取錯誤）
           DISCORD_ERROR_WEBHOOK: ${{ secrets.DISCORD_ERROR_WEBHOOK }}
+          # 可選：開發者專用系統告警 Webhook（逾時、嚴重錯誤）
+          SYSTEM_ALERT_WEBHOOK: ${{ secrets.SYSTEM_ALERT_WEBHOOK }}
         run: python run_once.py
 
-      - name: 通知 Discord（workflow 失敗時）
-        if: failure()
+      - name: 通知 Discord（workflow 失敗或逾時時）
+        # failure() 捕捉 job crash；cancelled() 捕捉 GitHub Actions timeout / 手動取消
+        if: failure() || cancelled()
         env:
           DISCORD_ERROR_WEBHOOK: ${{ secrets.DISCORD_ERROR_WEBHOOK }}
         run: |
@@ -55,16 +64,27 @@ jobs:
             echo "DISCORD_ERROR_WEBHOOK 未設定，跳過通知"
             exit 0
           fi
+
+          # 判斷是逾時/取消還是崩潰
+          if [ "${{ job.status }}" = "cancelled" ]; then
+            TITLE="⏱ Worker 掃描逾時或取消"
+            DESC="Worker Scan workflow 被取消（通常為 timeout-minutes 觸發或手動取消）"
+          else
+            TITLE="⚠️ Worker 掃描失敗"
+            DESC="Worker Scan workflow 執行失敗（含 import crash、安裝錯誤等）"
+          fi
+
           curl -s -X POST "$DISCORD_ERROR_WEBHOOK" \
             -H "Content-Type: application/json" \
-            -d '{
-              "embeds": [{
-                "title": "⚠️ Worker 掃描失敗",
-                "color": 16711680,
-                "description": "Worker Scan workflow 執行失敗（含 import crash、安裝錯誤等）",
-                "fields": [
-                  {"name": "Run", "value": "${{ github.run_number }}", "inline": true},
-                  {"name": "Trigger", "value": "${{ github.event_name }}", "inline": true}
+            -d "{
+              \"embeds\": [{
+                \"title\": \"$TITLE\",
+                \"color\": 16711680,
+                \"description\": \"$DESC\",
+                \"fields\": [
+                  {\"name\": \"Run\", \"value\": \"${{ github.run_number }}\", \"inline\": true},
+                  {\"name\": \"Trigger\", \"value\": \"${{ github.event_name }}\", \"inline\": true},
+                  {\"name\": \"Status\", \"value\": \"${{ job.status }}\", \"inline\": true}
                 ]
               }]
-            }'
+            }"

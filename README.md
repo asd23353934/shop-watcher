@@ -89,6 +89,16 @@ python run_once.py
 | `WORKER_SECRET` | Worker ↔ API 共用密鑰（同 webapp .env） |
 | `NEXT_PUBLIC_API_URL` | Vercel 部署網址 |
 | `DATABASE_URL` | Neon.tech 連線字串（cleanup workflow 使用） |
+| `DISCORD_ERROR_WEBHOOK` | （選填）逐筆爬取失敗通知 Discord Webhook |
+| `SYSTEM_ALERT_WEBHOOK` | （選填）系統級告警 Discord Webhook（逾時、嚴重錯誤），與用戶 webhook 分離 |
+
+**Worker 行為調整環境變數（可設於 GitHub Actions Variables）：**
+
+| 變數 | 預設值 | 說明 |
+|------|--------|------|
+| `SCAN_TIMEOUT_SECONDS` | `300` | 整個掃描 cycle 的 Python 層逾時秒數 |
+| `SEMAPHORE_PER_PLATFORM` | `3` | 每平台最大並行爬取數（asyncio.Semaphore） |
+| `CHECK_INTERVAL` | `300` | 掃描間隔秒數（scheduler 模式使用） |
 
 ---
 

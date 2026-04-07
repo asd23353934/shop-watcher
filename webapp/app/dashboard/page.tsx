@@ -5,6 +5,7 @@ import ScanLogSection from '@/components/ScanLogSection'
 import KeywordSection from '@/components/KeywordSection'
 import NotificationStatus from '@/components/NotificationStatus'
 import DashboardStats from '@/components/DashboardStats'
+import PlatformScanHealthSection from '@/components/PlatformScanHealthSection'
 import { SkeletonCard, SkeletonRow } from '@/components/ui/SkeletonCard'
 
 export default async function DashboardPage() {
@@ -43,6 +44,13 @@ export default async function DashboardPage() {
       <Suspense fallback={null}>
         <NotificationStatus userId={userId} />
       </Suspense>
+
+      {/* Platform scan health — shows last success time and failure count per platform */}
+      <Suspense fallback={<SkeletonCard count={1} />}>
+        <PlatformScanHealthSection userId={userId} />
+      </Suspense>
+
+      <hr className="border-gray-100" />
 
       {/* KeywordSection fetches keywords, KeywordClientSection handles grid + state */}
       <section>

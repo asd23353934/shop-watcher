@@ -117,7 +117,14 @@
       "WebFetch(domain:booth.pm)",
       "WebFetch(domain:www.dlsite.com)",
       "WebFetch(domain:ec.toranoana.jp)",
-      "WebFetch(domain:www.melonbooks.co.jp)"
+      "WebFetch(domain:www.melonbooks.co.jp)",
+      "Bash(spectra apply:*)",
+      "Bash(git commit -m \"新增十一個販售平台爬蟲並停用蝦皮:*)",
+      "Bash(git commit -m \"更新官網：新增 BOOTH、DLsite、Toranoana、Melonbooks 平台標籤與說明:*)",
+      "Bash(python -c \"from src.scheduler import run_scan_cycle, send_system_alert, _run_scan_tasks; print\\(''OK''\\)\")",
+      "Bash(python -c \"from src.api_client import WorkerApiClient; import inspect; print\\([m for m in dir\\(WorkerApiClient\\) if ''platform'' in m]\\)\")",
+      "Bash(npx tsx -e \":*)",
+      "Bash(node -e \":*)"
     ]
   }
 }
