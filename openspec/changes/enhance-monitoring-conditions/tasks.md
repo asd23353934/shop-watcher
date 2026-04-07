@@ -66,13 +66,13 @@
 
 ## 11. 驗證測試
 
-- [ ] 11.1 驗證 Global seller blocklist 完整流程：設定 globalSellerBlocklist → Worker 送出含該賣家的 item → 確認無 SeenItem 記錄、無 Discord 通知；Global seller blocklist drops item before per-keyword check
-- [ ] 11.2 驗證 per-keyword sellerBlocklist 流程：keyword A 加入賣家黑名單 → keyword B 無黑名單 → 同賣家 item 對 A 被過濾、對 B 正常通知；Per-keyword seller blocklist drops item not caught by global
-- [ ] 11.3 驗證 per-keyword Discord webhook 路由：keyword 設定 webhookUrl → 觸發掃描 → 確認通知送至 keyword webhook，不送至全域 webhook；Notification uses keyword-level webhook when set
-- [ ] 11.4 驗證 maxNotifyPerScan 截斷：keyword 設定 maxNotifyPerScan=2 → 模擬 5 個新 item → 確認 SeenItem 只新增 2 筆、Discord 通知只有 2 則；Batch exceeds per-keyword maxNotifyPerScan cap
+- [x] 11.1 驗證 Global seller blocklist 完整流程：設定 globalSellerBlocklist → Worker 送出含該賣家的 item → 確認無 SeenItem 記錄、無 Discord 通知；Global seller blocklist drops item before per-keyword check
+- [x] 11.2 驗證 per-keyword sellerBlocklist 流程：keyword A 加入賣家黑名單 → keyword B 無黑名單 → 同賣家 item 對 A 被過濾、對 B 正常通知；Per-keyword seller blocklist drops item not caught by global
+- [x] 11.3 驗證 per-keyword Discord webhook 路由：keyword 設定 webhookUrl → 觸發掃描 → 確認通知送至 keyword webhook，不送至全域 webhook；Notification uses keyword-level webhook when set
+- [x] 11.4 驗證 maxNotifyPerScan 截斷：keyword 設定 maxNotifyPerScan=2 → 模擬 5 個新 item → 確認 SeenItem 只新增 2 筆、Discord 通知只有 2 則；Batch exceeds per-keyword maxNotifyPerScan cap
 - [ ] 11.5 驗證 CircleFollow BOOTH 掃描：新增 BOOTH 社團追蹤 → 執行 run_scan_cycle → 確認社團新作出現在 SeenItem 和 Discord 通知中；BOOTH shop new-arrival page is scraped for followed circle
 - [ ] 11.6 驗證 CircleFollow DLsite 掃描：新增 DLsite 社團追蹤 → 執行 run_scan_cycle → 確認社團新作正確抓取；DLsite circle new-arrival page is scraped for followed circle
 - [ ] 11.7 驗證歷史紀錄頁面：新通知後至 /history 確認顯示商品名稱連結、可按關鍵字/平台篩選、載入更多正常運作；History page lists notified items with item name and link 與 History supports filtering by keyword 與 History pagination loads next 50 items
-- [ ] 11.8 驗證 SeenItem itemName/itemUrl 儲存：掃描後查詢 DB 確認 SeenItem 的 itemName 與 itemUrl 欄位有值（非 null）；SeenItem stores itemName and itemUrl from batch payload
+- [x] 11.8 驗證 SeenItem itemName/itemUrl 儲存：掃描後查詢 DB 確認 SeenItem 的 itemName 與 itemUrl 欄位有值（非 null）；SeenItem stores itemName and itemUrl from batch payload
 - [x] 11.9 執行 `npm run build` 確認前端無 TypeScript 編譯錯誤
 - [ ] 11.10 驗證全域賣家黑名單設定頁面 UI：前往 /settings → 新增賣家 tag → 儲存 → 重整頁面後 tag 仍顯示；User can manage global seller blocklist in notification settings

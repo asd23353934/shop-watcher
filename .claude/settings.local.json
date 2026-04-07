@@ -155,7 +155,15 @@
       "Bash(sed -i 's/- \\\\[ \\\\] 10\\\\.2 更新/- [x] 10.2 更新/' \"C:\\\\Users\\\\user\\\\Desktop\\\\gitlab\\\\shop-watcher\\\\openspec\\\\changes\\\\enhance-monitoring-conditions\\\\tasks.md\")",
       "Bash(sed -i 's/- \\\\[ \\\\] 10\\\\.3 建立/- [x] 10.3 建立/' \"C:\\\\Users\\\\user\\\\Desktop\\\\gitlab\\\\shop-watcher\\\\openspec\\\\changes\\\\enhance-monitoring-conditions\\\\tasks.md\")",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f\"\"Progress: {d[''''progress''''][''''complete'''']}/{d[''''progress''''][''''total'''']}, state: {d[''''state'''']}\"\"\\)\")",
-      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); findings=[f for f in d.get\\(''''findings'''',[]\\) if f.get\\(''''severity''''\\) in \\(''''critical'''',''''warning''''\\)]; print\\(f\"\"Critical/Warning findings: {len\\(findings\\)}\"\"\\); [print\\(f\"\" - [{f[''''severity'''']}] {f[''''message''''][:100]}\"\"\\) for f in findings[:5]]\")"
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); findings=[f for f in d.get\\(''''findings'''',[]\\) if f.get\\(''''severity''''\\) in \\(''''critical'''',''''warning''''\\)]; print\\(f\"\"Critical/Warning findings: {len\\(findings\\)}\"\"\\); [print\\(f\"\" - [{f[''''severity'''']}] {f[''''message''''][:100]}\"\"\\) for f in findings[:5]]\")",
+      "Bash(ls C:UsersuserDesktopgitlabshop-watcherwebapp.env*)",
+      "Bash(ls C:UsersuserDesktopgitlabshop-watcher.env*)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\(''''scripts'''',{}\\), indent=2\\)\\)\")",
+      "Bash(ls -la \"C:\\\\Users\\\\user\\\\Desktop\\\\gitlab\\\\shop-watcher\\\\webapp\"\" | grep env; ls -la \"C:UsersuserDesktopgitlabshop-watcher\"\")",
+      "Bash(WORKER_SECRET=shopwatcher-dev-2026 node --env-file=.env.local scripts/test-batch-api.mjs)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(Get-Process node:*)",
+      "Bash(npx next:*)"
     ]
   }
 }
