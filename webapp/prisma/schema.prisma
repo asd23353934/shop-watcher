@@ -22,6 +22,7 @@ model User {
   notificationSetting   NotificationSetting?
   seenItems             SeenItem[]
   platformScanStatuses  PlatformScanStatus[]
+  circleFollows         CircleFollow[]
 }
 
 model Keyword {
@@ -31,10 +32,13 @@ model Keyword {
   platforms String[]
   minPrice  Float?
   maxPrice  Float?
-  active       Boolean  @default(true)
-  blocklist    String[] @default([])
-  mustInclude  String[] @default([])
-  matchMode    String   @default("any")
+  active          Boolean  @default(true)
+  blocklist       String[] @default([])
+  mustInclude     String[] @default([])
+  matchMode       String   @default("any")
+  sellerBlocklist String[] @default([])
+  discordWebhookUrl String?
+  maxNotifyPerScan  Int?
   createdAt    DateTime @default(now())
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -42,11 +46,12 @@ model Keyword {
 }
 
 model NotificationSetting {
-  id                 String  @id @default(cuid())
-  userId             String  @unique
-  discordWebhookUrl  String?
-  discordUserId      String?
-  emailAddress       String?
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  discordWebhookUrl    String?
+  discordUserId        String?
+  emailAddress         String?
+  globalSellerBlocklist String[] @default([])
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -71,6 +76,21 @@ model PlatformScanStatus {
   @@unique([userId, platform])
 }
 
+model CircleFollow {
+  id         String   @id @default(cuid())
+  userId     String
+  platform   String   // "booth" | "dlsite"
+  circleId   String   // 平台上的店家/社團 ID
+  circleName String
+  webhookUrl String?
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platform, circleId])
+}
+
 model SeenItem {
   id        String   @id @default(cuid())
   userId    String
@@ -80,6 +100,8 @@ model SeenItem {
   firstSeen DateTime @default(now())
   lastPrice Float?
   keywordId String?
+  itemName  String?
+  itemUrl   String?
 
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   keywordRef  Keyword? @relation(fields: [keywordId], references: [id], onDelete: SetNull)

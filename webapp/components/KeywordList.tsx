@@ -37,6 +37,7 @@ export default function KeywordList({
   const [editForm, setEditForm] = useState<Partial<Keyword>>({})
   const [editBlocklistInput, setEditBlocklistInput] = useState('')
   const [editMustIncludeInput, setEditMustIncludeInput] = useState('')
+  const [editSellerBlocklistInput, setEditSellerBlocklistInput] = useState('')
   const [editLoading, setEditLoading] = useState(false)
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
 
@@ -95,6 +96,7 @@ export default function KeywordList({
     setEditingId(kw.id)
     setEditBlocklistInput('')
     setEditMustIncludeInput('')
+    setEditSellerBlocklistInput('')
     setEditForm({
       keyword: kw.keyword,
       platforms: [...kw.platforms],
@@ -103,6 +105,9 @@ export default function KeywordList({
       blocklist: [...(kw.blocklist ?? [])],
       mustInclude: [...(kw.mustInclude ?? [])],
       matchMode: kw.matchMode ?? 'any',
+      sellerBlocklist: [...(kw.sellerBlocklist ?? [])],
+      discordWebhookUrl: kw.discordWebhookUrl,
+      maxNotifyPerScan: kw.maxNotifyPerScan,
     })
   }
 
@@ -240,6 +245,49 @@ export default function KeywordList({
                     />
                     <button type="button" onClick={() => { if (editBlocklistInput.trim()) { setEditForm((prev) => ({ ...prev, blocklist: [...(prev.blocklist ?? []), editBlocklistInput.trim()] })); setEditBlocklistInput('') } }} className="rounded-md border px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">新增</button>
                   </div>
+                </div>
+                <div>
+                  <p className="mb-1 text-xs font-medium text-gray-600">賣家/社團黑名單</p>
+                  <div className="mb-1 flex flex-wrap gap-1">
+                    {(editForm.sellerBlocklist ?? []).map((word) => (
+                      <span key={word} className="flex items-center gap-1 rounded bg-orange-100 px-2 py-0.5 text-xs text-orange-700">
+                        {word}
+                        <button type="button" onClick={() => setEditForm((prev) => ({ ...prev, sellerBlocklist: (prev.sellerBlocklist ?? []).filter((w) => w !== word) }))} className="ml-0.5 text-orange-400 hover:text-orange-600">×</button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-1">
+                    <input
+                      type="text"
+                      value={editSellerBlocklistInput}
+                      onChange={(e) => setEditSellerBlocklistInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (editSellerBlocklistInput.trim()) { setEditForm((prev) => ({ ...prev, sellerBlocklist: [...(prev.sellerBlocklist ?? []), editSellerBlocklistInput.trim()] })); setEditSellerBlocklistInput('') } } }}
+                      placeholder="輸入賣家名稱或 ID"
+                      className="flex-1 rounded-md border px-2 py-1 text-xs"
+                    />
+                    <button type="button" onClick={() => { if (editSellerBlocklistInput.trim()) { setEditForm((prev) => ({ ...prev, sellerBlocklist: [...(prev.sellerBlocklist ?? []), editSellerBlocklistInput.trim()] })); setEditSellerBlocklistInput('') } }} className="rounded-md border px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">新增</button>
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-1 text-xs font-medium text-gray-600">專屬 Discord Webhook（選填）</p>
+                  <input
+                    type="url"
+                    value={editForm.discordWebhookUrl ?? ''}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, discordWebhookUrl: e.target.value || null }))}
+                    placeholder="https://discord.com/api/webhooks/..."
+                    className="w-full rounded-md border px-2 py-1 text-xs"
+                  />
+                </div>
+                <div>
+                  <p className="mb-1 text-xs font-medium text-gray-600">每次掃描通知上限（選填）</p>
+                  <input
+                    type="number"
+                    value={editForm.maxNotifyPerScan ?? ''}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, maxNotifyPerScan: e.target.value ? Number(e.target.value) : null }))}
+                    min="1"
+                    placeholder="預設使用系統設定"
+                    className="w-full rounded-md border px-2 py-1 text-xs"
+                  />
                 </div>
                 <div className="flex gap-2">
                   <button

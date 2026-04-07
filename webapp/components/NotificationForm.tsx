@@ -6,6 +6,7 @@ interface NotificationSettings {
   discordWebhookUrl: string | null
   discordUserId: string | null
   emailAddress: string | null
+  globalSellerBlocklist: string[]
 }
 
 export default function NotificationForm() {
@@ -13,6 +14,7 @@ export default function NotificationForm() {
     discordWebhookUrl: null,
     discordUserId: null,
     emailAddress: null,
+    globalSellerBlocklist: [],
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -20,6 +22,7 @@ export default function NotificationForm() {
   const [success, setSuccess] = useState(false)
   const [webhookTesting, setWebhookTesting] = useState(false)
   const [webhookTestResult, setWebhookTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [sellerBlocklistInput, setSellerBlocklistInput] = useState('')
 
   // Settings are pre-filled with existing values on load
   useEffect(() => {
@@ -32,6 +35,7 @@ export default function NotificationForm() {
           discordWebhookUrl: data.discordWebhookUrl ?? '',
           discordUserId: data.discordUserId ?? '',
           emailAddress: data.emailAddress ?? '',
+          globalSellerBlocklist: data.globalSellerBlocklist ?? [],
         })
       })
       .catch((err) => {
@@ -79,6 +83,7 @@ export default function NotificationForm() {
           discordUserId: form.discordUserId || null,
           // User clears email address to disable email notifications
           emailAddress: form.emailAddress || null,
+          globalSellerBlocklist: form.globalSellerBlocklist,
         }),
       })
 
@@ -185,6 +190,67 @@ export default function NotificationForm() {
             className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
           <p className="mt-1 text-xs text-gray-400">清空此欄位即可停用 Email 通知</p>
+        </div>
+      </div>
+
+      {/* Global seller blocklist */}
+      <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
+          <span className="text-indigo-600">🚫</span> 全域賣家/社團黑名單
+        </h2>
+        <p className="mb-3 text-xs text-gray-500">加入此名單的賣家或社團，所有關鍵字的通知都會過濾（不分大小寫，substring 比對）</p>
+
+        {form.globalSellerBlocklist.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {form.globalSellerBlocklist.map((word) => (
+              <span
+                key={word}
+                className="flex items-center gap-1 rounded bg-orange-100 px-2 py-0.5 text-xs text-orange-700"
+              >
+                {word}
+                <button
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, globalSellerBlocklist: p.globalSellerBlocklist.filter((w) => w !== word) }))}
+                  className="ml-0.5 text-orange-400 hover:text-orange-600"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={sellerBlocklistInput}
+            onChange={(e) => setSellerBlocklistInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                const word = sellerBlocklistInput.trim()
+                if (word && !form.globalSellerBlocklist.includes(word)) {
+                  setForm((p) => ({ ...p, globalSellerBlocklist: [...p.globalSellerBlocklist, word] }))
+                  setSellerBlocklistInput('')
+                }
+              }
+            }}
+            placeholder="輸入賣家名稱或 ID 後按新增"
+            className="flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const word = sellerBlocklistInput.trim()
+              if (word && !form.globalSellerBlocklist.includes(word)) {
+                setForm((p) => ({ ...p, globalSellerBlocklist: [...p.globalSellerBlocklist, word] }))
+                setSellerBlocklistInput('')
+              }
+            }}
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            新增
+          </button>
         </div>
       </div>
 

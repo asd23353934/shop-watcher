@@ -9,4 +9,7 @@ export interface Keyword {
   matchMode: string
   active: boolean
   createdAt: string
+  sellerBlocklist: string[]
+  discordWebhookUrl: string | null
+  maxNotifyPerScan: number | null
 }

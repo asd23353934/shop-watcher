@@ -20,13 +20,35 @@ interface Item {
 }
 
 const PLATFORM_COLORS: Record<string, number> = {
-  shopee: 0xee4d2d,  // Shopee orange-red
-  ruten: 0x0066cc,   // Ruten blue
+  shopee: 0xee4d2d,    // Shopee orange-red
+  ruten: 0x0066cc,     // Ruten blue
+  pchome: 0x0059b3,    // PChome blue
+  momo: 0xe60026,      // momo red
+  animate: 0x3b6fd4,   // Animate blue
+  'yahoo-auction': 0x720e9e, // Yahoo purple
+  mandarake: 0x111111, // Mandarake dark
+  myacg: 0xdd4444,     // MyACG red
+  kingstone: 0x005bac, // Kingstone blue
+  booth: 0xe4335a,     // BOOTH pink-red
+  dlsite: 0x4f46e5,    // DLsite indigo
+  toranoana: 0xd97706, // Toranoana amber
+  melonbooks: 0x0d9488, // Melonbooks teal
 }
 
 const PLATFORM_LABELS: Record<string, string> = {
   shopee: '蝦皮購物',
   ruten: '露天拍賣',
+  pchome: 'PChome 24h',
+  momo: 'momo 購物',
+  animate: 'Animate Online',
+  'yahoo-auction': 'Yahoo! 拍賣',
+  mandarake: 'Mandarake',
+  myacg: 'MyACG',
+  kingstone: '金石堂',
+  booth: 'BOOTH',
+  dlsite: 'DLsite',
+  toranoana: '虎之穴',
+  melonbooks: 'Melonbooks',
 }
 
 /**

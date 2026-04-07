@@ -13,11 +13,16 @@ interface BatchItem {
   url: string
   image_url: string | null
   seller_name: string | null
+  seller_id?: string | null
 }
 
 interface BatchPayload {
-  keyword_id: string
+  keyword_id?: string | null
+  circle_follow_id?: string | null
   items: BatchItem[]
+  keywordWebhookUrl?: string | null
+  maxNotifyPerScan?: number | null
+  globalSellerBlocklist?: string[]
 }
 
 export interface NotifyItem extends BatchItem {
@@ -26,15 +31,36 @@ export interface NotifyItem extends BatchItem {
 }
 
 /**
+ * Returns true if sellerName or sellerId matches any entry in the blocklist
+ * (case-insensitive substring match).
+ */
+function isSellerBlocked(
+  sellerName: string | null | undefined,
+  sellerId: string | null | undefined,
+  blocklist: string[]
+): boolean {
+  if (blocklist.length === 0) return false
+  const lower = blocklist.map((s) => s.toLowerCase())
+  const sn = (sellerName ?? '').toLowerCase()
+  const si = (sellerId ?? '').toLowerCase()
+  return lower.some((entry) =>
+    (sn && sn.includes(entry)) || (si && si.includes(entry))
+  )
+}
+
+/**
  * POST /api/worker/notify/batch
- * Receives a batch of scraped items, deduplicates, detects price drops,
- * and triggers grouped notifications.
  *
- * POST /api/worker/notify/batch accepts a batch of items and sends grouped notifications
- * Price drop on a known item triggers a re-notification
- * Already-seen item with price drop triggers re-notification
- * Item with null price does not trigger price drop
- * POST /api/worker/notify receives a scraped item and triggers deduplication and notifications
+ * Order of operations:
+ * 1. Deduplication (seenItem lookup)
+ * 2. Seller filtering: global blocklist → per-keyword blocklist (new items only)
+ * 3. maxNotifyPerScan cap (truncation after filtering)
+ * 4. SeenItem insert (with itemName/itemUrl) + Discord/Email notification
+ *
+ * notify/batch applies seller blocklist before notifying
+ * notify/batch routes Discord notification to per-keyword webhook
+ * notify/batch enforces maxNotifyPerScan cap per keyword
+ * SeenItem stores itemName and itemUrl from batch payload
  */
 export async function POST(request: Request) {
   const authError = verifyWorkerToken(request)
@@ -47,11 +73,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { keyword_id, items } = body
+  const {
+    keyword_id,
+    circle_follow_id,
+    items,
+    keywordWebhookUrl,
+    maxNotifyPerScan: payloadMaxNotify,
+    globalSellerBlocklist: payloadGlobalBlocklist,
+  } = body
 
-  if (!keyword_id || !Array.isArray(items)) {
+  if (!Array.isArray(items)) {
     return NextResponse.json(
-      { error: 'keyword_id and items array are required' },
+      { error: 'items array is required' },
+      { status: 400 }
+    )
+  }
+  if (!keyword_id && !circle_follow_id) {
+    return NextResponse.json(
+      { error: 'keyword_id or circle_follow_id is required' },
       { status: 400 }
     )
   }
@@ -60,23 +99,72 @@ export async function POST(request: Request) {
     return NextResponse.json({ new: 0, price_drop: 0, duplicate: 0 })
   }
 
-  // Unknown keyword_id returns 404
-  const keyword = await prisma.keyword.findUnique({
-    where: { id: keyword_id },
-    include: {
-      user: {
-        include: { notificationSetting: true },
-      },
-    },
-  })
+  const envMax = parseInt(process.env.MAX_NOTIFY_PER_BATCH ?? '10', 10) || 10
 
-  if (!keyword) {
-    return NextResponse.json({ error: 'Keyword not found' }, { status: 404 })
+  // Mode-based lookup: keyword or circle follow
+  let userId: string
+  let notificationSetting: { discordWebhookUrl: string | null; discordUserId: string | null; emailAddress: string | null; globalSellerBlocklist: string[] } | null = null
+  let effectiveKeywordLabel: string
+  let effectiveWebhook: string | null
+  let keywordSellerBlocklist: string[] = []
+  let keywordIdForRecord: string | null = null
+  let cap: number
+
+  if (keyword_id) {
+    // Keyword mode
+    const keyword = await prisma.keyword.findUnique({
+      where: { id: keyword_id },
+      include: { user: { include: { notificationSetting: true } } },
+    })
+    if (!keyword) {
+      return NextResponse.json({ error: 'Keyword not found' }, { status: 404 })
+    }
+    userId = keyword.userId
+    notificationSetting = keyword.user.notificationSetting
+    effectiveKeywordLabel = keyword.keyword
+    keywordSellerBlocklist = keyword.sellerBlocklist ?? []
+    keywordIdForRecord = keyword_id
+
+    effectiveWebhook =
+      keywordWebhookUrl !== undefined
+        ? (keywordWebhookUrl ?? notificationSetting?.discordWebhookUrl ?? null)
+        : (keyword.discordWebhookUrl ?? notificationSetting?.discordWebhookUrl ?? null)
+
+    cap =
+      payloadMaxNotify != null
+        ? payloadMaxNotify
+        : keyword.maxNotifyPerScan != null
+          ? keyword.maxNotifyPerScan
+          : envMax
+  } else {
+    // Circle follow mode
+    const circleFollow = await prisma.circleFollow.findUnique({
+      where: { id: circle_follow_id! },
+      include: { user: { include: { notificationSetting: true } } },
+    })
+    if (!circleFollow) {
+      return NextResponse.json({ error: 'CircleFollow not found' }, { status: 404 })
+    }
+    userId = circleFollow.userId
+    notificationSetting = circleFollow.user.notificationSetting
+    effectiveKeywordLabel = `circle:${circleFollow.circleName}`
+    keywordIdForRecord = null
+
+    effectiveWebhook =
+      keywordWebhookUrl !== undefined
+        ? (keywordWebhookUrl ?? circleFollow.webhookUrl ?? notificationSetting?.discordWebhookUrl ?? null)
+        : (circleFollow.webhookUrl ?? notificationSetting?.discordWebhookUrl ?? null)
+
+    cap = payloadMaxNotify != null ? payloadMaxNotify : envMax
   }
 
-  const userId = keyword.userId
+  // Resolve globalSellerBlocklist: prefer payload (Worker already fetched) or DB fallback
+  const globalSellerBlocklist: string[] =
+    Array.isArray(payloadGlobalBlocklist)
+      ? payloadGlobalBlocklist
+      : (notificationSetting?.globalSellerBlocklist ?? [])
 
-  // Load existing SeenItem records for deduplication and price-drop detection
+  // ── 1. Deduplication ──────────────────────────────────────────────────────
   const existingRecords = await prisma.seenItem.findMany({
     where: {
       userId,
@@ -92,7 +180,7 @@ export async function POST(request: Request) {
     existingRecords.map((e) => [`${e.platform}:${e.itemId}`, e])
   )
 
-  const newItems: NotifyItem[] = []
+  const rawNewItems: NotifyItem[] = []
   const priceDropItems: NotifyItem[] = []
   let duplicateCount = 0
 
@@ -101,73 +189,89 @@ export async function POST(request: Request) {
     const existing = existingMap.get(key)
 
     if (!existing) {
-      // Brand new item — create SeenItem with lastPrice
-      await prisma.seenItem.create({
-        data: {
-          userId,
-          platform: item.platform,
-          itemId: item.item_id,
-          keyword: keyword.keyword,
-          keywordId: keyword_id,
-          lastPrice: item.price ?? null,
-        },
-      })
-      newItems.push(item)
+      rawNewItems.push(item)
+    } else if (
+      item.price !== null &&
+      item.price !== undefined &&
+      existing.lastPrice !== null &&
+      existing.lastPrice !== undefined &&
+      item.price < existing.lastPrice
+    ) {
+      priceDropItems.push({ ...item, isPriceDrop: true, originalPrice: existing.lastPrice })
     } else {
-      // Already seen — check for price drop
-      // Item with null price does not trigger price drop
-      if (
-        item.price !== null &&
-        item.price !== undefined &&
-        existing.lastPrice !== null &&
-        existing.lastPrice !== undefined &&
-        item.price < existing.lastPrice
-      ) {
-        // Price drop detected — update lastPrice and add to notify list
-        await prisma.seenItem.update({
-          where: {
-            userId_platform_itemId: {
-              userId,
-              platform: item.platform,
-              itemId: item.item_id,
-            },
-          },
-          data: { lastPrice: item.price },
-        })
-        priceDropItems.push({
-          ...item,
-          isPriceDrop: true,
-          originalPrice: existing.lastPrice,
-        })
-      } else {
-        // Not a price drop (null price or price >= lastPrice) — duplicate, skip
-        duplicateCount++
-      }
+      duplicateCount++
     }
   }
 
-  // Send notifications for new items and price-drop items
-  const notifyItems: NotifyItem[] = [...newItems, ...priceDropItems]
+  // ── 2. Seller filtering (new items only) ──────────────────────────────────
+  // Global seller blocklist drops item before per-keyword check
+  // Per-keyword seller blocklist drops item not caught by global
+  let filteredNewItems = rawNewItems.filter((item) => {
+    if (isSellerBlocked(item.seller_name, item.seller_id, globalSellerBlocklist)) {
+      return false
+    }
+    if (isSellerBlocked(item.seller_name, item.seller_id, keywordSellerBlocklist)) {
+      return false
+    }
+    return true
+  })
+
+  // ── 3. maxNotifyPerScan cap ───────────────────────────────────────────────
+  // New items after filtering are capped at maxNotifyPerScan
+  if (filteredNewItems.length > cap) {
+    filteredNewItems = filteredNewItems.slice(0, cap)
+  }
+
+  // ── 4. Persist SeenItems ─────────────────────────────────────────────────
+  for (const item of filteredNewItems) {
+    await prisma.seenItem.create({
+      data: {
+        userId,
+        platform: item.platform,
+        itemId: item.item_id,
+        keyword: effectiveKeywordLabel,
+        keywordId: keywordIdForRecord,
+        lastPrice: item.price ?? null,
+        itemName: item.name ? item.name.slice(0, 255) : null,
+        itemUrl: item.url ?? null,
+      },
+    })
+  }
+
+  for (const item of priceDropItems) {
+    await prisma.seenItem.update({
+      where: {
+        userId_platform_itemId: { userId, platform: item.platform, itemId: item.item_id },
+      },
+      data: {
+        lastPrice: item.price,
+        itemName: item.name ? item.name.slice(0, 255) : undefined,
+        itemUrl: item.url ?? undefined,
+      },
+    })
+  }
+
+  // ── 5. Send notifications ─────────────────────────────────────────────────
+  const notifyItems: NotifyItem[] = [...filteredNewItems, ...priceDropItems]
 
   if (notifyItems.length > 0) {
-    const notificationSetting = keyword.user.notificationSetting
     await Promise.all([
       sendDiscordBatchNotification(
-        notificationSetting?.discordWebhookUrl ?? null,
+        effectiveWebhook,
         notificationSetting?.discordUserId ?? null,
         notifyItems,
-        keyword.keyword
+        effectiveKeywordLabel
       ),
       sendEmailBatchNotification(
         notificationSetting?.emailAddress ?? null,
         notifyItems,
-        keyword.keyword
+        effectiveKeywordLabel
       ),
     ])
   }
 
   return NextResponse.json({
-    new: newItems.length,
+    new: filteredNewItems.length,
     price_drop: priceDropItems.length,
     duplicate: duplicateCount,
   })

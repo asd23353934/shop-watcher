@@ -29,8 +29,8 @@ from src.scrapers.yahoo_auction import scrape_yahoo_auction
 from src.scrapers.mandarake import scrape_mandarake
 from src.scrapers.myacg import scrape_myacg
 from src.scrapers.kingstone import scrape_kingstone
-from src.scrapers.booth import scrape_booth
-from src.scrapers.dlsite import scrape_dlsite
+from src.scrapers.booth import scrape_booth, scrape_booth_circle
+from src.scrapers.dlsite import scrape_dlsite, scrape_dlsite_circle
 from src.scrapers.toranoana import scrape_toranoana
 from src.scrapers.melonbooks import scrape_melonbooks
 
@@ -249,13 +249,75 @@ async def _scan_one(
     if len(items) < before:
         logger.debug("[%s] %s — matchMode(%s) filtered %d item(s)", platform, keyword_text, match_mode, before - len(items))
 
-    # Batch report
-    result = await api.notify_batch(keyword_id, items)
+    # Batch report — forward per-keyword webhook and rate-limit overrides
+    result = await api.notify_batch(
+        keyword_id,
+        items,
+        keyword_webhook_url=kw.get("discordWebhookUrl"),
+        max_notify_per_scan=kw.get("maxNotifyPerScan"),
+    )
     new_count = result.get("new", 0)
     dup_count = result.get("duplicate", 0)
 
     logger.info("[%s] %s — %d found, %d new, %d duplicate", platform, keyword_text, len(items), new_count, dup_count)
     return platform, True, None
+
+
+# ---------------------------------------------------------------------------
+# CircleFollow scan task
+# ---------------------------------------------------------------------------
+
+async def _scan_circle(
+    context: BrowserContext,
+    semaphores: dict[str, asyncio.Semaphore],
+    api: WorkerApiClient,
+    follow: dict,
+) -> None:
+    """
+    Scrape a single CircleFollow's new-arrival page and notify via API.
+
+    BOOTH:  https://{circleId}.booth.pm/?adult=t&sort=new_arrival
+    DLsite: https://www.dlsite.com/maniax/circle/profile/=/maker_id/{circleId}.html
+
+    Uses per-follow webhookUrl for notifications.
+    Deduplication is handled server-side via SeenItem(userId, platform, itemId).
+    """
+    platform = follow.get("platform", "")
+    circle_id = follow.get("circleId", "")
+    circle_name = follow.get("circleName", "")
+    webhook_url: Optional[str] = follow.get("webhookUrl")
+    circle_follow_id = follow.get("id", "")
+
+    if platform not in semaphores:
+        semaphores[platform] = asyncio.Semaphore(_get_semaphore_limit())
+
+    async with semaphores[platform]:
+        page = await context.new_page()
+        try:
+            if platform == "booth":
+                items = await scrape_booth_circle(page, circle_id)
+            elif platform == "dlsite":
+                items = await scrape_dlsite_circle(page, circle_id)
+            else:
+                logger.warning("[circle] Unsupported platform: %s (circle_id=%s)", platform, circle_id)
+                return
+        except Exception as exc:
+            logger.error("[circle/%s] %s — unhandled error: %s", platform, circle_id, exc)
+            return
+        finally:
+            await page.close()
+
+    result = await api.notify_batch(
+        keyword_id=None,
+        items=items,
+        keyword_webhook_url=webhook_url,
+        circle_follow_id=circle_follow_id,
+    )
+    new_count = result.get("new", 0)
+    logger.info(
+        "[circle/%s] %s (%s) — %d found, %d new",
+        platform, circle_id, circle_name, len(items), new_count,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -321,16 +383,17 @@ async def _run_scan_tasks(
 async def run_scan_cycle(api: WorkerApiClient) -> None:
     """
     Execute one full scan cycle:
-    1. Fetch keywords from API
+    1. Fetch keywords and circle follows from API
     2. Launch one shared browser + context
-    3. Run all keyword×platform tasks concurrently (with asyncio.wait_for timeout)
+    3. Run all keyword×platform tasks + circle follow scans concurrently
     4. Close browser
     5. Post scan log
     """
     keywords = await api.get_keywords()
+    circle_follows = await api.get_circle_follows()
 
-    if not keywords:
-        logger.info("No active keywords, skipping scan")
+    if not keywords and not circle_follows:
+        logger.info("No active keywords or circle follows, skipping scan")
         return
 
     timeout_secs = _get_scan_timeout()
@@ -356,8 +419,22 @@ async def run_scan_cycle(api: WorkerApiClient) -> None:
         )
 
         try:
+            # Keyword scans and circle follow scans run within the same browser + timeout
+            async def _run_all() -> None:
+                if keywords:
+                    await _run_scan_tasks(context, api, keywords)
+                if circle_follows:
+                    circle_semaphores: dict[str, asyncio.Semaphore] = {}
+                    results = await asyncio.gather(
+                        *[_scan_circle(context, circle_semaphores, api, follow) for follow in circle_follows],
+                        return_exceptions=True,
+                    )
+                    for res in results:
+                        if isinstance(res, Exception):
+                            logger.error("Circle scan gather exception: %s", res)
+
             await asyncio.wait_for(
-                _run_scan_tasks(context, api, keywords),
+                _run_all(),
                 timeout=timeout_secs,
             )
         except asyncio.TimeoutError:

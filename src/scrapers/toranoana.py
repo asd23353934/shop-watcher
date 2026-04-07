@@ -108,6 +108,10 @@ async def scrape_toranoana(
 
             full_url = href if href.startswith("http") else _BASE_URL + href
 
+            # Circle/サークル name — Toranoana uses .product-list-circle or similar
+            circle_el = li.select_one(".product-list-circle, .circle-name, [class*='circle']")
+            seller_name = circle_el.get_text(strip=True)[:80] if circle_el else None
+
             items.append(
                 WatcherItem(
                     platform="toranoana",
@@ -116,6 +120,7 @@ async def scrape_toranoana(
                     price=price,
                     url=full_url,
                     image_url=image_url,
+                    seller_name=seller_name,
                 )
             )
         except Exception as exc:

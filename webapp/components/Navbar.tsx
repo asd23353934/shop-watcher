@@ -18,6 +18,7 @@ export default function Navbar({ user, signOutAction, activeHref }: NavbarProps)
 
   const navLinks = [
     { href: '/dashboard', label: '關鍵字' },
+    { href: '/circles', label: '社團追蹤' },
     { href: '/history', label: '通知記錄' },
     { href: '/settings', label: '通知設定' },
   ]

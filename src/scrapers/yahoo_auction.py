@@ -133,6 +133,9 @@ async def scrape_yahoo_auction(
             if image_url:
                 image_url = str(image_url)
 
+            # ec_auserid is Yahoo Auction's seller user ID field
+            seller_id = str(prod.get("ec_auserid") or "").strip() or None
+
             items.append(
                 WatcherItem(
                     platform="yahoo-auction",
@@ -141,6 +144,7 @@ async def scrape_yahoo_auction(
                     price=price,
                     url=item_url,
                     image_url=image_url,
+                    seller_id=seller_id,
                 )
             )
         except Exception as exc:

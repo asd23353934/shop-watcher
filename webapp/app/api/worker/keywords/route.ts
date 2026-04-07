@@ -26,7 +26,7 @@ export async function GET(request: Request) {
     orderBy: { createdAt: 'asc' },
   })
 
-  // Map to a clean API shape
+  // Map to a clean API shape — includes new fields for seller filtering, webhook routing, and rate limiting
   const result = keywords.map((kw) => ({
     id: kw.id,
     userId: kw.userId,
@@ -37,11 +37,15 @@ export async function GET(request: Request) {
     blocklist: kw.blocklist,
     mustInclude: kw.mustInclude,
     matchMode: kw.matchMode,
+    sellerBlocklist: kw.sellerBlocklist,
+    discordWebhookUrl: kw.discordWebhookUrl,
+    maxNotifyPerScan: kw.maxNotifyPerScan,
     notificationSetting: kw.user.notificationSetting
       ? {
           discordWebhookUrl: kw.user.notificationSetting.discordWebhookUrl,
           discordUserId: kw.user.notificationSetting.discordUserId,
           emailAddress: kw.user.notificationSetting.emailAddress,
+          globalSellerBlocklist: kw.user.notificationSetting.globalSellerBlocklist,
         }
       : null,
   }))

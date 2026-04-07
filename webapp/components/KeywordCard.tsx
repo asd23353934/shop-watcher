@@ -61,6 +61,21 @@ export default function KeywordCard({ keyword: kw, onEdit, onDelete, onToggle, t
               -{word}
             </span>
           ))}
+          {kw.sellerBlocklist?.map((word) => (
+            <span key={word} className="rounded bg-orange-100 px-2 py-0.5 text-xs text-orange-700">
+              賣家:{word}
+            </span>
+          ))}
+          {kw.maxNotifyPerScan != null && (
+            <span className="rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
+              上限 {kw.maxNotifyPerScan} 則
+            </span>
+          )}
+          {kw.discordWebhookUrl && (
+            <span className="rounded bg-purple-100 px-2 py-0.5 text-xs text-purple-700" title={kw.discordWebhookUrl}>
+              Webhook: {kw.discordWebhookUrl.slice(-20)}
+            </span>
+          )}
         </div>
       </div>
 

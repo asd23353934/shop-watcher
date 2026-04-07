@@ -107,6 +107,10 @@ async def scrape_dlsite(
 
             product_url = f"{_BASE_URL}/maniax/work/=/product_id/{product_id}.html"
 
+            # Circle/maker name — DLsite uses .maker_name or .work_maker anchor
+            circle_el = li.select_one(".maker_name a, .work_maker a, .maker_name")
+            seller_name = circle_el.get_text(strip=True)[:80] if circle_el else None
+
             items.append(
                 WatcherItem(
                     platform="dlsite",
@@ -115,9 +119,74 @@ async def scrape_dlsite(
                     price=price,
                     url=product_url,
                     image_url=image_url,
+                    seller_name=seller_name,
                 )
             )
         except Exception as exc:
             logger.debug("[dlsite] Parse error: %s", exc)
 
     return _apply_price_filter(items, min_price, max_price)
+
+
+async def scrape_dlsite_circle(
+    page,  # Page (unused — kept for consistent scraper signature)
+    circle_id: str,
+) -> list[WatcherItem]:
+    """
+    Scrape newest works from a DLsite circle's profile page.
+
+    URL: https://www.dlsite.com/maniax/circle/profile/=/maker_id/{circle_id}.html
+    Parses anchor tags whose href contains /product_id/ to extract works.
+    Never raises — returns [] on any error.
+    """
+    url = f"{_BASE_URL}/maniax/circle/profile/=/maker_id/{circle_id}.html"
+    try:
+        async with httpx.AsyncClient(headers=_HEADERS, timeout=20, follow_redirects=True) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            html = resp.text
+    except Exception as exc:
+        logger.warning("[dlsite-circle] Request failed for circle_id=%s: %s", circle_id, exc)
+        return []
+
+    soup = BeautifulSoup(html, "html.parser")
+    work_links = soup.find_all("a", href=re.compile(r"/product_id/[A-Z]{2}\d+"))
+    if not work_links:
+        logger.debug("[dlsite-circle] No work links found for circle_id=%s", circle_id)
+        return []
+
+    items: list[WatcherItem] = []
+    seen_ids: set[str] = set()
+
+    for link in work_links:
+        try:
+            href = link.get("href", "")
+            m = re.search(r"/product_id/([A-Z]{2}\d+)", href)
+            if not m:
+                continue
+            product_id = m.group(1)
+            if product_id in seen_ids:
+                continue
+            seen_ids.add(product_id)
+
+            name = link.get_text(strip=True)[:120]
+            if len(name) < 3:  # Skip navigation-style short-text links
+                continue
+
+            product_url = f"{_BASE_URL}/maniax/work/=/product_id/{product_id}.html"
+
+            items.append(
+                WatcherItem(
+                    platform="dlsite",
+                    item_id=product_id,
+                    name=name,
+                    price=None,
+                    url=product_url,
+                    image_url=None,
+                    seller_name=None,
+                )
+            )
+        except Exception as exc:
+            logger.debug("[dlsite-circle] Parse error: %s", exc)
+
+    return items

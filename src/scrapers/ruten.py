@@ -138,6 +138,9 @@ async def scrape_ruten(
                 else f"https://www.ruten.com.tw/item/{item_id}/"
             )
 
+            # Ruten item_id is a 22-digit number; first 10 digits = seller user ID
+            seller_id = item_id[:10] if len(item_id) >= 10 else None
+
             items.append(
                 WatcherItem(
                     platform="ruten",
@@ -147,6 +150,7 @@ async def scrape_ruten(
                     url=full_url,
                     image_url=image_url,
                     seller_name=seller_name[:80] if seller_name else None,
+                    seller_id=seller_id,
                     price_text=price_text,
                 )
             )

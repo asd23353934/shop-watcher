@@ -2,6 +2,40 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
+const VALID_PLATFORMS = [
+  'shopee', 'ruten', 'pchome', 'momo', 'animate',
+  'yahoo-auction', 'mandarake', 'myacg', 'kingstone',
+  'booth', 'dlsite', 'toranoana', 'melonbooks',
+]
+
+function validateNewFields(body: Record<string, unknown>): NextResponse | null {
+  const { discordWebhookUrl, maxNotifyPerScan } = body
+
+  if (discordWebhookUrl !== undefined && discordWebhookUrl !== null) {
+    if (
+      typeof discordWebhookUrl !== 'string' ||
+      !discordWebhookUrl.startsWith('https://discord.com/api/webhooks/')
+    ) {
+      return NextResponse.json(
+        { error: 'discordWebhookUrl must start with https://discord.com/api/webhooks/' },
+        { status: 400 }
+      )
+    }
+  }
+
+  if (maxNotifyPerScan !== undefined && maxNotifyPerScan !== null) {
+    const n = Number(maxNotifyPerScan)
+    if (!Number.isInteger(n) || n < 1) {
+      return NextResponse.json(
+        { error: 'maxNotifyPerScan must be a positive integer (>= 1)' },
+        { status: 400 }
+      )
+    }
+  }
+
+  return null
+}
+
 // PATCH /api/keywords/[id] — update a keyword
 export async function PATCH(
   request: Request,
@@ -25,17 +59,20 @@ export async function PATCH(
   }
 
   const body = await request.json()
-  const { keyword, platforms, minPrice, maxPrice, active, blocklist, mustInclude, matchMode } = body
+  const {
+    keyword, platforms, minPrice, maxPrice, active,
+    blocklist, mustInclude, matchMode,
+    sellerBlocklist, discordWebhookUrl, maxNotifyPerScan,
+  } = body
 
   const validMatchModes = ['any', 'all', 'exact']
   if (matchMode !== undefined && !validMatchModes.includes(matchMode)) {
     return NextResponse.json({ error: `Invalid matchMode: must be one of ${validMatchModes.join(', ')}` }, { status: 400 })
   }
 
-  const validPlatforms = ['shopee', 'ruten']
   if (platforms !== undefined) {
-    if (!Array.isArray(platforms) || platforms.some((p: unknown) => !validPlatforms.includes(p as string))) {
-      return NextResponse.json({ error: 'Invalid platforms: must be array of shopee and/or ruten' }, { status: 400 })
+    if (!Array.isArray(platforms) || platforms.some((p: unknown) => !VALID_PLATFORMS.includes(p as string))) {
+      return NextResponse.json({ error: `Invalid platforms` }, { status: 400 })
     }
   }
 
@@ -45,6 +82,10 @@ export async function PATCH(
   if (maxPrice !== undefined && maxPrice !== null && Number(maxPrice) < 0) {
     return NextResponse.json({ error: 'maxPrice cannot be negative' }, { status: 400 })
   }
+
+  // Validate three new fields
+  const newFieldsError = validateNewFields(body)
+  if (newFieldsError) return newFieldsError
 
   const updated = await prisma.keyword.update({
     where: { id },
@@ -65,6 +106,18 @@ export async function PATCH(
           : [],
       }),
       ...(matchMode !== undefined && { matchMode }),
+      ...(sellerBlocklist !== undefined && {
+        sellerBlocklist: Array.isArray(sellerBlocklist)
+          ? sellerBlocklist.map((w: string) => w.trim()).filter((w: string) => w.length > 0)
+          : [],
+      }),
+      // Allow explicit null to clear discordWebhookUrl
+      ...('discordWebhookUrl' in body && {
+        discordWebhookUrl: discordWebhookUrl ?? null,
+      }),
+      ...(maxNotifyPerScan !== undefined && {
+        maxNotifyPerScan: maxNotifyPerScan != null ? Number(maxNotifyPerScan) : null,
+      }),
     },
   })
 
@@ -93,8 +146,6 @@ export async function DELETE(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // Delete keyword — SeenItem rows are preserved after a keyword is deleted
-  // (keywordRef uses onDelete: SetNull, so SeenItem.keywordId becomes null but rows persist)
   // Deleting a keyword does not delete its SeenItem history
   await prisma.keyword.delete({ where: { id } })
 

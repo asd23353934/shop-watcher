@@ -41,7 +41,9 @@ class WorkerApiClient:
 
         Returns list of active keyword dicts:
           { id, keyword, platforms, min_price, max_price,
-            discordWebhookUrl, discordUserId, emailAddress }
+            discordWebhookUrl, discordUserId, emailAddress,
+            sellerBlocklist, discordWebhookUrl (per-keyword),
+            maxNotifyPerScan, globalSellerBlocklist }
 
         Returns empty list on any error (non-2xx or network exception).
         """
@@ -114,16 +116,30 @@ class WorkerApiClient:
             logger.error("post_scan_log: network error — %s", exc)
             return False
 
-    async def notify_batch(self, keyword_id: str, items: list) -> dict:
+    async def notify_batch(
+        self,
+        keyword_id: Optional[str],
+        items: list,
+        keyword_webhook_url: Optional[str] = None,
+        max_notify_per_scan: Optional[int] = None,
+        global_seller_blocklist: Optional[list] = None,
+        circle_follow_id: Optional[str] = None,
+    ) -> dict:
         """
         POST /api/worker/notify/batch
 
         Sends a batch of scraped WatcherItems to the Next.js API in a single request.
-        Returns { "new": N, "duplicate": M } on success, or { "new": 0, "duplicate": 0 } on error.
+        Exactly one of keyword_id or circle_follow_id must be provided.
+        Optional fields forwarded to the API for server-side filtering:
+          - keyword_webhook_url: per-keyword Discord webhook (None = use global)
+          - max_notify_per_scan: cap on new notifications per scan cycle
+          - global_seller_blocklist: list of blocked seller name/id substrings
+          - circle_follow_id: for CircleFollow notifications (instead of keyword_id)
+        Returns { "new": N, "price_drop": P, "duplicate": M } on success,
+        or { "new": 0, "price_drop": 0, "duplicate": 0 } on error.
         """
         url = f"{self._base_url}/api/worker/notify/batch"
-        payload = {
-            "keyword_id": keyword_id,
+        payload: dict = {
             "items": [
                 {
                     "platform": item.platform,
@@ -134,10 +150,24 @@ class WorkerApiClient:
                     "url": item.url,
                     "image_url": item.image_url,
                     "seller_name": item.seller_name,
+                    "seller_id": item.seller_id,
                 }
                 for item in items
             ],
         }
+        # Set either keyword_id or circle_follow_id
+        if keyword_id is not None:
+            payload["keyword_id"] = keyword_id
+        if circle_follow_id is not None:
+            payload["circle_follow_id"] = circle_follow_id
+        # Forward per-keyword overrides only when explicitly provided
+        if keyword_webhook_url is not None:
+            payload["keywordWebhookUrl"] = keyword_webhook_url
+        if max_notify_per_scan is not None:
+            payload["maxNotifyPerScan"] = max_notify_per_scan
+        if global_seller_blocklist is not None:
+            payload["globalSellerBlocklist"] = global_seller_blocklist
+
         try:
             resp = await self._client.post(url, json=payload)
             if resp.status_code in (200, 201):
@@ -147,10 +177,34 @@ class WorkerApiClient:
                 resp.status_code,
                 resp.text[:200],
             )
-            return {"new": 0, "duplicate": 0}
+            return {"new": 0, "price_drop": 0, "duplicate": 0}
         except httpx.HTTPError as exc:
             logger.error("notify_batch: network error — %s", exc)
-            return {"new": 0, "duplicate": 0}
+            return {"new": 0, "price_drop": 0, "duplicate": 0}
+
+    async def get_circle_follows(self) -> list[dict]:
+        """
+        GET /api/worker/circles
+
+        Returns list of all active CircleFollow records across all users:
+          { id, userId, platform, circleId, circleName, webhookUrl }
+
+        Returns empty list on any error (non-2xx or network exception).
+        """
+        url = f"{self._base_url}/api/worker/circles"
+        try:
+            resp = await self._client.get(url)
+            if resp.status_code == 200:
+                return resp.json()
+            logger.error(
+                "get_circle_follows: HTTP %s — %s",
+                resp.status_code,
+                resp.text[:200],
+            )
+            return []
+        except httpx.HTTPError as exc:
+            logger.error("get_circle_follows: network error — %s", exc)
+            return []
 
     async def update_platform_scan_status(
         self,

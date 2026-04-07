@@ -13,8 +13,15 @@ export async function GET() {
     where: { userId: session.user.id },
   })
 
-  // Return empty object if not yet configured (fields will default to null)
-  return NextResponse.json(settings ?? { discordWebhookUrl: null, discordUserId: null, emailAddress: null })
+  // Return empty object with defaults if not yet configured
+  return NextResponse.json(
+    settings ?? {
+      discordWebhookUrl: null,
+      discordUserId: null,
+      emailAddress: null,
+      globalSellerBlocklist: [],
+    }
+  )
 }
 
 // POST /api/settings — upsert notification settings
@@ -25,7 +32,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { discordWebhookUrl, discordUserId, emailAddress } = body
+  const { discordWebhookUrl, discordUserId, emailAddress, globalSellerBlocklist } = body
 
   // Validate Discord Webhook URL — Invalid Discord Webhook URL is rejected
   if (discordWebhookUrl && discordWebhookUrl.trim() !== '') {
@@ -45,20 +52,77 @@ export async function POST(request: Request) {
     }
   }
 
+  const parsedGlobalSellerBlocklist: string[] = Array.isArray(globalSellerBlocklist)
+    ? globalSellerBlocklist.map((w: string) => String(w).trim()).filter((w) => w.length > 0)
+    : []
+
   // Upsert notification settings — Notification settings are isolated per user
   const settings = await prisma.notificationSetting.upsert({
     where: { userId: session.user.id },
     update: {
       discordWebhookUrl: discordWebhookUrl?.trim() || null,
       discordUserId: discordUserId?.trim() || null,
-      // User clears email address to disable email notifications — store null when cleared
       emailAddress: emailAddress?.trim() || null,
+      globalSellerBlocklist: parsedGlobalSellerBlocklist,
     },
     create: {
       userId: session.user.id,
       discordWebhookUrl: discordWebhookUrl?.trim() || null,
       discordUserId: discordUserId?.trim() || null,
       emailAddress: emailAddress?.trim() || null,
+      globalSellerBlocklist: parsedGlobalSellerBlocklist,
+    },
+  })
+
+  return NextResponse.json(settings)
+}
+
+// PATCH /api/settings — partial update (supports globalSellerBlocklist)
+export async function PATCH(request: Request) {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const body = await request.json()
+  const { discordWebhookUrl, discordUserId, emailAddress, globalSellerBlocklist } = body
+
+  if (discordWebhookUrl !== undefined && discordWebhookUrl && discordWebhookUrl.trim() !== '') {
+    if (!discordWebhookUrl.startsWith('https://discord.com/api/webhooks/')) {
+      return NextResponse.json(
+        { error: 'Invalid Discord Webhook URL. Must start with https://discord.com/api/webhooks/' },
+        { status: 400 }
+      )
+    }
+  }
+
+  if (emailAddress !== undefined && emailAddress && emailAddress.trim() !== '') {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(emailAddress.trim())) {
+      return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
+    }
+  }
+
+  const parsedGlobalSellerBlocklist: string[] | undefined = globalSellerBlocklist !== undefined
+    ? (Array.isArray(globalSellerBlocklist)
+        ? globalSellerBlocklist.map((w: string) => String(w).trim()).filter((w) => w.length > 0)
+        : [])
+    : undefined
+
+  const settings = await prisma.notificationSetting.upsert({
+    where: { userId: session.user.id },
+    update: {
+      ...(discordWebhookUrl !== undefined && { discordWebhookUrl: discordWebhookUrl?.trim() || null }),
+      ...(discordUserId !== undefined && { discordUserId: discordUserId?.trim() || null }),
+      ...(emailAddress !== undefined && { emailAddress: emailAddress?.trim() || null }),
+      ...(parsedGlobalSellerBlocklist !== undefined && { globalSellerBlocklist: parsedGlobalSellerBlocklist }),
+    },
+    create: {
+      userId: session.user.id,
+      discordWebhookUrl: discordWebhookUrl?.trim() || null,
+      discordUserId: discordUserId?.trim() || null,
+      emailAddress: emailAddress?.trim() || null,
+      globalSellerBlocklist: parsedGlobalSellerBlocklist ?? [],
     },
   })
 

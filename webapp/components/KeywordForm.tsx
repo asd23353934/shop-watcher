@@ -28,6 +28,10 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
   const [matchMode, setMatchMode] = useState('any')
   const [active, setActive] = useState(true)
   const [loading, setLoading] = useState(false)
+  const [sellerBlocklist, setSellerBlocklist] = useState<string[]>([])
+  const [sellerBlocklistInput, setSellerBlocklistInput] = useState('')
+  const [discordWebhookUrl, setDiscordWebhookUrl] = useState('')
+  const [maxNotifyPerScan, setMaxNotifyPerScan] = useState('')
 
   const togglePlatform = (platform: string) => {
     setPlatforms((prev) =>
@@ -57,6 +61,17 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
     setMustInclude((prev) => prev.filter((w) => w !== word))
   }
 
+  const handleAddSellerBlockword = () => {
+    const word = sellerBlocklistInput.trim()
+    if (!word || sellerBlocklist.includes(word)) return
+    setSellerBlocklist((prev) => [...prev, word])
+    setSellerBlocklistInput('')
+  }
+
+  const handleRemoveSellerBlockword = (word: string) => {
+    setSellerBlocklist((prev) => prev.filter((w) => w !== word))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -74,6 +89,9 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
           mustInclude,
           matchMode,
           active,
+          sellerBlocklist,
+          discordWebhookUrl: discordWebhookUrl || null,
+          maxNotifyPerScan: maxNotifyPerScan ? Number(maxNotifyPerScan) : null,
         }),
       })
 
@@ -96,6 +114,10 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
       setMustIncludeInput('')
       setMatchMode('any')
       setActive(true)
+      setSellerBlocklist([])
+      setSellerBlocklistInput('')
+      setDiscordWebhookUrl('')
+      setMaxNotifyPerScan('')
       toast.success('關鍵字已新增')
       onSuccess?.(newKeyword)
     } catch {
@@ -277,6 +299,83 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
           </button>
         </div>
         <p className="mt-1 text-xs text-gray-400">商品名稱包含禁詞時不會發送通知</p>
+      </div>
+
+      {/* Seller blocklist */}
+      <div className="mb-4">
+        <label className="mb-1 block text-sm font-medium text-gray-700">
+          賣家/社團黑名單（選填）
+        </label>
+        {sellerBlocklist.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-1">
+            {sellerBlocklist.map((word) => (
+              <span
+                key={word}
+                className="flex items-center gap-1 rounded bg-orange-100 px-2 py-0.5 text-xs text-orange-700"
+              >
+                {word}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveSellerBlockword(word)}
+                  className="ml-0.5 text-orange-400 hover:text-orange-600"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={sellerBlocklistInput}
+            onChange={(e) => setSellerBlocklistInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); handleAddSellerBlockword() }
+            }}
+            placeholder="輸入賣家名稱或 ID 後按新增"
+            className="flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <button
+            type="button"
+            onClick={handleAddSellerBlockword}
+            className="rounded-md border px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            新增
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-gray-400">含此賣家名稱或 ID 的商品不會發送通知（不分大小寫）</p>
+      </div>
+
+      {/* Per-keyword Discord Webhook */}
+      <div className="mb-4">
+        <label className="mb-1 block text-sm font-medium text-gray-700">
+          專屬 Discord Webhook（選填）
+        </label>
+        <input
+          type="url"
+          value={discordWebhookUrl}
+          onChange={(e) => setDiscordWebhookUrl(e.target.value)}
+          placeholder="https://discord.com/api/webhooks/..."
+          className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+        <p className="mt-1 text-xs text-gray-400">留空時使用全域 Webhook，填寫後此關鍵字的通知單獨送至此頻道</p>
+      </div>
+
+      {/* maxNotifyPerScan */}
+      <div className="mb-4">
+        <label className="mb-1 block text-sm font-medium text-gray-700">
+          每次掃描通知上限（選填）
+        </label>
+        <input
+          type="number"
+          value={maxNotifyPerScan}
+          onChange={(e) => setMaxNotifyPerScan(e.target.value)}
+          min="1"
+          placeholder="預設使用系統設定"
+          className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+        <p className="mt-1 text-xs text-gray-400">限制此關鍵字單次掃描最多傳送幾則通知，防止熱門商品刷爆頻道</p>
       </div>
 
       {/* Active toggle */}

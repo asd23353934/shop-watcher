@@ -111,6 +111,10 @@ async def scrape_melonbooks(
 
             full_url = href if href.startswith("http") else _BASE_URL + href
 
+            # Circle name — Melonbooks typically shows circle in .item-circle or .circle
+            circle_el = li.select_one(".item-circle a, .item-circle, .circle")
+            seller_name = circle_el.get_text(strip=True)[:80] if circle_el else None
+
             items.append(
                 WatcherItem(
                     platform="melonbooks",
@@ -119,6 +123,7 @@ async def scrape_melonbooks(
                     price=price,
                     url=full_url,
                     image_url=image_url,
+                    seller_name=seller_name,
                 )
             )
         except Exception as exc:

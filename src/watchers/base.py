@@ -13,6 +13,7 @@ class WatcherItem:
     url: str
     image_url: Optional[str] = None
     seller_name: Optional[str] = None
+    seller_id: Optional[str] = None   # Platform-specific seller/shop identifier
     price_text: Optional[str] = None  # Display text for price ranges, e.g. "100 ~ 1,000"
 
 
