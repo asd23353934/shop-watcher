@@ -83,6 +83,7 @@ shop-watcher/
 ## 開發慣例
 
 - **Commit 訊息**：繁體中文
+- **直接在 master 工作**：不建立 worktree 或功能分支，所有變更直接 commit 到 master
 - **不主動 git push**：變更 commit 後等待用戶確認再推送
 - **API 認證**：Worker API 以 `WORKER_SECRET` Bearer token 驗證
 - **環境變數**：參考 `webapp/.env.example`
