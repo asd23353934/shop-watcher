@@ -58,7 +58,7 @@ async def scrape_ruten(
     items: list[WatcherItem] = []
     seen_ids: set[str] = set()
 
-    for a in links[:30]:
+    for a in links[:60]:
         try:
             href = await a.get_attribute("href") or ""
 
@@ -75,32 +75,77 @@ async def scrape_ruten(
                 continue
             seen_ids.add(item_id)
 
-            # ── Name & Seller ─────────────────────────────────────────────
-            # Ruten item name is extracted from the card text
-            # Ruten seller name is the second non-empty line of card text
-            raw_text = (await a.inner_text()).strip()
-            lines = [
-                ln.strip()
-                for ln in raw_text.split("\n")
-                if ln.strip() and not ln.strip().isdigit()
-            ]
-            name = lines[0] if lines else ""
-            seller_name = lines[1] if len(lines) > 1 else None
+            # ── Card container ────────────────────────────────────────────
+            # Ruten is a SPA; the anchor may wrap only the thumbnail image.
+            # We resolve the closest card container to extract name/seller/image.
+            try:
+                container = await a.evaluate_handle(
+                    "el => el.closest('article') || el.closest('li') || el.closest('[class*=\"card\"]') || el.parentElement"
+                )
+            except Exception:
+                container = None
+
+            # ── Name ─────────────────────────────────────────────────────
+            # Try container title/name elements first (robust against anchor-only-wraps-image pattern)
+            name = ""
+            seller_name = None
+            if container:
+                for sel in [
+                    '[class*="title"]',
+                    '[class*="name"]',
+                    '[class*="goods-name"]',
+                    '[class*="product-name"]',
+                    'h2', 'h3', 'h4',
+                ]:
+                    try:
+                        el = await container.query_selector(sel)
+                        if el:
+                            text = (await el.inner_text()).strip()
+                            if text and not text.isdigit() and len(text) > 1:
+                                name = text
+                                break
+                    except Exception:
+                        pass
 
             if not name:
-                img_el = await a.query_selector("img")
-                if img_el:
-                    name = (await img_el.get_attribute("alt") or "").strip()
+                # Fallback: read anchor inner_text (pre-SPA-change behaviour)
+                raw_text = (await a.inner_text()).strip()
+                lines = [
+                    ln.strip()
+                    for ln in raw_text.split("\n")
+                    if ln.strip() and not ln.strip().isdigit()
+                ]
+                # Ignore lines that are clearly icon alt text (short all-ASCII)
+                product_lines = [
+                    ln for ln in lines
+                    if len(ln) > 3 and not ln.isascii()
+                ]
+                if product_lines:
+                    name = product_lines[0]
+                    seller_name = product_lines[1] if len(product_lines) > 1 else None
+                elif lines:
+                    name = lines[0]
+
             if not name:
                 name = f"item-{item_id}"
+
+            # ── Seller ────────────────────────────────────────────────────
+            if not seller_name and container:
+                for sel in ['[class*="seller"]', '[class*="shop"]', '[class*="store"]']:
+                    try:
+                        el = await container.query_selector(sel)
+                        if el:
+                            text = (await el.inner_text()).strip()
+                            if text:
+                                seller_name = text
+                                break
+                    except Exception:
+                        pass
 
             # ── Price ─────────────────────────────────────────────────────
             price = None
             price_text = None
             try:
-                container = await a.evaluate_handle(
-                    "el => el.closest('li') || el.closest('article') || el.parentElement"
-                )
                 if container:
                     price_el = await container.query_selector(
                         '[class*="price"],[class*="Price"]'
@@ -113,20 +158,19 @@ async def scrape_ruten(
                 pass
 
             # ── Image ─────────────────────────────────────────────────────
-            # Ruten product image is extracted from the card
+            # Try data-src / lazy-src first (Ruten uses lazy loading in SPA)
             image_url = None
             try:
                 img_el = await a.query_selector("img")
-                if not img_el:
-                    container = await a.evaluate_handle(
-                        "el => el.closest('li') || el.closest('article') || el.parentElement"
-                    )
-                    if container:
-                        img_el = await container.query_selector("img")
+                if not img_el and container:
+                    img_el = await container.query_selector("img")
                 if img_el:
-                    src = await img_el.get_attribute("src") or ""
-                    if src.startswith("data:"):
-                        src = await img_el.get_attribute("data-src") or ""
+                    # Priority: data-src → lazy-src → data-lazy-src → src
+                    src = ""
+                    for attr in ("data-src", "lazy-src", "data-lazy-src", "src"):
+                        src = await img_el.get_attribute(attr) or ""
+                        if src and not src.startswith("data:"):
+                            break
                     image_url = src or None
             except Exception:
                 pass

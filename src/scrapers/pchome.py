@@ -28,7 +28,7 @@ _HEADERS = {
     "Referer": "https://24h.pchome.com.tw/",
 }
 
-_IMAGE_BASE = "https://cs-b.ecimg.tw/items/"
+_IMAGE_BASE = "https://cs-b.ecimg.tw"
 
 
 async def scrape_pchome(

@@ -129,9 +129,11 @@ async def scrape_yahoo_auction(
             raw_price = prod.get("ec_price") or prod.get("ec_buyprice") or prod.get("ec_listprice")
             price = float(raw_price) if raw_price else None
 
-            image_url = prod.get("ec_image") or prod.get("ec_img_uri") or None
+            # Prefer ec_img_uri (no hash fragment) over ec_image
+            image_url = prod.get("ec_img_uri") or prod.get("ec_image") or None
             if image_url:
-                image_url = str(image_url)
+                # Strip trailing hash fragment (e.g. #400x284) that may cause issues
+                image_url = str(image_url).split("#")[0] or None
 
             # ec_auserid is Yahoo Auction's seller user ID field
             seller_id = str(prod.get("ec_auserid") or "").strip() or None
