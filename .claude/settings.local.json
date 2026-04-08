@@ -165,14 +165,13 @@
       "Bash(Get-Process node:*)",
       "Bash(npx next:*)",
       "Bash(git commit:*)",
-      "Bash(wc -l /c/Users/user/Desktop/gitlab/shop-watcher/webapp/components/*.tsx /c/Users/user/Desktop/gitlab/shop-watcher/webapp/app/api/*/*.ts)",
       "WebFetch(domain:www.ruten.com.tw)",
       "Bash(spectra --help)",
       "Bash(spectra sync:*)",
       "Bash(spectra schema:*)",
       "Bash(spectra show:*)",
       "Read(//c/Users/user/.claude/skills/**)",
-      "Bash(python3 -m json.tool)"
+      "Bash(python3 -m:*)"
     ]
   }
 }
