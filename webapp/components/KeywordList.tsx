@@ -295,7 +295,7 @@ export default function KeywordList({
                     disabled={editLoading}
                     className="rounded-md bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50"
                   >
-                    儲存
+                    {editLoading ? '儲存中...' : '儲存'}
                   </button>
                   <button onClick={() => setEditingId(null)} className="rounded-md border px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">
                     取消

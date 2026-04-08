@@ -23,6 +23,7 @@ const PLATFORM_LABELS: Record<string, string> = {
 export default function CirclesPage() {
   const [follows, setFollows] = useState<CircleFollow[]>([])
   const [loading, setLoading] = useState(true)
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     fetch('/api/circles')
@@ -37,7 +38,9 @@ export default function CirclesPage() {
   }
 
   const handleToggleActive = async (follow: CircleFollow) => {
+    if (pendingIds.has(follow.id)) return
     const newActive = !follow.active
+    setPendingIds((prev) => new Set(prev).add(follow.id))
     setFollows((prev) => prev.map((f) => f.id === follow.id ? { ...f, active: newActive } : f))
     const res = await fetch(`/api/circles/${follow.id}`, {
       method: 'PATCH',
@@ -48,18 +51,22 @@ export default function CirclesPage() {
       setFollows((prev) => prev.map((f) => f.id === follow.id ? { ...f, active: follow.active } : f))
       toast.error('切換失敗')
     }
+    setPendingIds((prev) => { const next = new Set(prev); next.delete(follow.id); return next })
   }
 
   const handleDelete = async (id: string) => {
+    if (pendingIds.has(id)) return
+    const original = follows.find((f) => f.id === id)
+    setPendingIds((prev) => new Set(prev).add(id))
     setFollows((prev) => prev.filter((f) => f.id !== id))
     const res = await fetch(`/api/circles/${id}`, { method: 'DELETE' })
     if (!res.ok) {
       toast.error('刪除失敗')
-      // Re-fetch to restore state
-      fetch('/api/circles').then((r) => r.json()).then(setFollows)
+      if (original) setFollows((prev) => [original, ...prev])
     } else {
       toast.success('已刪除社團追蹤')
     }
+    setPendingIds((prev) => { const next = new Set(prev); next.delete(id); return next })
   }
 
   return (
@@ -112,17 +119,19 @@ export default function CirclesPage() {
                     <div className="flex shrink-0 items-center gap-2">
                       <button
                         onClick={() => handleToggleActive(follow)}
-                        className={`rounded-md border px-3 py-1.5 text-xs font-medium ${
+                        disabled={pendingIds.has(follow.id)}
+                        className={`rounded-md border px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
                           follow.active
                             ? 'border-gray-300 text-gray-600 hover:bg-gray-50'
                             : 'border-indigo-300 text-indigo-600 hover:bg-indigo-50'
                         }`}
                       >
-                        {follow.active ? '暫停' : '恢復'}
+                        {pendingIds.has(follow.id) ? '處理中...' : follow.active ? '暫停' : '恢復'}
                       </button>
                       <button
                         onClick={() => handleDelete(follow.id)}
-                        className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50"
+                        disabled={pendingIds.has(follow.id)}
+                        className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 disabled:opacity-50"
                       >
                         刪除
                       </button>
