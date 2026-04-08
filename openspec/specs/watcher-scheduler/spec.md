@@ -57,7 +57,7 @@ code:
 ---
 ### Requirement: Scheduler runs all keyword searches on a configurable interval
 
-The system SHALL execute a full scan of all keywords and platforms in sequence, then sleep for `CHECK_INTERVAL` seconds before repeating. Supported platforms are: `ruten`, `pchome`, `momo`, `animate`, `yahoo-auction`, `mandarake`, `myacg`, `kingstone`, `booth`, `dlsite`, `toranoana`, `melonbooks`. The platform `shopee` SHALL be treated as suspended: when a keyword specifies `shopee`, the scheduler SHALL log a WARNING and skip it without raising an exception.
+The system SHALL execute a full scan of all keywords and platforms in sequence, then sleep for `CHECK_INTERVAL` seconds before repeating. Supported platforms are: `ruten`, `pchome`, `momo`, `animate`, `yahoo-auction`, `mandarake`, `myacg`, `kingstone`. The platform `shopee` SHALL be treated as suspended: when a keyword specifies `shopee`, the scheduler SHALL log a WARNING and skip it without raising an exception.
 
 #### Scenario: Each keyword-platform pair is searched independently
 
@@ -73,7 +73,7 @@ The system SHALL execute a full scan of all keywords and platforms in sequence, 
 
 #### Scenario: Unknown platform is logged and skipped
 
-- **WHEN** a keyword specifies a platform string not in the supported platform list
+- **WHEN** a keyword specifies a platform string not in `[ruten, pchome, momo, animate, yahoo-auction, mandarake, shopee]`
 - **THEN** the scheduler SHALL log a WARNING with the unknown platform name and skip it
 
 #### Scenario: Scheduler sleeps between scans
@@ -87,25 +87,6 @@ The system SHALL execute a full scan of all keywords and platforms in sequence, 
 - **WHEN** the application starts
 - **THEN** the scheduler SHALL loop indefinitely
 - **AND** the loop MUST exit cleanly when a `KeyboardInterrupt` or `SIGTERM` is received
-
-
-<!-- @trace
-source: add-platform-support
-updated: 2026-04-08
-code:
-  - src/scheduler.py
-  - src/scrapers/pchome.py
-  - src/scrapers/momo.py
-  - src/scrapers/animate.py
-  - src/scrapers/yahoo_auction.py
-  - src/scrapers/mandarake.py
-  - src/scrapers/myacg.py
-  - src/scrapers/kingstone.py
-  - src/scrapers/booth.py
-  - src/scrapers/dlsite.py
-  - src/scrapers/toranoana.py
-  - src/scrapers/melonbooks.py
--->
 
 ---
 ### Requirement: Found items are reported to Next.js API immediately after each search

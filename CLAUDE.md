@@ -55,7 +55,9 @@ shop-watcher/
 │   ├── prisma/           # schema.prisma + migrations
 │   └── scripts/          # cleanup.ts（資料清理）
 ├── src/                  # Python Worker
-│   ├── scrapers/         # shopee.py / ruten.py
+│   ├── scrapers/         # ruten.py / pchome.py / momo.py / animate.py / yahoo_auction.py
+│   │                     # mandarake.py / myacg.py / kingstone.py / melonbooks.py
+│   │                     # toranoana.py / booth.py / dlsite.py（shopee.py 暫停）
 │   ├── watchers/         # base.py（WatcherItem dataclass）
 │   ├── api_client.py     # WorkerApiClient
 │   └── scheduler.py      # run_scan_cycle()
@@ -66,7 +68,7 @@ shop-watcher/
 
 ## 核心功能
 
-- **關鍵字監控**：每 10 分鐘掃描蝦皮 / 露天，結果依建立時間排序（最新優先）
+- **關鍵字監控**：每 10 分鐘掃描多個平台，結果依建立時間排序（最新優先）；支援平台：露天、PChome、MOMO、Animate、Yahoo拍賣、Mandarake、買動漫、金石堂ACG、Melonbooks、虎之穴、Booth、DLsite（蝦皮暫停）
 - **批次通知**：每個關鍵字 × 平台一次 API 呼叫（`POST /api/worker/notify/batch`）
 - **去重機制**：`SeenItem(userId, platform, itemId)` 唯一鍵，避免重複通知
 - **降價提醒**：`SeenItem.lastPrice` 追蹤歷史價格，降價時重新通知
