@@ -1,7 +1,7 @@
 'use client'
 
 import type { Keyword } from '@/types/keyword'
-import { PLATFORM_LABELS, PLATFORM_BADGE_CLASS } from '@/constants/platform'
+import { PLATFORM_LABELS, PLATFORM_BADGE_CLASS, PLATFORM_SEARCH_URL } from '@/constants/platform'
 import { MATCH_MODE_BADGE_LABELS } from '@/constants/matchMode'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
@@ -45,11 +45,26 @@ export default function KeywordCard({ keyword: kw, onEdit, onDelete, onToggle, t
         </div>
 
         <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {kw.platforms.map((p) => (
-            <Badge key={p} variant="outline" className={`text-xs ${PLATFORM_BADGE_CLASS[p] ?? ''}`}>
-              {PLATFORM_LABELS[p] ?? p}
-            </Badge>
-          ))}
+          {kw.platforms.map((p) => {
+            const searchUrl = PLATFORM_SEARCH_URL[p]?.(kw.keyword)
+            return searchUrl ? (
+              <a
+                key={p}
+                href={searchUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`在 ${PLATFORM_LABELS[p] ?? p} 搜尋「${kw.keyword}」`}
+              >
+                <Badge variant="outline" className={`text-xs cursor-pointer hover:opacity-70 transition-opacity ${PLATFORM_BADGE_CLASS[p] ?? ''}`}>
+                  {PLATFORM_LABELS[p] ?? p}
+                </Badge>
+              </a>
+            ) : (
+              <Badge key={p} variant="outline" className={`text-xs ${PLATFORM_BADGE_CLASS[p] ?? ''}`}>
+                {PLATFORM_LABELS[p] ?? p}
+              </Badge>
+            )
+          })}
           <PriceRange minPrice={kw.minPrice} maxPrice={kw.maxPrice} />
           {kw.mustInclude?.map((word) => (
             <span key={word} className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">

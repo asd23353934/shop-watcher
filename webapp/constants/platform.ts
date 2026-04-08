@@ -13,6 +13,22 @@ export const PLATFORM_LABELS: Record<string, string> = {
   melonbooks: 'Melonbooks',
 }
 
+export const PLATFORM_SEARCH_URL: Record<string, (keyword: string) => string> = {
+  ruten:          (kw) => `https://www.ruten.com.tw/find/?q=${encodeURIComponent(kw)}`,
+  pchome:         (kw) => `https://24h.pchome.com.tw/search/?q=${encodeURIComponent(kw)}`,
+  momo:           (kw) => `https://www.momoshop.com.tw/search/${encodeURIComponent(kw)}`,
+  animate:        (kw) => `https://www.animate-onlineshop.com.tw/Form/Product/ProductList.aspx?KeyWord=${encodeURIComponent(kw)}`,
+  'yahoo-auction':(kw) => `https://tw.bid.yahoo.com/search/auction/product?p=${encodeURIComponent(kw)}`,
+  mandarake:      (kw) => `https://order.mandarake.co.jp/order/listPage/list?keyword=${encodeURIComponent(kw)}&lang=en`,
+  myacg:          (kw) => `https://www.myacg.com.tw/goods_list_show.php?keyword=${encodeURIComponent(kw)}`,
+  kingstone:      (kw) => `https://www.kingstone.com.tw/search/key/${encodeURIComponent(kw)}/lid/search`,
+  booth:          (kw) => `https://booth.pm/zh-tw/search/${encodeURIComponent(kw)}?sort=new_arrival`,
+  dlsite:         (kw) => `https://www.dlsite.com/maniax/fsr/=/keyword/${encodeURIComponent(kw)}/order/release_d.html`,
+  toranoana:      (kw) => `https://ecs.toranoana.jp/tora/ec/app/catalog/list?searchWord=${encodeURIComponent(kw)}&sort=newitem`,
+  melonbooks:     (kw) => `https://www.melonbooks.co.jp/search/search.php?search_all=${encodeURIComponent(kw)}`,
+  shopee:         (kw) => `https://shopee.tw/search?keyword=${encodeURIComponent(kw)}`,
+}
+
 export const PLATFORM_BADGE_CLASS: Record<string, string> = {
   ruten: 'text-blue-700 border-blue-300',
   pchome: 'text-red-700 border-red-300',
