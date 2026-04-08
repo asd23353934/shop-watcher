@@ -57,13 +57,24 @@ code:
 ---
 ### Requirement: Scheduler runs all keyword searches on a configurable interval
 
-The system SHALL execute a full scan of all keywords and platforms in sequence, then sleep for `CHECK_INTERVAL` seconds before repeating.
+The system SHALL execute a full scan of all keywords and platforms in sequence, then sleep for `CHECK_INTERVAL` seconds before repeating. Supported platforms are: `ruten`, `pchome`, `momo`, `animate`, `yahoo-auction`, `mandarake`, `myacg`, `kingstone`, `booth`, `dlsite`, `toranoana`, `melonbooks`. The platform `shopee` SHALL be treated as suspended: when a keyword specifies `shopee`, the scheduler SHALL log a WARNING and skip it without raising an exception.
 
 #### Scenario: Each keyword-platform pair is searched independently
 
-- **WHEN** a keyword has `platforms: ["shopee", "ruten"]`
-- **THEN** the scheduler SHALL call `ShopeeWatcher.search(keyword)` and `RutenWatcher.search(keyword)` as separate operations
+- **WHEN** a keyword has `platforms: ["ruten", "pchome"]`
+- **THEN** the scheduler SHALL call `scrape_ruten(page, keyword)` and `scrape_pchome(page, keyword)` as separate operations
 - **AND** a failure on one platform MUST NOT prevent the other platform from being searched
+
+#### Scenario: Shopee platform is suspended and logged
+
+- **WHEN** a keyword has `platforms: ["shopee"]` or `platforms` includes `"shopee"`
+- **THEN** the scheduler SHALL log `WARNING: shopee platform is suspended, skipping keyword '{keyword}' on shopee`
+- **AND** SHALL continue to the next platform without calling any scraper
+
+#### Scenario: Unknown platform is logged and skipped
+
+- **WHEN** a keyword specifies a platform string not in the supported platform list
+- **THEN** the scheduler SHALL log a WARNING with the unknown platform name and skip it
 
 #### Scenario: Scheduler sleeps between scans
 
@@ -79,26 +90,21 @@ The system SHALL execute a full scan of all keywords and platforms in sequence, 
 
 
 <!-- @trace
-source: keyword-shop-watcher
-updated: 2026-03-31
+source: add-platform-support
+updated: 2026-04-08
 code:
-  - .env.example
-  - src/scrapers/shopee.py
-  - src/scrapers/__init__.py
-  - config.example.yaml
-  - src/database.py
   - src/scheduler.py
-  - fly.toml
-  - Dockerfile
-  - requirements.txt
-  - src/api_client.py
-  - poc/screenshots/ruten.png
-  - src/scrapers/ruten.py
-  - .github/workflows/ci.yml
-  - src/config.py
-  - src/notifier.py
-  - poc/screenshots/shopee.png
-  - main.py
+  - src/scrapers/pchome.py
+  - src/scrapers/momo.py
+  - src/scrapers/animate.py
+  - src/scrapers/yahoo_auction.py
+  - src/scrapers/mandarake.py
+  - src/scrapers/myacg.py
+  - src/scrapers/kingstone.py
+  - src/scrapers/booth.py
+  - src/scrapers/dlsite.py
+  - src/scrapers/toranoana.py
+  - src/scrapers/melonbooks.py
 -->
 
 ---
