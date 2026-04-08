@@ -122,7 +122,7 @@ export default function HistoryPage() {
               <thead className="border-b bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left font-medium text-gray-600 min-w-[120px]">關鍵字</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600 min-w-[100px]">平台</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600 min-w-[130px]">平台</th>
                   <th className="px-4 py-3 text-left font-medium text-gray-600">商品</th>
                   <th className="px-4 py-3 text-left font-medium text-gray-600 min-w-[160px]">首次通知時間</th>
                 </tr>
@@ -131,7 +131,7 @@ export default function HistoryPage() {
                 {items.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-900 min-w-[120px]">{item.keyword}</td>
-                    <td className="px-4 py-3 min-w-[100px]">
+                    <td className="px-4 py-3 min-w-[130px]">
                       <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
                         {PLATFORM_LABELS[item.platform] ?? item.platform}
                       </span>
