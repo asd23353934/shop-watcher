@@ -121,17 +121,17 @@ export default function HistoryPage() {
             <table className="w-full text-sm">
               <thead className="border-b bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">關鍵字</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">平台</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600 min-w-[120px]">關鍵字</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600 min-w-[100px]">平台</th>
                   <th className="px-4 py-3 text-left font-medium text-gray-600">商品</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">首次通知時間</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600 min-w-[160px]">首次通知時間</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {items.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-900">{item.keyword}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 text-gray-900 min-w-[120px]">{item.keyword}</td>
+                    <td className="px-4 py-3 min-w-[100px]">
                       <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
                         {PLATFORM_LABELS[item.platform] ?? item.platform}
                       </span>
@@ -152,7 +152,7 @@ export default function HistoryPage() {
                         <span className="font-mono text-xs text-gray-400">{item.itemId}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-gray-500">
+                    <td className="px-4 py-3 text-gray-500 min-w-[160px]">
                       {new Date(item.firstSeen).toLocaleString('zh-TW', {
                         year: 'numeric',
                         month: '2-digit',
