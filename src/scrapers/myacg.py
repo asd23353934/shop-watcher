@@ -89,9 +89,18 @@ async def scrape_myacg(
                 continue
             seen_gids.add(gid)
 
-            # Name: img alt text (the <a> wraps an <img> with no visible text)
-            img_el = a.select_one("img")
-            name = (img_el.get("alt", "") if img_el else a.get_text(separator=" ", strip=True)).strip()[:120]
+            # Each product is wrapped in <li> containing div.pic and div.name
+            li = a.find_parent("li")
+
+            # Name: prefer div.name > a text (more reliable than img alt which may be garbled)
+            name = ""
+            if li:
+                name_a = li.select_one("div.name a")
+                if name_a:
+                    name = name_a.get_text(strip=True)[:120]
+            if not name:
+                img_el = a.select_one("img")
+                name = (img_el.get("alt", "") if img_el else a.get_text(separator=" ", strip=True)).strip()[:120]
             if not name:
                 continue
 
@@ -103,12 +112,12 @@ async def scrape_myacg(
                 if src and not src.startswith("data:"):
                     image_url = src if src.startswith("http") else _BASE_URL + src
 
-            # Price: may not be in AJAX fragment
+            # Price: in <li> > div.name > p (e.g. "售價: 219")
             price = None
-            container = a.parent or a
-            price_el = container.select_one('[class*="price"], [class*="Price"], .price')
-            if price_el:
-                price = _parse_price(price_el.get_text())
+            if li:
+                price_p = li.select_one("div.name p")
+                if price_p:
+                    price = _parse_price(price_p.get_text())
 
             items.append(
                 WatcherItem(
