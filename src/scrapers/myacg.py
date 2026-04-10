@@ -1,10 +1,10 @@
 """
 買動漫 (MyACG / myacg.com.tw) scraper.
 
-AJAX endpoint: /goods_list_show_002.php?keyword_body={keyword}&sort=1&page=1&ct18=1
-sort=1 = newest first. ct18=1 includes R18 doujinshi / adult anime merchandise.
-The endpoint returns an HTML fragment directly (no full page rendering needed).
-Age modal is frontend-only — AJAX endpoint does not enforce it. No Playwright needed.
+AJAX endpoint: /goods_list_show_005.php?keyword_body={keyword}
+Returns keyword-filtered product HTML fragment (newest first by default).
+Age gate requires cookies r18=18 and m_search_r18=1 to include R18 items.
+No Playwright needed.
 """
 
 import logging
@@ -22,7 +22,7 @@ from src.scrapers.shopee import _apply_price_filter, _parse_price
 logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://www.myacg.com.tw"
-_AJAX_URL = _BASE_URL + "/goods_list_show_002.php"
+_AJAX_URL = _BASE_URL + "/goods_list_show_005.php"
 _DETAIL_URL = _BASE_URL + "/goods_detail.php?gid={gid}"
 
 _HEADERS = {
@@ -35,9 +35,10 @@ _HEADERS = {
     "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8",
     "Referer": _BASE_URL + "/",
     "X-Requested-With": "XMLHttpRequest",
-    # Age verification cookies: r18=18 confirms 18+ modal; m_search_r18=1 enables R18 search results.
-    "Cookie": "r18=18; m_search_r18=1",
 }
+
+# Age verification cookies: r18=18 confirms 18+ modal; m_search_r18=1 enables R18 search results.
+_COOKIES = {"r18": "18", "m_search_r18": "1"}
 
 
 async def scrape_myacg(
@@ -49,19 +50,14 @@ async def scrape_myacg(
     """
     Search 買動漫 (MyACG) for newest listings matching keyword.
 
-    Calls AJAX sub-endpoint directly — bypasses frontend age modal.
-    ct18=1 includes R18 products. No Playwright used.
+    Calls goods_list_show_005.php AJAX endpoint directly.
+    Cookies r18=18 and m_search_r18=1 include R18 products. No Playwright used.
     price may be null if not present in AJAX fragment.
     Never raises — returns [] on any error.
     """
-    params = {
-        "keyword_body": keyword,
-        "sort": "1",
-        "page": "1",
-        "ct18": "1",
-    }
+    params = {"keyword_body": keyword}
     try:
-        async with httpx.AsyncClient(headers=_HEADERS, timeout=20, follow_redirects=True) as client:
+        async with httpx.AsyncClient(headers=_HEADERS, cookies=_COOKIES, timeout=20, follow_redirects=True) as client:
             resp = await client.get(_AJAX_URL, params=params)
             resp.raise_for_status()
             html = resp.text
@@ -74,7 +70,7 @@ async def scrape_myacg(
     # Each product: <li> or container with a link to goods_detail.php?gid=...
     product_links = soup.select('a[href*="goods_detail.php"]')
     if not product_links:
-        logger.debug("[myacg] No product links found for keyword=%s", keyword)
+        logger.warning("[myacg] No product links found for keyword=%s (html_len=%d)", keyword, len(html))
         return []
 
     items: list[WatcherItem] = []
@@ -114,12 +110,12 @@ async def scrape_myacg(
                 if src and not src.startswith("data:"):
                     image_url = src if src.startswith("http") else _BASE_URL + src
 
-            # Price: in <li> > div.name > p (e.g. "售價: 219")
+            # Price: in <li> > div.priceBox span.t_price (e.g. "550")
             price = None
             if li:
-                price_p = li.select_one("div.name p")
-                if price_p:
-                    price = _parse_price(price_p.get_text())
+                price_span = li.select_one("span.t_price")
+                if price_span:
+                    price = _parse_price(price_span.get_text())
 
             items.append(
                 WatcherItem(
