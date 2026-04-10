@@ -1,9 +1,10 @@
 """
-Toranoana (ecs.toranoana.jp) scraper — SSR HTML.
+Toranoana (ec.toranoana.jp) scraper — SSR HTML.
 
-URL: https://ecs.toranoana.jp/tora/ec/app/catalog/list?searchWord={keyword}&sort=newitem
-sort=newitem returns newest listings first.
+URL: https://ec.toranoana.jp/tora_r/ec/app/catalog/list?searchWord={keyword}&sort=newitem&searchBackorderFlg=1
+sort=newitem returns newest listings first. searchBackorderFlg=1 includes backorder items.
 Products are in li.product-list-item elements. No Playwright needed.
+Note: non-Japanese keywords may return HTTP 404 (no results), treated as empty list.
 """
 
 import logging
@@ -20,8 +21,8 @@ from src.scrapers.shopee import _apply_price_filter, _parse_price
 
 logger = logging.getLogger(__name__)
 
-_BASE_URL = "https://ecs.toranoana.jp"
-_SEARCH_URL = _BASE_URL + "/tora/ec/app/catalog/list"
+_BASE_URL = "https://ec.toranoana.jp"
+_SEARCH_URL = _BASE_URL + "/tora_r/ec/app/catalog/list"
 
 _HEADERS = {
     "User-Agent": (
@@ -54,10 +55,14 @@ async def scrape_toranoana(
     sort=newitem returns newest first. No Playwright used.
     Never raises — returns [] on any error.
     """
-    params = {"searchWord": keyword, "sort": "newitem"}
+    params = {"searchWord": keyword, "sort": "newitem", "searchBackorderFlg": "1"}
     try:
         async with httpx.AsyncClient(headers=_HEADERS, timeout=20, follow_redirects=True) as client:
             resp = await client.get(_SEARCH_URL, params=params)
+            if resp.status_code == 404:
+                # Non-Japanese keywords yield 404 (no results) on this Japanese platform
+                logger.debug("[toranoana] 404 for keyword=%s (no results on JP platform)", keyword)
+                return []
             resp.raise_for_status()
             html = resp.text
     except Exception as exc:
