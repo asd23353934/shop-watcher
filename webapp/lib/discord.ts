@@ -134,7 +134,7 @@ export async function sendDiscordBatchNotification(
   if (!webhookUrl || items.length === 0) return
 
   // Cap items at MAX_NOTIFY_PER_BATCH (default 10)
-  const maxBatch = parseInt(process.env.MAX_NOTIFY_PER_BATCH ?? '10', 10) || 10
+  const maxBatch = parseInt(process.env.MAX_NOTIFY_PER_BATCH ?? '100', 10) || 100
   const capped = items.slice(0, maxBatch)
   const omitted = items.length - capped.length
 

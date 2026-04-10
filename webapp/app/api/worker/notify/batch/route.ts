@@ -99,7 +99,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ new: 0, price_drop: 0, duplicate: 0 })
   }
 
-  const envMax = parseInt(process.env.MAX_NOTIFY_PER_BATCH ?? '10', 10) || 10
+  const envMax = parseInt(process.env.MAX_NOTIFY_PER_BATCH ?? '100', 10) || 100
 
   // Mode-based lookup: keyword or circle follow
   let userId: string
