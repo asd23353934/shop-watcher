@@ -35,6 +35,8 @@ _HEADERS = {
     "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8",
     "Referer": _BASE_URL + "/",
     "X-Requested-With": "XMLHttpRequest",
+    # Age verification cookies: r18=18 confirms 18+ modal; m_search_r18=1 enables R18 search results.
+    "Cookie": "r18=18; m_search_r18=1",
 }
 
 
