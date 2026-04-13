@@ -102,6 +102,7 @@ model SeenItem {
   keywordId String?
   itemName  String?
   itemUrl   String?
+  imageUrl  String?
 
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   keywordRef  Keyword? @relation(fields: [keywordId], references: [id], onDelete: SetNull)

@@ -234,6 +234,7 @@ export async function POST(request: Request) {
         lastPrice: item.price ?? null,
         itemName: item.name ? item.name.slice(0, 255) : null,
         itemUrl: item.url ?? null,
+        imageUrl: item.image_url ?? null,
       },
     })
   }
@@ -247,6 +248,7 @@ export async function POST(request: Request) {
         lastPrice: item.price,
         itemName: item.name ? item.name.slice(0, 255) : undefined,
         itemUrl: item.url ?? undefined,
+        imageUrl: item.image_url ?? undefined,
       },
     })
   }

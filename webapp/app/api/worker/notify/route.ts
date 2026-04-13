@@ -79,6 +79,9 @@ export async function POST(request: Request) {
       itemId: item_id,
       keyword: keyword.keyword,
       keywordId: keyword_id,
+      itemName: name ? name.slice(0, 255) : null,
+      itemUrl: url ?? null,
+      imageUrl: image_url ?? null,
     },
   })
 
