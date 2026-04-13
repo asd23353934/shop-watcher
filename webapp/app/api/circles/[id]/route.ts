@@ -1,5 +1,6 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { isValidDiscordWebhookUrl } from '@/lib/webhook-validation'
 import { NextResponse } from 'next/server'
 
 /**
@@ -36,12 +37,9 @@ export async function PATCH(
   const { active, webhookUrl } = body
 
   if (webhookUrl !== undefined && webhookUrl !== null) {
-    if (
-      typeof webhookUrl !== 'string' ||
-      !webhookUrl.startsWith('https://discord.com/api/webhooks/')
-    ) {
+    if (!isValidDiscordWebhookUrl(webhookUrl)) {
       return NextResponse.json(
-        { error: 'webhookUrl must start with https://discord.com/api/webhooks/' },
+        { error: 'Invalid Discord Webhook URL' },
         { status: 400 }
       )
     }

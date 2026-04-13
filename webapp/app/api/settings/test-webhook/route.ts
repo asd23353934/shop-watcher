@@ -1,4 +1,5 @@
 import { auth } from '@/auth'
+import { isValidDiscordWebhookUrl } from '@/lib/webhook-validation'
 import { NextResponse } from 'next/server'
 
 /**
@@ -23,11 +24,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'Invalid request body' }, { status: 400 })
   }
 
-  if (
-    !webhookUrl ||
-    typeof webhookUrl !== 'string' ||
-    !webhookUrl.startsWith('https://discord.com/api/webhooks/')
-  ) {
+  if (!isValidDiscordWebhookUrl(webhookUrl)) {
     return NextResponse.json({ ok: false, error: 'Invalid Webhook URL' }, { status: 400 })
   }
 

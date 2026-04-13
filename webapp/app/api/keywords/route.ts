@@ -1,6 +1,7 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { CACHE_CONTROL_PRIVATE_SWR_60 } from '@/lib/utils'
+import { isValidDiscordWebhookUrl } from '@/lib/webhook-validation'
 import { NextResponse } from 'next/server'
 
 // Allowed platforms (expand here as new scrapers are added)
@@ -18,12 +19,9 @@ function validateNewFields(body: Record<string, unknown>): NextResponse | null {
   const { discordWebhookUrl, maxNotifyPerScan } = body
 
   if (discordWebhookUrl !== undefined && discordWebhookUrl !== null) {
-    if (
-      typeof discordWebhookUrl !== 'string' ||
-      !discordWebhookUrl.startsWith('https://discord.com/api/webhooks/')
-    ) {
+    if (!isValidDiscordWebhookUrl(discordWebhookUrl)) {
       return NextResponse.json(
-        { error: 'discordWebhookUrl must start with https://discord.com/api/webhooks/' },
+        { error: 'Invalid Discord Webhook URL' },
         { status: 400 }
       )
     }

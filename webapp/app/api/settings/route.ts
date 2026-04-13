@@ -1,5 +1,6 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { isValidDiscordWebhookUrl } from '@/lib/webhook-validation'
 import { NextResponse } from 'next/server'
 
 // GET /api/settings — Settings are pre-filled with existing values on load
@@ -36,9 +37,9 @@ export async function POST(request: Request) {
 
   // Validate Discord Webhook URL — Invalid Discord Webhook URL is rejected
   if (discordWebhookUrl && discordWebhookUrl.trim() !== '') {
-    if (!discordWebhookUrl.startsWith('https://discord.com/api/webhooks/')) {
+    if (!isValidDiscordWebhookUrl(discordWebhookUrl)) {
       return NextResponse.json(
-        { error: 'Invalid Discord Webhook URL. Must start with https://discord.com/api/webhooks/' },
+        { error: 'Invalid Discord Webhook URL' },
         { status: 400 }
       )
     }
@@ -88,9 +89,9 @@ export async function PATCH(request: Request) {
   const { discordWebhookUrl, discordUserId, emailAddress, globalSellerBlocklist } = body
 
   if (discordWebhookUrl !== undefined && discordWebhookUrl && discordWebhookUrl.trim() !== '') {
-    if (!discordWebhookUrl.startsWith('https://discord.com/api/webhooks/')) {
+    if (!isValidDiscordWebhookUrl(discordWebhookUrl)) {
       return NextResponse.json(
-        { error: 'Invalid Discord Webhook URL. Must start with https://discord.com/api/webhooks/' },
+        { error: 'Invalid Discord Webhook URL' },
         { status: 400 }
       )
     }

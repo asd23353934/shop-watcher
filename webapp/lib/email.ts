@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { isHttpUrl } from '@/lib/utils'
 
 /**
  * Email notification via Resend SDK.
@@ -68,14 +69,15 @@ export async function sendEmailNotification(
       : '價格未知'
 
   // Email subject shows item name truncated to 60 characters
-  const rawSubject = `[Shop Watcher] ${item.name}`
+  // Sanitize to prevent email header injection via CRLF characters
+  const rawSubject = `[Shop Watcher] ${item.name}`.replace(/[\r\n\t]/g, ' ')
   const subject =
     rawSubject.length > 60 ? rawSubject.slice(0, 57) + '...' : rawSubject
 
   const safeItemName = escapeHtml(item.name)
   const safeKeyword = escapeHtml(keyword)
   const safeUrl = item.url.startsWith('https://') ? item.url : '#'
-  const safeImageUrl = item.image_url?.startsWith('https://') ? item.image_url : null
+  const safeImageUrl = isHttpUrl(item.image_url) ? item.image_url : null
 
   const html = `
 <!DOCTYPE html>
@@ -159,7 +161,7 @@ export async function sendEmailBatchNotification(
   const resend = new Resend(process.env.RESEND_API_KEY)
 
   const safeKeyword = escapeHtml(keyword)
-  const subject = `[Shop Watcher] 關鍵字「${keyword}」發現 ${items.length} 個新商品`
+  const subject = `[Shop Watcher] 關鍵字「${keyword}」發現 ${items.length} 個新商品`.replace(/[\r\n\t]/g, ' ')
 
   const rows = items
     .map((item) => {
@@ -170,7 +172,7 @@ export async function sendEmailBatchNotification(
           ? `NT$ ${item.price.toLocaleString('zh-TW')}`
           : '價格未知'
       const sellerText = escapeHtml(item.seller_name ?? '未知')
-      const safeImageUrl = item.image_url?.startsWith('https://') ? item.image_url : null
+      const safeImageUrl = isHttpUrl(item.image_url) ? item.image_url : null
       const safeUrl = item.url.startsWith('https://') ? item.url : '#'
       const safeItemName = escapeHtml(item.name)
       const thumbnail = safeImageUrl

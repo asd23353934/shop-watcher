@@ -27,7 +27,13 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const keywordId = searchParams.get('keywordId')
   const platform = searchParams.get('platform')
-  const cursor = searchParams.get('cursor')
+  const rawCursor = searchParams.get('cursor')
+
+  const CUID_RE = /^c[a-z0-9]{24}$/
+  if (rawCursor && !CUID_RE.test(rawCursor)) {
+    return NextResponse.json({ error: '無效的 cursor 格式' }, { status: 400 })
+  }
+  const cursor = rawCursor || null
 
   const PAGE_SIZE = 50
 

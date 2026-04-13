@@ -1,6 +1,7 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { CACHE_CONTROL_PRIVATE_SWR_60 } from '@/lib/utils'
+import { isValidDiscordWebhookUrl } from '@/lib/webhook-validation'
 import { NextResponse } from 'next/server'
 
 const VALID_CIRCLE_PLATFORMS = ['booth', 'dlsite']
@@ -58,12 +59,9 @@ export async function POST(request: Request) {
   }
 
   if (webhookUrl !== undefined && webhookUrl !== null) {
-    if (
-      typeof webhookUrl !== 'string' ||
-      !webhookUrl.startsWith('https://discord.com/api/webhooks/')
-    ) {
+    if (!isValidDiscordWebhookUrl(webhookUrl)) {
       return NextResponse.json(
-        { error: 'webhookUrl must start with https://discord.com/api/webhooks/' },
+        { error: 'Invalid Discord Webhook URL' },
         { status: 400 }
       )
     }
