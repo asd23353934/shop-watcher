@@ -3,6 +3,7 @@ import Google from 'next-auth/providers/google'
 import { prisma } from '@/lib/prisma'
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -17,19 +18,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async signIn({ user }) {
       if (!user.email) return false
 
-      // User can sign in with Google OAuth — upsert user record
-      await prisma.user.upsert({
-        where: { email: user.email },
-        update: {
-          name: user.name ?? undefined,
-          image: user.image ?? undefined,
-        },
-        create: {
-          email: user.email,
-          name: user.name ?? null,
-          image: user.image ?? null,
-        },
-      })
+      try {
+        // User can sign in with Google OAuth — upsert user record
+        await prisma.user.upsert({
+          where: { email: user.email },
+          update: {
+            name: user.name ?? undefined,
+            image: user.image ?? undefined,
+          },
+          create: {
+            email: user.email,
+            name: user.name ?? null,
+            image: user.image ?? null,
+          },
+        })
+      } catch (err) {
+        console.error('[auth] signIn error:', err)
+        return false
+      }
 
       return true
     },
