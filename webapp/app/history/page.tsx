@@ -23,6 +23,10 @@ interface KeywordOption {
 
 const ALL_PLATFORMS = Object.keys(PLATFORM_LABELS)
 
+function handleImageError(e: React.SyntheticEvent<HTMLImageElement>) {
+  e.currentTarget.style.display = 'none'
+}
+
 export default function HistoryPage() {
   const [items, setItems] = useState<SeenItem[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
@@ -142,27 +146,25 @@ export default function HistoryPage() {
                         {item.imageUrl && (
                           <img
                             src={item.imageUrl}
-                            alt=""
+                            alt={item.itemName ?? ''}
                             className="h-12 w-12 flex-shrink-0 rounded object-cover bg-gray-100"
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                            onError={handleImageError}
                           />
                         )}
-                        <span>
-                          {item.itemName && item.itemUrl ? (
-                            <a
-                              href={item.itemUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-indigo-600 hover:underline"
-                            >
-                              {item.itemName}
-                            </a>
-                          ) : item.itemName ? (
-                            <span className="text-gray-700">{item.itemName}</span>
-                          ) : (
-                            <span className="font-mono text-xs text-gray-400">{item.itemId}</span>
-                          )}
-                        </span>
+                        {item.itemName && item.itemUrl ? (
+                          <a
+                            href={item.itemUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-indigo-600 hover:underline"
+                          >
+                            {item.itemName}
+                          </a>
+                        ) : item.itemName ? (
+                          <span className="text-gray-700">{item.itemName}</span>
+                        ) : (
+                          <span className="font-mono text-xs text-gray-400">{item.itemId}</span>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-500 min-w-[160px]">
