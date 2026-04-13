@@ -8,7 +8,7 @@ import KeywordForm from '@/components/KeywordForm'
 export default function KeywordsNewPage() {
   const router = useRouter()
 
-  const handleSuccess = (_keyword: Keyword) => {
+  const handleSuccess = (_k: Keyword) => {
     router.push('/dashboard')
   }
 

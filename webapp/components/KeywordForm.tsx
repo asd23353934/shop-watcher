@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import type { Keyword } from '@/types/keyword'
-import { MATCH_MODE_LABELS, MATCH_MODE_EXAMPLES } from '@/constants/matchMode'
+import { MATCH_MODE_LABELS } from '@/constants/matchMode'
 import { PLATFORM_LABELS } from '@/constants/platform'
 
 interface KeywordFormProps {

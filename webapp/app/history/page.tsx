@@ -170,6 +170,7 @@ export default function HistoryPage() {
                   >
                     <div className="h-40 w-full bg-gray-100 flex items-center justify-center overflow-hidden">
                       {isHttpUrl(item.imageUrl) ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={item.imageUrl}
                           alt={item.itemName ?? ''}
