@@ -227,9 +227,9 @@ export async function POST(request: Request) {
   }
 
   // ── 4. Persist SeenItems ─────────────────────────────────────────────────
-  for (const item of filteredNewItems) {
-    await prisma.seenItem.create({
-      data: {
+  if (filteredNewItems.length > 0) {
+    await prisma.seenItem.createMany({
+      data: filteredNewItems.map((item) => ({
         userId,
         platform: item.platform,
         itemId: item.item_id,
@@ -239,7 +239,8 @@ export async function POST(request: Request) {
         itemName: item.name ? item.name.slice(0, 255) : null,
         itemUrl: isHttpUrl(item.url) ? item.url : null,
         imageUrl: isHttpUrl(item.image_url) ? item.image_url : null,
-      },
+      })),
+      skipDuplicates: true,
     })
   }
 
