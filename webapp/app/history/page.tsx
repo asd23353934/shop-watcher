@@ -23,6 +23,10 @@ interface KeywordOption {
 
 const ALL_PLATFORMS = Object.keys(PLATFORM_LABELS)
 
+function isHttpUrl(url: string | null): url is string {
+  return typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))
+}
+
 function handleImageError(e: React.SyntheticEvent<HTMLImageElement>) {
   e.currentTarget.style.display = 'none'
 }
@@ -143,7 +147,7 @@ export default function HistoryPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        {item.imageUrl && (
+                        {isHttpUrl(item.imageUrl) && (
                           <img
                             src={item.imageUrl}
                             alt={item.itemName ?? ''}
@@ -151,7 +155,7 @@ export default function HistoryPage() {
                             onError={handleImageError}
                           />
                         )}
-                        {item.itemName && item.itemUrl ? (
+                        {item.itemName && isHttpUrl(item.itemUrl) ? (
                           <a
                             href={item.itemUrl}
                             target="_blank"

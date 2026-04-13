@@ -4,6 +4,10 @@ import { sendDiscordNotification } from '@/lib/discord'
 import { sendEmailNotification } from '@/lib/email'
 import { NextResponse } from 'next/server'
 
+function isHttpUrl(url: string | null | undefined): url is string {
+  return typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))
+}
+
 interface NotifyPayload {
   keyword_id: string
   platform: string
@@ -80,8 +84,8 @@ export async function POST(request: Request) {
       keyword: keyword.keyword,
       keywordId: keyword_id,
       itemName: name ? name.slice(0, 255) : null,
-      itemUrl: url ?? null,
-      imageUrl: image_url ?? null,
+      itemUrl: isHttpUrl(url) ? url : null,
+      imageUrl: isHttpUrl(image_url) ? image_url : null,
     },
   })
 

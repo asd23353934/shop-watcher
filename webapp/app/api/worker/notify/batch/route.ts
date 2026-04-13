@@ -34,6 +34,10 @@ export interface NotifyItem extends BatchItem {
  * Returns true if sellerName or sellerId matches any entry in the blocklist
  * (case-insensitive substring match).
  */
+function isHttpUrl(url: string | null | undefined): url is string {
+  return typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))
+}
+
 function isSellerBlocked(
   sellerName: string | null | undefined,
   sellerId: string | null | undefined,
@@ -233,8 +237,8 @@ export async function POST(request: Request) {
         keywordId: keywordIdForRecord,
         lastPrice: item.price ?? null,
         itemName: item.name ? item.name.slice(0, 255) : null,
-        itemUrl: item.url ?? null,
-        imageUrl: item.image_url ?? null,
+        itemUrl: isHttpUrl(item.url) ? item.url : null,
+        imageUrl: isHttpUrl(item.image_url) ? item.image_url : null,
       },
     })
   }
@@ -247,8 +251,8 @@ export async function POST(request: Request) {
       data: {
         lastPrice: item.price,
         itemName: item.name ? item.name.slice(0, 255) : undefined,
-        itemUrl: item.url ?? undefined,
-        imageUrl: item.image_url ?? undefined,
+        itemUrl: isHttpUrl(item.url) ? item.url : undefined,
+        imageUrl: isHttpUrl(item.image_url) ? item.image_url : undefined,
       },
     })
   }
