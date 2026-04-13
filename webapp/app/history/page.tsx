@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { PLATFORM_LABELS } from '@/constants/platform'
 import EmptyState from '@/components/EmptyState'
 import { isHttpUrl } from '@/lib/utils'
@@ -22,11 +22,42 @@ interface KeywordOption {
   keyword: string
 }
 
-const ALL_PLATFORMS = Object.keys(PLATFORM_LABELS)
+interface DateGroup {
+  label: string
+  items: SeenItem[]
+}
 
+const ALL_PLATFORMS = Object.keys(PLATFORM_LABELS)
 
 function handleImageError(e: React.SyntheticEvent<HTMLImageElement>) {
   e.currentTarget.style.display = 'none'
+}
+
+const fmtDay = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+function groupByDate(items: SeenItem[]): DateGroup[] {
+  const today = new Date()
+  const yesterday = new Date()
+  yesterday.setDate(today.getDate() - 1)
+  const todayStr = fmtDay(today)
+  const yesterdayStr = fmtDay(yesterday)
+
+  const map = new Map<string, SeenItem[]>()
+  for (const item of items) {
+    const day = fmtDay(new Date(item.firstSeen))
+    const label =
+      day === todayStr ? '今天' :
+      day === yesterdayStr ? '昨天' :
+      new Date(item.firstSeen).toLocaleDateString('zh-TW', { month: 'long', day: 'numeric' })
+    const group = map.get(label)
+    if (group) {
+      group.push(item)
+    } else {
+      map.set(label, [item])
+    }
+  }
+  return Array.from(map.entries()).map(([label, groupItems]) => ({ label, items: groupItems }))
 }
 
 export default function HistoryPage() {
@@ -38,7 +69,6 @@ export default function HistoryPage() {
   const [selectedKeywordId, setSelectedKeywordId] = useState('')
   const [selectedPlatform, setSelectedPlatform] = useState('')
 
-  // Load keyword options for filter dropdown
   useEffect(() => {
     fetch('/api/keywords')
       .then((r) => r.json())
@@ -57,7 +87,6 @@ export default function HistoryPage() {
     return res.json() as Promise<{ items: SeenItem[]; nextCursor: string | null }>
   }, [])
 
-  // Initial + filter-change load
   useEffect(() => {
     setLoading(true)
     fetchItems(selectedKeywordId, selectedPlatform)
@@ -81,6 +110,8 @@ export default function HistoryPage() {
     }
   }
 
+  const groups = useMemo(() => groupByDate(items), [items])
+
   return (
     <>
       <div className="mb-6">
@@ -88,8 +119,7 @@ export default function HistoryPage() {
         <p className="mt-1 text-sm text-gray-500">已通知商品記錄，每頁 50 筆</p>
       </div>
 
-      {/* Filters */}
-      <div className="mb-4 flex flex-wrap gap-3">
+      <div className="mb-6 flex flex-wrap gap-3">
         <select
           value={selectedKeywordId}
           onChange={(e) => setSelectedKeywordId(e.target.value)}
@@ -124,35 +154,35 @@ export default function HistoryPage() {
         </div>
       ) : (
         <>
-          <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
-            <table className="w-full text-sm">
-              <thead className="border-b bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600 min-w-[120px]">關鍵字</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600 min-w-[130px]">平台</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">商品</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600 min-w-[160px]">首次通知時間</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {items.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-900 min-w-[120px]">{item.keyword}</td>
-                    <td className="px-4 py-3 min-w-[130px]">
-                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-                        {PLATFORM_LABELS[item.platform] ?? item.platform}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        {isHttpUrl(item.imageUrl) && (
-                          <img
-                            src={item.imageUrl}
-                            alt={item.itemName ?? ''}
-                            className="h-12 w-12 flex-shrink-0 rounded object-cover bg-gray-100"
-                            onError={handleImageError}
-                          />
-                        )}
+          {groups.map((group) => (
+            <section key={group.label} className="mb-8">
+              <div className="mb-3 flex items-center gap-3">
+                <span className="text-sm font-semibold text-gray-700">{group.label}</span>
+                <span className="text-xs text-gray-400">{group.items.length} 筆</span>
+                <div className="flex-1 border-t border-gray-200" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {group.items.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex flex-col overflow-hidden rounded-xl border bg-white shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <div className="h-40 w-full bg-gray-100 flex items-center justify-center overflow-hidden">
+                      {isHttpUrl(item.imageUrl) ? (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.itemName ?? ''}
+                          className="h-full w-full object-cover"
+                          onError={handleImageError}
+                        />
+                      ) : (
+                        <span className="text-2xl text-gray-300">🛒</span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-1 flex-col gap-1.5 p-3">
+                      <div className="clamp-2 text-xs font-medium text-gray-900 leading-snug min-h-[2.5rem]">
                         {item.itemName && isHttpUrl(item.itemUrl) ? (
                           <a
                             href={item.itemUrl}
@@ -163,29 +193,36 @@ export default function HistoryPage() {
                             {item.itemName}
                           </a>
                         ) : item.itemName ? (
-                          <span className="text-gray-700">{item.itemName}</span>
+                          <span>{item.itemName}</span>
                         ) : (
-                          <span className="font-mono text-xs text-gray-400">{item.itemId}</span>
+                          <span className="font-mono text-gray-400">{item.itemId}</span>
                         )}
                       </div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-500 min-w-[160px]">
-                      {new Date(item.firstSeen).toLocaleString('zh-TW', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </td>
-                  </tr>
+
+                      <div className="mt-auto flex items-center justify-between gap-1 pt-1">
+                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600 truncate max-w-[5rem]">
+                          {PLATFORM_LABELS[item.platform] ?? item.platform}
+                        </span>
+                        <span className="text-[11px] text-gray-400 whitespace-nowrap">
+                          {new Date(item.firstSeen).toLocaleTimeString('zh-TW', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+
+                      <div className="text-[11px] text-gray-400 truncate">
+                        關鍵字：{item.keyword}
+                      </div>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            </section>
+          ))}
 
           {nextCursor && (
-            <div className="mt-4 text-center">
+            <div className="mt-2 text-center">
               <button
                 onClick={handleLoadMore}
                 disabled={loadingMore}
