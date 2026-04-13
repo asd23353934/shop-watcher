@@ -179,7 +179,8 @@
       "Bash(python3 -c \"import json; d=json.load\\(open\\('C:/Users/user/Desktop/gitlab/shop-watcher/.claude/settings.json'\\)\\); h=d['hooks']['PreToolUse'][0]['hooks'][0]; print\\('type:', h['type']\\); print\\('if:', h['if']\\); print\\('timeout:', h['timeout']\\); print\\('JSON valid: OK'\\)\")",
       "Bash(node -e \"const d=require\\('./C:/Users/user/Desktop/gitlab/shop-watcher/.claude/settings.json'\\); const h=d.hooks.PreToolUse[0].hooks[0]; console.log\\('type:', h.type, '| if:', h.if, '| timeout:', h.timeout, '| JSON valid: OK'\\)\")",
       "Bash(node -e \"const d=require\\('./.claude/settings.json'\\); const h=d.hooks.PreToolUse[0].hooks[0]; console.log\\('type:', h.type, '| if:', h.if, '| timeout:', h.timeout, '| JSON valid: OK'\\)\" --cwd \"C:/Users/user/Desktop/gitlab/shop-watcher\")",
-      "Bash(node -e \"const fs=require\\('fs'\\); JSON.parse\\(fs.readFileSync\\('C:\\\\\\\\\\\\\\\\Users\\\\\\\\\\\\\\\\user\\\\\\\\\\\\\\\\Desktop\\\\\\\\\\\\\\\\gitlab\\\\\\\\\\\\\\\\shop-watcher\\\\\\\\\\\\\\\\.claude\\\\\\\\\\\\\\\\settings.json','utf8'\\)\\); console.log\\('JSON valid: OK'\\)\")"
+      "Bash(node -e \"const fs=require\\('fs'\\); JSON.parse\\(fs.readFileSync\\('C:\\\\\\\\\\\\\\\\Users\\\\\\\\\\\\\\\\user\\\\\\\\\\\\\\\\Desktop\\\\\\\\\\\\\\\\gitlab\\\\\\\\\\\\\\\\shop-watcher\\\\\\\\\\\\\\\\.claude\\\\\\\\\\\\\\\\settings.json','utf8'\\)\\); console.log\\('JSON valid: OK'\\)\")",
+      "Bash(xargs cat:*)"
     ]
   }
 }

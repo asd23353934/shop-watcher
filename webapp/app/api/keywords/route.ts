@@ -1,5 +1,6 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { CACHE_CONTROL_PRIVATE_SWR_60 } from '@/lib/utils'
 import { NextResponse } from 'next/server'
 
 // Allowed platforms (expand here as new scrapers are added)
@@ -53,7 +54,10 @@ export async function GET() {
     orderBy: { createdAt: 'desc' },
   })
 
-  return NextResponse.json(keywords)
+  return NextResponse.json(
+    keywords,
+    { headers: { 'Cache-Control': CACHE_CONTROL_PRIVATE_SWR_60 } }
+  )
 }
 
 // POST /api/keywords — create a new keyword

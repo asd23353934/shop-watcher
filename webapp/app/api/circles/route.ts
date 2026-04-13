@@ -1,5 +1,6 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { CACHE_CONTROL_PRIVATE_SWR_60 } from '@/lib/utils'
 import { NextResponse } from 'next/server'
 
 const VALID_CIRCLE_PLATFORMS = ['booth', 'dlsite']
@@ -20,7 +21,10 @@ export async function GET() {
     orderBy: { createdAt: 'desc' },
   })
 
-  return NextResponse.json(follows)
+  return NextResponse.json(
+    follows,
+    { headers: { 'Cache-Control': CACHE_CONTROL_PRIVATE_SWR_60 } }
+  )
 }
 
 export async function POST(request: Request) {

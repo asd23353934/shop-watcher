@@ -7,8 +7,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -43,6 +44,8 @@ model Keyword {
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   seenItems SeenItem[]
+
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model NotificationSetting {
@@ -89,6 +92,7 @@ model CircleFollow {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, platform, circleId])
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model SeenItem {
@@ -110,4 +114,5 @@ model SeenItem {
   @@unique([userId, platform, itemId])
   @@index([userId, keywordId, firstSeen(sort: Desc)])
   @@index([userId, firstSeen(sort: Desc)])
+  @@index([userId, platform, firstSeen(sort: Desc)])
 }

@@ -1,5 +1,6 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { CACHE_CONTROL_PRIVATE_SWR_60 } from '@/lib/utils'
 import { NextResponse } from 'next/server'
 
 /**
@@ -60,5 +61,8 @@ export async function GET(request: Request) {
   const pageItems = hasMore ? items.slice(0, PAGE_SIZE) : items
   const nextCursor = hasMore ? pageItems[pageItems.length - 1].id : null
 
-  return NextResponse.json({ items: pageItems, nextCursor })
+  return NextResponse.json(
+    { items: pageItems, nextCursor },
+    { headers: { 'Cache-Control': CACHE_CONTROL_PRIVATE_SWR_60 } }
+  )
 }

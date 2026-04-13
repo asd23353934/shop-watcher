@@ -117,3 +117,27 @@ code:
   - webapp/app/globals.css
   - webapp/app/dashboard/page.tsx
 -->
+
+---
+### Requirement: PlatformScanStatus userId query uses index
+
+The database SHALL have an index on `PlatformScanStatus(userId)` to support efficient retrieval of a user's platform scan statuses on the /status page.
+
+#### Scenario: Status page query uses index
+
+- **WHEN** an authenticated user navigates to `/status`
+- **THEN** the `platformScanStatus.findMany({ where: { userId } })` query SHALL resolve via the `userId` index
+- **AND** the /status page SHALL render within 500ms after the database query completes
+
+<!-- @trace
+source: perf-optimization
+updated: 2026-04-13
+code:
+  - webapp/app/api/circles/route.ts
+  - webapp/prisma/migrations/20260413035933_add_perf_indexes_v2/migration.sql
+  - webapp/app/api/history/route.ts
+  - webapp/lib/utils.ts
+  - webapp/app/api/keywords/route.ts
+  - webapp/prisma/schema.prisma
+  - webapp/prisma/migrations/20260413035653_add_perf_indexes/migration.sql
+-->
