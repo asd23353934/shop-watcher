@@ -2,11 +2,8 @@ import { verifyWorkerToken } from '@/lib/worker-auth'
 import { prisma } from '@/lib/prisma'
 import { sendDiscordNotification } from '@/lib/discord'
 import { sendEmailNotification } from '@/lib/email'
+import { isHttpUrl } from '@/lib/utils'
 import { NextResponse } from 'next/server'
-
-function isHttpUrl(url: string | null | undefined): url is string {
-  return typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))
-}
 
 interface NotifyPayload {
   keyword_id: string

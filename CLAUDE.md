@@ -28,6 +28,17 @@ Changes can be parked（暫存）— temporarily moved out of `openspec/changes/
 
 ---
 
+# Pre-commit 必做事項
+
+**每次執行 `git commit` 前，必須依序執行：**
+
+1. `/simplify` — 檢查剛修改的程式碼品質（重複邏輯、不必要的複雜度、可重用性）
+2. `/spectra:audit` — 檢查安全漏洞（OWASP Top 10、危險預設值、型別混淆、靜默失敗）
+
+兩個技能都通過後才能 commit。若發現問題，先修復再 commit。
+
+---
+
 # 專案說明
 
 **Shop Watcher** — 多販售平台新品監控 SaaS，自動監控台灣電商、拍賣、動漫專門店及同人誌販售平台的最新上架商品與作品，透過 Discord Webhook 或 Email 即時通知用戶。

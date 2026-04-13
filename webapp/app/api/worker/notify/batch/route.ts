@@ -2,6 +2,7 @@ import { verifyWorkerToken } from '@/lib/worker-auth'
 import { prisma } from '@/lib/prisma'
 import { sendDiscordBatchNotification } from '@/lib/discord'
 import { sendEmailBatchNotification } from '@/lib/email'
+import { isHttpUrl } from '@/lib/utils'
 import { NextResponse } from 'next/server'
 
 interface BatchItem {
@@ -34,10 +35,6 @@ export interface NotifyItem extends BatchItem {
  * Returns true if sellerName or sellerId matches any entry in the blocklist
  * (case-insensitive substring match).
  */
-function isHttpUrl(url: string | null | undefined): url is string {
-  return typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))
-}
-
 function isSellerBlocked(
   sellerName: string | null | undefined,
   sellerId: string | null | undefined,
@@ -227,8 +224,9 @@ export async function POST(request: Request) {
   }
 
   // ── 4. Persist SeenItems ─────────────────────────────────────────────────
+  let insertedCount = 0
   if (filteredNewItems.length > 0) {
-    await prisma.seenItem.createMany({
+    const result = await prisma.seenItem.createMany({
       data: filteredNewItems.map((item) => ({
         userId,
         platform: item.platform,
@@ -242,20 +240,27 @@ export async function POST(request: Request) {
       })),
       skipDuplicates: true,
     })
+    insertedCount = result.count
   }
 
-  for (const item of priceDropItems) {
-    await prisma.seenItem.update({
-      where: {
-        userId_platform_itemId: { userId, platform: item.platform, itemId: item.item_id },
-      },
-      data: {
-        lastPrice: item.price,
-        itemName: item.name ? item.name.slice(0, 255) : undefined,
-        itemUrl: isHttpUrl(item.url) ? item.url : undefined,
-        imageUrl: isHttpUrl(item.image_url) ? item.image_url : undefined,
-      },
-    })
+  if (priceDropItems.length > 0) {
+    await prisma.$transaction(
+      priceDropItems.map((item) =>
+        prisma.seenItem.updateMany({
+          where: {
+            userId,
+            platform: item.platform,
+            itemId: item.item_id,
+          },
+          data: {
+            lastPrice: item.price,
+            itemName: item.name ? item.name.slice(0, 255) : undefined,
+            itemUrl: isHttpUrl(item.url) ? item.url : undefined,
+            imageUrl: isHttpUrl(item.image_url) ? item.image_url : undefined,
+          },
+        })
+      )
+    )
   }
 
   // ── 5. Send notifications ─────────────────────────────────────────────────
@@ -278,7 +283,7 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({
-    new: filteredNewItems.length,
+    new: insertedCount,
     price_drop: priceDropItems.length,
     duplicate: duplicateCount,
   })

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { PLATFORM_LABELS } from '@/constants/platform'
 import EmptyState from '@/components/EmptyState'
+import { isHttpUrl } from '@/lib/utils'
 
 interface SeenItem {
   id: string
@@ -23,9 +24,6 @@ interface KeywordOption {
 
 const ALL_PLATFORMS = Object.keys(PLATFORM_LABELS)
 
-function isHttpUrl(url: string | null): url is string {
-  return typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))
-}
 
 function handleImageError(e: React.SyntheticEvent<HTMLImageElement>) {
   e.currentTarget.style.display = 'none'
