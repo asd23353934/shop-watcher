@@ -740,3 +740,241 @@ code:
   - webapp/app/globals.css
   - webapp/app/dashboard/page.tsx
 -->
+
+---
+### Requirement: Keyword creation accepts sellerBlocklist, discordWebhookUrl, and maxNotifyPerScan
+
+The system SHALL accept `sellerBlocklist` (string array, default `[]`), `discordWebhookUrl` (string or null, default null), and `maxNotifyPerScan` (positive integer or null, default null) in `POST /api/keywords` and store them in the database. `discordWebhookUrl` MUST start with `https://discord.com/api/webhooks/` if non-null. `maxNotifyPerScan` MUST be a positive integer (≥ 1) if non-null.
+
+#### Scenario: Keyword created with all three new fields
+
+- **WHEN** a user submits `POST /api/keywords` with `{ "sellerBlocklist": ["黃牛"], "discordWebhookUrl": "https://discord.com/api/webhooks/1/x", "maxNotifyPerScan": 5 }`
+- **THEN** the `Keyword` row SHALL be created with all three fields stored correctly
+
+#### Scenario: Invalid discordWebhookUrl is rejected at creation
+
+- **WHEN** a user submits `POST /api/keywords` with `{ "discordWebhookUrl": "https://example.com/hook" }`
+- **THEN** the API SHALL return HTTP 400
+- **AND** no `Keyword` row SHALL be created
+
+#### Scenario: maxNotifyPerScan of zero is rejected
+
+- **WHEN** a user submits `POST /api/keywords` with `{ "maxNotifyPerScan": 0 }`
+- **THEN** the API SHALL return HTTP 400
+
+#### Scenario: Omitting new fields uses defaults
+
+- **WHEN** a user submits keyword creation without `sellerBlocklist`, `discordWebhookUrl`, or `maxNotifyPerScan`
+- **THEN** the `Keyword` row SHALL be created with `sellerBlocklist: []`, `discordWebhookUrl: null`, `maxNotifyPerScan: null`
+
+
+<!-- @trace
+source: enhance-monitoring-conditions
+updated: 2026-04-13
+code:
+  - webapp/components/KeywordClientSection.tsx
+  - webapp/prisma/migrations/20260407072920_enhance_monitoring_conditions/migration.sql
+  - webapp/app/layout.tsx
+  - webapp/app/circles/page.tsx
+  - requirements.txt
+  - webapp/app/api/circles/[id]/route.ts
+  - src/scrapers/dlsite.py
+  - .github/workflows/worker.yml
+  - src/scrapers/ruten.py
+  - webapp/constants/platform.ts
+  - webapp/components/NotificationForm.tsx
+  - src/scrapers/booth.py
+  - webapp/app/api/circles/route.ts
+  - webapp/components/PlatformScanHealthBadge.tsx
+  - webapp/app/api/worker/notify/batch/route.ts
+  - webapp/app/history/page.tsx
+  - webapp/app/api/settings/route.ts
+  - CLAUDE.md
+  - webapp/app/dashboard/page.tsx
+  - webapp/components/CircleFollowForm.tsx
+  - webapp/scripts/test-batch-api.mjs
+  - src/scrapers/melonbooks.py
+  - webapp/components/DashboardStats.tsx
+  - src/watchers/base.py
+  - webapp/lib/discord.ts
+  - webapp/prisma/schema.prisma
+  - webapp/components/KeywordList.tsx
+  - webapp/components/Navbar.tsx
+  - webapp/prisma/migrations/20260407070500_worker_scalability/migration.sql
+  - README.md
+  - webapp/app/api/history/route.ts
+  - webapp/app/keywords/new/page.tsx
+  - src/scrapers/pchome.py
+  - webapp/app/robots.ts
+  - webapp/app/api/worker/platform-status/route.ts
+  - webapp/components/KeywordCard.tsx
+  - src/api_client.py
+  - webapp/app/api/platform-status/route.ts
+  - webapp/app/status/page.tsx
+  - webapp/app/api/worker/keywords/route.ts
+  - webapp/app/api/worker/circles/route.ts
+  - src/scrapers/myacg.py
+  - webapp/app/circles/layout.tsx
+  - webapp/components/KeywordForm.tsx
+  - webapp/types/keyword.ts
+  - webapp/app/api/keywords/route.ts
+  - src/scrapers/toranoana.py
+  - docs/index.html
+  - webapp/app/sitemap.ts
+  - webapp/app/keywords/new/layout.tsx
+  - src/scheduler.py
+  - webapp/app/api/keywords/[id]/route.ts
+  - webapp/components/PlatformScanHealthSection.tsx
+  - src/scrapers/yahoo_auction.py
+  - webapp/app/status/layout.tsx
+-->
+
+---
+### Requirement: Keyword edit accepts sellerBlocklist, discordWebhookUrl, and maxNotifyPerScan
+
+The system SHALL accept `sellerBlocklist`, `discordWebhookUrl`, and `maxNotifyPerScan` in `PATCH /api/keywords/[id]` and update all provided fields. The same validation rules as creation apply.
+
+#### Scenario: User updates all three fields via PATCH
+
+- **WHEN** a user calls `PATCH /api/keywords/{id}` with `{ "sellerBlocklist": ["BadCircle"], "discordWebhookUrl": "https://discord.com/api/webhooks/2/y", "maxNotifyPerScan": 3 }`
+- **THEN** all three fields SHALL be updated in the `Keyword` row
+
+#### Scenario: User clears discordWebhookUrl via PATCH
+
+- **WHEN** a user calls `PATCH /api/keywords/{id}` with `{ "discordWebhookUrl": null }`
+- **THEN** `Keyword.discordWebhookUrl` SHALL be set to null
+- **AND** subsequent notifications for that keyword SHALL fall back to the global webhook
+
+
+<!-- @trace
+source: enhance-monitoring-conditions
+updated: 2026-04-13
+code:
+  - webapp/components/KeywordClientSection.tsx
+  - webapp/prisma/migrations/20260407072920_enhance_monitoring_conditions/migration.sql
+  - webapp/app/layout.tsx
+  - webapp/app/circles/page.tsx
+  - requirements.txt
+  - webapp/app/api/circles/[id]/route.ts
+  - src/scrapers/dlsite.py
+  - .github/workflows/worker.yml
+  - src/scrapers/ruten.py
+  - webapp/constants/platform.ts
+  - webapp/components/NotificationForm.tsx
+  - src/scrapers/booth.py
+  - webapp/app/api/circles/route.ts
+  - webapp/components/PlatformScanHealthBadge.tsx
+  - webapp/app/api/worker/notify/batch/route.ts
+  - webapp/app/history/page.tsx
+  - webapp/app/api/settings/route.ts
+  - CLAUDE.md
+  - webapp/app/dashboard/page.tsx
+  - webapp/components/CircleFollowForm.tsx
+  - webapp/scripts/test-batch-api.mjs
+  - src/scrapers/melonbooks.py
+  - webapp/components/DashboardStats.tsx
+  - src/watchers/base.py
+  - webapp/lib/discord.ts
+  - webapp/prisma/schema.prisma
+  - webapp/components/KeywordList.tsx
+  - webapp/components/Navbar.tsx
+  - webapp/prisma/migrations/20260407070500_worker_scalability/migration.sql
+  - README.md
+  - webapp/app/api/history/route.ts
+  - webapp/app/keywords/new/page.tsx
+  - src/scrapers/pchome.py
+  - webapp/app/robots.ts
+  - webapp/app/api/worker/platform-status/route.ts
+  - webapp/components/KeywordCard.tsx
+  - src/api_client.py
+  - webapp/app/api/platform-status/route.ts
+  - webapp/app/status/page.tsx
+  - webapp/app/api/worker/keywords/route.ts
+  - webapp/app/api/worker/circles/route.ts
+  - src/scrapers/myacg.py
+  - webapp/app/circles/layout.tsx
+  - webapp/components/KeywordForm.tsx
+  - webapp/types/keyword.ts
+  - webapp/app/api/keywords/route.ts
+  - src/scrapers/toranoana.py
+  - docs/index.html
+  - webapp/app/sitemap.ts
+  - webapp/app/keywords/new/layout.tsx
+  - src/scheduler.py
+  - webapp/app/api/keywords/[id]/route.ts
+  - webapp/components/PlatformScanHealthSection.tsx
+  - src/scrapers/yahoo_auction.py
+  - webapp/app/status/layout.tsx
+-->
+
+---
+### Requirement: Worker keywords API includes new fields in response
+
+The system SHALL include `sellerBlocklist`, `discordWebhookUrl`, and `maxNotifyPerScan` in the `GET /api/worker/keywords` response payload for each keyword.
+
+#### Scenario: GET /api/worker/keywords returns all new fields
+
+- **WHEN** the Worker calls `GET /api/worker/keywords`
+- **THEN** each keyword object SHALL include `sellerBlocklist` (array), `discordWebhookUrl` (string or null), and `maxNotifyPerScan` (integer or null)
+- **AND** the Worker SHALL use these values when calling `POST /api/worker/notify/batch`
+
+<!-- @trace
+source: enhance-monitoring-conditions
+updated: 2026-04-13
+code:
+  - webapp/components/KeywordClientSection.tsx
+  - webapp/prisma/migrations/20260407072920_enhance_monitoring_conditions/migration.sql
+  - webapp/app/layout.tsx
+  - webapp/app/circles/page.tsx
+  - requirements.txt
+  - webapp/app/api/circles/[id]/route.ts
+  - src/scrapers/dlsite.py
+  - .github/workflows/worker.yml
+  - src/scrapers/ruten.py
+  - webapp/constants/platform.ts
+  - webapp/components/NotificationForm.tsx
+  - src/scrapers/booth.py
+  - webapp/app/api/circles/route.ts
+  - webapp/components/PlatformScanHealthBadge.tsx
+  - webapp/app/api/worker/notify/batch/route.ts
+  - webapp/app/history/page.tsx
+  - webapp/app/api/settings/route.ts
+  - CLAUDE.md
+  - webapp/app/dashboard/page.tsx
+  - webapp/components/CircleFollowForm.tsx
+  - webapp/scripts/test-batch-api.mjs
+  - src/scrapers/melonbooks.py
+  - webapp/components/DashboardStats.tsx
+  - src/watchers/base.py
+  - webapp/lib/discord.ts
+  - webapp/prisma/schema.prisma
+  - webapp/components/KeywordList.tsx
+  - webapp/components/Navbar.tsx
+  - webapp/prisma/migrations/20260407070500_worker_scalability/migration.sql
+  - README.md
+  - webapp/app/api/history/route.ts
+  - webapp/app/keywords/new/page.tsx
+  - src/scrapers/pchome.py
+  - webapp/app/robots.ts
+  - webapp/app/api/worker/platform-status/route.ts
+  - webapp/components/KeywordCard.tsx
+  - src/api_client.py
+  - webapp/app/api/platform-status/route.ts
+  - webapp/app/status/page.tsx
+  - webapp/app/api/worker/keywords/route.ts
+  - webapp/app/api/worker/circles/route.ts
+  - src/scrapers/myacg.py
+  - webapp/app/circles/layout.tsx
+  - webapp/components/KeywordForm.tsx
+  - webapp/types/keyword.ts
+  - webapp/app/api/keywords/route.ts
+  - src/scrapers/toranoana.py
+  - docs/index.html
+  - webapp/app/sitemap.ts
+  - webapp/app/keywords/new/layout.tsx
+  - src/scheduler.py
+  - webapp/app/api/keywords/[id]/route.ts
+  - webapp/components/PlatformScanHealthSection.tsx
+  - src/scrapers/yahoo_auction.py
+  - webapp/app/status/layout.tsx
+-->

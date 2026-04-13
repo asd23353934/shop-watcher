@@ -210,3 +210,244 @@ code:
   - webapp/package.json
   - src/scrapers/shopee.py
 -->
+
+---
+### Requirement: notify/batch applies seller blocklist before notifying
+
+The system SHALL apply seller filtering in `POST /api/worker/notify/batch` before inserting SeenItem or sending notifications. The filter order SHALL be: (1) global seller blocklist, (2) per-keyword seller blocklist. An item is dropped if it matches either list.
+
+#### Scenario: Global seller blocklist drops item before per-keyword check
+
+- **WHEN** an item arrives with `seller_name: "ScalperShop"`
+- **AND** user's `globalSellerBlocklist` contains `"scalper"` (case-insensitive substring)
+- **THEN** the item SHALL be dropped immediately, before per-keyword seller check
+- **AND** no SeenItem row SHALL be created
+
+#### Scenario: Per-keyword seller blocklist drops item not caught by global
+
+- **WHEN** an item arrives with `seller_name: "CircleB"`
+- **AND** user's `globalSellerBlocklist` does NOT match
+- **AND** the keyword's `sellerBlocklist` contains `"circleb"`
+- **THEN** the item SHALL be dropped by per-keyword filter
+- **AND** no SeenItem row SHALL be created
+
+
+<!-- @trace
+source: enhance-monitoring-conditions
+updated: 2026-04-13
+code:
+  - webapp/components/KeywordClientSection.tsx
+  - webapp/prisma/migrations/20260407072920_enhance_monitoring_conditions/migration.sql
+  - webapp/app/layout.tsx
+  - webapp/app/circles/page.tsx
+  - requirements.txt
+  - webapp/app/api/circles/[id]/route.ts
+  - src/scrapers/dlsite.py
+  - .github/workflows/worker.yml
+  - src/scrapers/ruten.py
+  - webapp/constants/platform.ts
+  - webapp/components/NotificationForm.tsx
+  - src/scrapers/booth.py
+  - webapp/app/api/circles/route.ts
+  - webapp/components/PlatformScanHealthBadge.tsx
+  - webapp/app/api/worker/notify/batch/route.ts
+  - webapp/app/history/page.tsx
+  - webapp/app/api/settings/route.ts
+  - CLAUDE.md
+  - webapp/app/dashboard/page.tsx
+  - webapp/components/CircleFollowForm.tsx
+  - webapp/scripts/test-batch-api.mjs
+  - src/scrapers/melonbooks.py
+  - webapp/components/DashboardStats.tsx
+  - src/watchers/base.py
+  - webapp/lib/discord.ts
+  - webapp/prisma/schema.prisma
+  - webapp/components/KeywordList.tsx
+  - webapp/components/Navbar.tsx
+  - webapp/prisma/migrations/20260407070500_worker_scalability/migration.sql
+  - README.md
+  - webapp/app/api/history/route.ts
+  - webapp/app/keywords/new/page.tsx
+  - src/scrapers/pchome.py
+  - webapp/app/robots.ts
+  - webapp/app/api/worker/platform-status/route.ts
+  - webapp/components/KeywordCard.tsx
+  - src/api_client.py
+  - webapp/app/api/platform-status/route.ts
+  - webapp/app/status/page.tsx
+  - webapp/app/api/worker/keywords/route.ts
+  - webapp/app/api/worker/circles/route.ts
+  - src/scrapers/myacg.py
+  - webapp/app/circles/layout.tsx
+  - webapp/components/KeywordForm.tsx
+  - webapp/types/keyword.ts
+  - webapp/app/api/keywords/route.ts
+  - src/scrapers/toranoana.py
+  - docs/index.html
+  - webapp/app/sitemap.ts
+  - webapp/app/keywords/new/layout.tsx
+  - src/scheduler.py
+  - webapp/app/api/keywords/[id]/route.ts
+  - webapp/components/PlatformScanHealthSection.tsx
+  - src/scrapers/yahoo_auction.py
+  - webapp/app/status/layout.tsx
+-->
+
+---
+### Requirement: notify/batch routes Discord notification to per-keyword webhook
+
+The system SHALL use the keyword's `discordWebhookUrl` (from the batch request payload) as the Discord notification target when non-null, falling back to `NotificationSetting.discordWebhookUrl`.
+
+#### Scenario: Batch request with keyword webhookUrl routes to that URL
+
+- **WHEN** `POST /api/worker/notify/batch` includes `{ "keywordWebhookUrl": "https://discord.com/api/webhooks/111/aaa" }`
+- **AND** the user's global webhook is `"https://discord.com/api/webhooks/999/zzz"`
+- **THEN** the Discord notification SHALL be POSTed to `https://discord.com/api/webhooks/111/aaa`
+
+#### Scenario: Null keyword webhookUrl falls back to global webhook
+
+- **WHEN** `POST /api/worker/notify/batch` includes `{ "keywordWebhookUrl": null }`
+- **THEN** the Discord notification SHALL be POSTed to the user's `NotificationSetting.discordWebhookUrl`
+
+
+<!-- @trace
+source: enhance-monitoring-conditions
+updated: 2026-04-13
+code:
+  - webapp/components/KeywordClientSection.tsx
+  - webapp/prisma/migrations/20260407072920_enhance_monitoring_conditions/migration.sql
+  - webapp/app/layout.tsx
+  - webapp/app/circles/page.tsx
+  - requirements.txt
+  - webapp/app/api/circles/[id]/route.ts
+  - src/scrapers/dlsite.py
+  - .github/workflows/worker.yml
+  - src/scrapers/ruten.py
+  - webapp/constants/platform.ts
+  - webapp/components/NotificationForm.tsx
+  - src/scrapers/booth.py
+  - webapp/app/api/circles/route.ts
+  - webapp/components/PlatformScanHealthBadge.tsx
+  - webapp/app/api/worker/notify/batch/route.ts
+  - webapp/app/history/page.tsx
+  - webapp/app/api/settings/route.ts
+  - CLAUDE.md
+  - webapp/app/dashboard/page.tsx
+  - webapp/components/CircleFollowForm.tsx
+  - webapp/scripts/test-batch-api.mjs
+  - src/scrapers/melonbooks.py
+  - webapp/components/DashboardStats.tsx
+  - src/watchers/base.py
+  - webapp/lib/discord.ts
+  - webapp/prisma/schema.prisma
+  - webapp/components/KeywordList.tsx
+  - webapp/components/Navbar.tsx
+  - webapp/prisma/migrations/20260407070500_worker_scalability/migration.sql
+  - README.md
+  - webapp/app/api/history/route.ts
+  - webapp/app/keywords/new/page.tsx
+  - src/scrapers/pchome.py
+  - webapp/app/robots.ts
+  - webapp/app/api/worker/platform-status/route.ts
+  - webapp/components/KeywordCard.tsx
+  - src/api_client.py
+  - webapp/app/api/platform-status/route.ts
+  - webapp/app/status/page.tsx
+  - webapp/app/api/worker/keywords/route.ts
+  - webapp/app/api/worker/circles/route.ts
+  - src/scrapers/myacg.py
+  - webapp/app/circles/layout.tsx
+  - webapp/components/KeywordForm.tsx
+  - webapp/types/keyword.ts
+  - webapp/app/api/keywords/route.ts
+  - src/scrapers/toranoana.py
+  - docs/index.html
+  - webapp/app/sitemap.ts
+  - webapp/app/keywords/new/layout.tsx
+  - src/scheduler.py
+  - webapp/app/api/keywords/[id]/route.ts
+  - webapp/components/PlatformScanHealthSection.tsx
+  - src/scrapers/yahoo_auction.py
+  - webapp/app/status/layout.tsx
+-->
+
+---
+### Requirement: notify/batch enforces maxNotifyPerScan cap per keyword
+
+The system SHALL truncate new items to `maxNotifyPerScan` (from the batch payload, or `MAX_NOTIFY_PER_BATCH` if null) after deduplication and seller filtering, before inserting SeenItem or sending notifications.
+
+#### Scenario: New items after filtering are capped at maxNotifyPerScan
+
+- **WHEN** 20 items pass deduplication and seller filtering
+- **AND** `maxNotifyPerScan: 5` is provided in the batch payload
+- **THEN** only the first 5 items SHALL be inserted into SeenItem
+- **AND** only those 5 items SHALL trigger Discord notification
+- **AND** the remaining 15 SHALL be silently dropped
+
+#### Scenario: SeenItem stores itemName and itemUrl from batch payload
+
+- **WHEN** `POST /api/worker/notify/batch` includes items with `name` and `url` fields
+- **THEN** `SeenItem.itemName` SHALL be set to the item's `name` (truncated to 255 characters)
+- **AND** `SeenItem.itemUrl` SHALL be set to the item's `url`
+- **AND** these values SHALL be available for display in the notification history page
+
+<!-- @trace
+source: enhance-monitoring-conditions
+updated: 2026-04-13
+code:
+  - webapp/components/KeywordClientSection.tsx
+  - webapp/prisma/migrations/20260407072920_enhance_monitoring_conditions/migration.sql
+  - webapp/app/layout.tsx
+  - webapp/app/circles/page.tsx
+  - requirements.txt
+  - webapp/app/api/circles/[id]/route.ts
+  - src/scrapers/dlsite.py
+  - .github/workflows/worker.yml
+  - src/scrapers/ruten.py
+  - webapp/constants/platform.ts
+  - webapp/components/NotificationForm.tsx
+  - src/scrapers/booth.py
+  - webapp/app/api/circles/route.ts
+  - webapp/components/PlatformScanHealthBadge.tsx
+  - webapp/app/api/worker/notify/batch/route.ts
+  - webapp/app/history/page.tsx
+  - webapp/app/api/settings/route.ts
+  - CLAUDE.md
+  - webapp/app/dashboard/page.tsx
+  - webapp/components/CircleFollowForm.tsx
+  - webapp/scripts/test-batch-api.mjs
+  - src/scrapers/melonbooks.py
+  - webapp/components/DashboardStats.tsx
+  - src/watchers/base.py
+  - webapp/lib/discord.ts
+  - webapp/prisma/schema.prisma
+  - webapp/components/KeywordList.tsx
+  - webapp/components/Navbar.tsx
+  - webapp/prisma/migrations/20260407070500_worker_scalability/migration.sql
+  - README.md
+  - webapp/app/api/history/route.ts
+  - webapp/app/keywords/new/page.tsx
+  - src/scrapers/pchome.py
+  - webapp/app/robots.ts
+  - webapp/app/api/worker/platform-status/route.ts
+  - webapp/components/KeywordCard.tsx
+  - src/api_client.py
+  - webapp/app/api/platform-status/route.ts
+  - webapp/app/status/page.tsx
+  - webapp/app/api/worker/keywords/route.ts
+  - webapp/app/api/worker/circles/route.ts
+  - src/scrapers/myacg.py
+  - webapp/app/circles/layout.tsx
+  - webapp/components/KeywordForm.tsx
+  - webapp/types/keyword.ts
+  - webapp/app/api/keywords/route.ts
+  - src/scrapers/toranoana.py
+  - docs/index.html
+  - webapp/app/sitemap.ts
+  - webapp/app/keywords/new/layout.tsx
+  - src/scheduler.py
+  - webapp/app/api/keywords/[id]/route.ts
+  - webapp/components/PlatformScanHealthSection.tsx
+  - src/scrapers/yahoo_auction.py
+  - webapp/app/status/layout.tsx
+-->

@@ -8,15 +8,39 @@ TBD - created by archiving change 'dashboard-observability'. Update Purpose afte
 
 ### Requirement: User can view notification history
 
-The system SHALL provide a notification history page at /history listing the most recent notified items for the authenticated user.
+The system SHALL provide a notification history page at /history listing notified items for the authenticated user. Each row SHALL show: keyword, platform label, item name (linked to item URL if available, otherwise item ID), and firstSeen timestamp. Results SHALL be sorted by firstSeen descending. The page SHALL support cursor-based pagination showing 50 items per page with a "載入更多" button. When no more items exist, the button SHALL be hidden.
 
-#### Scenario: History page lists recent notified items
+#### Scenario: History page lists notified items with item name and link
 
 - **WHEN** an authenticated user navigates to /history
-- **THEN** the page SHALL display a list of SeenItem rows belonging to that user
-- **AND** each row SHALL show: keyword, platform label, item ID, and firstSeen timestamp
+- **AND** SeenItem rows have `itemName` and `itemUrl` populated
+- **THEN** each row SHALL display the item name as a clickable link to `itemUrl`
 - **AND** results SHALL be sorted by firstSeen descending (newest first)
-- **AND** at most 50 items SHALL be shown per page
+- **AND** at most 50 items SHALL be shown on the initial load
+
+#### Scenario: History row shows item ID fallback when itemName is null
+
+- **WHEN** a SeenItem row has `itemName: null` (legacy record before this change)
+- **THEN** the history row SHALL display the `itemId` string instead of a name
+- **AND** no link SHALL be shown if `itemUrl` is also null
+
+#### Scenario: History supports filtering by keyword
+
+- **WHEN** a user selects a keyword filter from the filter dropdown on /history
+- **THEN** only SeenItem rows matching that `keywordId` SHALL be displayed
+- **AND** the count in the filter label SHALL update to reflect the filtered results
+
+#### Scenario: History supports filtering by platform
+
+- **WHEN** a user selects a platform filter (e.g., "露天") from the filter dropdown
+- **THEN** only SeenItem rows with `platform: "ruten"` SHALL be displayed
+
+#### Scenario: History pagination loads next 50 items
+
+- **WHEN** the initial history page shows 50 items
+- **AND** the user clicks "載入更多"
+- **THEN** the next 50 SeenItem rows SHALL be appended to the list (cursor-based, using last item's `id`)
+- **AND** if fewer than 50 items are returned, the "載入更多" button SHALL be hidden
 
 #### Scenario: Empty history shows EmptyState component
 
@@ -28,44 +52,64 @@ The system SHALL provide a notification history page at /history listing the mos
 
 
 <!-- @trace
-source: improve-webapp-ux
-updated: 2026-04-02
+source: enhance-monitoring-conditions
+updated: 2026-04-13
 code:
-  - webapp/components/KeywordSection.tsx
-  - webapp/components/ui/alert-dialog.tsx
-  - webapp/components/ui/button.tsx
-  - webapp/components.json
-  - webapp/types/keyword.ts
-  - webapp/components/ui/switch.tsx
-  - webapp/app/layout.tsx
-  - webapp/app/settings/page.tsx
-  - webapp/components/EmptyState.tsx
   - webapp/components/KeywordClientSection.tsx
-  - webapp/components/KeywordForm.tsx
-  - webapp/components/NotificationForm.tsx
-  - webapp/components/ui/skeleton.tsx
-  - webapp/app/history/page.tsx
+  - webapp/prisma/migrations/20260407072920_enhance_monitoring_conditions/migration.sql
+  - webapp/app/layout.tsx
+  - webapp/app/circles/page.tsx
+  - requirements.txt
+  - webapp/app/api/circles/[id]/route.ts
+  - src/scrapers/dlsite.py
   - .github/workflows/worker.yml
-  - webapp/package.json
-  - webapp/app/settings/layout.tsx
-  - webapp/components/ScanLogSection.tsx
-  - webapp/components/ui/sonner.tsx
+  - src/scrapers/ruten.py
   - webapp/constants/platform.ts
-  - webapp/components/KeywordFormWrapper.tsx
-  - webapp/components/ui/badge.tsx
-  - webapp/components/DashboardStats.tsx
-  - webapp/constants/matchMode.ts
-  - webapp/components/KeywordList.tsx
-  - webapp/actions/auth.ts
-  - webapp/lib/utils.ts
-  - webapp/app/dashboard/layout.tsx
-  - webapp/app/history/layout.tsx
-  - webapp/components/Navbar.tsx
-  - webapp/components/ui/SkeletonCard.tsx
-  - webapp/components/NotificationStatus.tsx
-  - webapp/components/KeywordCard.tsx
-  - webapp/app/globals.css
+  - webapp/components/NotificationForm.tsx
+  - src/scrapers/booth.py
+  - webapp/app/api/circles/route.ts
+  - webapp/components/PlatformScanHealthBadge.tsx
+  - webapp/app/api/worker/notify/batch/route.ts
+  - webapp/app/history/page.tsx
+  - webapp/app/api/settings/route.ts
+  - CLAUDE.md
   - webapp/app/dashboard/page.tsx
+  - webapp/components/CircleFollowForm.tsx
+  - webapp/scripts/test-batch-api.mjs
+  - src/scrapers/melonbooks.py
+  - webapp/components/DashboardStats.tsx
+  - src/watchers/base.py
+  - webapp/lib/discord.ts
+  - webapp/prisma/schema.prisma
+  - webapp/components/KeywordList.tsx
+  - webapp/components/Navbar.tsx
+  - webapp/prisma/migrations/20260407070500_worker_scalability/migration.sql
+  - README.md
+  - webapp/app/api/history/route.ts
+  - webapp/app/keywords/new/page.tsx
+  - src/scrapers/pchome.py
+  - webapp/app/robots.ts
+  - webapp/app/api/worker/platform-status/route.ts
+  - webapp/components/KeywordCard.tsx
+  - src/api_client.py
+  - webapp/app/api/platform-status/route.ts
+  - webapp/app/status/page.tsx
+  - webapp/app/api/worker/keywords/route.ts
+  - webapp/app/api/worker/circles/route.ts
+  - src/scrapers/myacg.py
+  - webapp/app/circles/layout.tsx
+  - webapp/components/KeywordForm.tsx
+  - webapp/types/keyword.ts
+  - webapp/app/api/keywords/route.ts
+  - src/scrapers/toranoana.py
+  - docs/index.html
+  - webapp/app/sitemap.ts
+  - webapp/app/keywords/new/layout.tsx
+  - src/scheduler.py
+  - webapp/app/api/keywords/[id]/route.ts
+  - webapp/components/PlatformScanHealthSection.tsx
+  - src/scrapers/yahoo_auction.py
+  - webapp/app/status/layout.tsx
 -->
 
 ---

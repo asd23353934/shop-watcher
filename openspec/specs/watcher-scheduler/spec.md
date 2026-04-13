@@ -57,36 +57,93 @@ code:
 ---
 ### Requirement: Scheduler runs all keyword searches on a configurable interval
 
-The system SHALL execute a full scan of all keywords and platforms in sequence, then sleep for `CHECK_INTERVAL` seconds before repeating. Supported platforms are: `ruten`, `pchome`, `momo`, `animate`, `yahoo-auction`, `mandarake`, `myacg`, `kingstone`, `booth`, `dlsite`, `toranoana`, `melonbooks`. The platform `shopee` SHALL be treated as suspended: when a keyword specifies `shopee`, the scheduler SHALL log a WARNING and skip it without raising an exception.
+The system SHALL execute all keyword×platform search tasks concurrently using `asyncio.gather(return_exceptions=True)`, replacing the previous sequential nested loop. A per-platform `asyncio.Semaphore` SHALL limit concurrent connections per platform to `SEMAPHORE_PER_PLATFORM` (default: `3`). A failure in one keyword-platform task MUST NOT prevent other tasks from executing. The entire task batch SHALL be protected by `asyncio.wait_for(timeout=SCAN_TIMEOUT_SECONDS)`.
 
 #### Scenario: Each keyword-platform pair is searched independently
 
-- **WHEN** a keyword has `platforms: ["ruten", "pchome"]`
-- **THEN** the scheduler SHALL call `scrape_ruten(page, keyword)` and `scrape_pchome(page, keyword)` as separate operations
+- **WHEN** a keyword has platforms `["shopee", "ruten"]`
+- **THEN** the scheduler SHALL submit `ShopeeWatcher.search(keyword)` and `RutenWatcher.search(keyword)` as concurrent async tasks
 - **AND** a failure on one platform MUST NOT prevent the other platform from being searched
 
-#### Scenario: Shopee platform is suspended and logged
+#### Scenario: All keyword-platform tasks are gathered concurrently
 
-- **WHEN** a keyword has `platforms: ["shopee"]` or `platforms` includes `"shopee"`
-- **THEN** the scheduler SHALL log `WARNING: shopee platform is suspended, skipping keyword '{keyword}' on shopee`
-- **AND** SHALL continue to the next platform without calling any scraper
-
-#### Scenario: Unknown platform is logged and skipped
-
-- **WHEN** a keyword specifies a platform string not in the supported platform list
-- **THEN** the scheduler SHALL log a WARNING with the unknown platform name and skip it
+- **WHEN** a scan cycle begins with N keywords across M platforms
+- **THEN** all N×M tasks SHALL be submitted to `asyncio.gather()` simultaneously
+- **AND** per-platform Semaphore SHALL limit each platform to at most `SEMAPHORE_PER_PLATFORM` concurrent tasks
 
 #### Scenario: Scheduler sleeps between scans
 
-- **WHEN** a full scan cycle completes
+- **WHEN** a full scan cycle completes (or times out)
 - **THEN** the scheduler SHALL sleep for exactly `CHECK_INTERVAL` seconds before starting the next cycle
 - **AND** `CHECK_INTERVAL` SHALL be read from the `CHECK_INTERVAL` environment variable (default: `300`)
 
 #### Scenario: Scheduler runs indefinitely until interrupted
 
 - **WHEN** the application starts
-- **THEN** the scheduler SHALL loop indefinitely
+- **THEN** the scheduler SHALL loop indefinitely using `asyncio.run()`
 - **AND** the loop MUST exit cleanly when a `KeyboardInterrupt` or `SIGTERM` is received
+
+
+<!-- @trace
+source: worker-scalability
+updated: 2026-04-13
+code:
+  - webapp/app/api/worker/platform-status/route.ts
+  - webapp/lib/discord.ts
+  - webapp/app/api/worker/keywords/route.ts
+  - webapp/app/api/platform-status/route.ts
+  - src/scrapers/yahoo_auction.py
+  - webapp/app/api/history/route.ts
+  - src/watchers/base.py
+  - src/scrapers/melonbooks.py
+  - src/scrapers/booth.py
+  - webapp/app/api/keywords/[id]/route.ts
+  - webapp/components/Navbar.tsx
+  - webapp/app/api/settings/route.ts
+  - README.md
+  - webapp/scripts/test-batch-api.mjs
+  - webapp/app/api/worker/notify/batch/route.ts
+  - webapp/components/KeywordClientSection.tsx
+  - src/scheduler.py
+  - .github/workflows/worker.yml
+  - src/scrapers/pchome.py
+  - webapp/app/api/circles/[id]/route.ts
+  - webapp/prisma/schema.prisma
+  - webapp/app/keywords/new/page.tsx
+  - webapp/app/circles/layout.tsx
+  - webapp/prisma/migrations/20260407070500_worker_scalability/migration.sql
+  - webapp/components/KeywordList.tsx
+  - src/scrapers/toranoana.py
+  - webapp/types/keyword.ts
+  - webapp/app/layout.tsx
+  - webapp/app/api/worker/circles/route.ts
+  - webapp/prisma/migrations/20260407072920_enhance_monitoring_conditions/migration.sql
+  - src/scrapers/ruten.py
+  - src/api_client.py
+  - webapp/app/sitemap.ts
+  - webapp/app/status/page.tsx
+  - webapp/app/api/circles/route.ts
+  - webapp/app/keywords/new/layout.tsx
+  - webapp/components/CircleFollowForm.tsx
+  - webapp/components/KeywordForm.tsx
+  - src/scrapers/myacg.py
+  - webapp/components/KeywordCard.tsx
+  - webapp/app/robots.ts
+  - webapp/app/api/keywords/route.ts
+  - requirements.txt
+  - webapp/app/history/page.tsx
+  - webapp/components/NotificationForm.tsx
+  - webapp/components/PlatformScanHealthBadge.tsx
+  - webapp/components/PlatformScanHealthSection.tsx
+  - webapp/app/circles/page.tsx
+  - docs/index.html
+  - webapp/app/status/layout.tsx
+  - webapp/app/dashboard/page.tsx
+  - webapp/constants/platform.ts
+  - CLAUDE.md
+  - src/scrapers/dlsite.py
+  - webapp/components/DashboardStats.tsx
+-->
 
 ---
 ### Requirement: Found items are reported to Next.js API immediately after each search

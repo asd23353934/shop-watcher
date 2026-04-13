@@ -166,7 +166,14 @@
       "Bash(npx next:*)",
       "Bash(git commit:*)",
       "Bash(wc -l /c/Users/user/Desktop/gitlab/shop-watcher/webapp/components/*.tsx /c/Users/user/Desktop/gitlab/shop-watcher/webapp/app/api/*/*.ts)",
-      "WebFetch(domain:www.ruten.com.tw)"
+      "WebFetch(domain:www.ruten.com.tw)",
+      "Bash(python3 -c ':*)",
+      "Bash(python -c ':*)",
+      "Bash(git push:*)",
+      "Bash(python -c \"import sys; data=sys.stdin.buffer.read\\(\\); print\\(data.decode\\('utf-8', errors='replace'\\)\\)\")",
+      "Bash(find /c/Users/user/Desktop/gitlab/shop-watcher/webapp -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" -o -name \"*.html\" \\\\\\) ! -path \"*/node_modules/*\" ! -path \"*/.next/*\" -exec grep -l \"canonical\\\\|noindex\\\\|nofollow\\\\|robots\\\\|sitemap\" {} \\\\;)",
+      "Bash(python -c \"import sys,json; data=json.load\\(sys.stdin\\); findings=[f for f in data['findings'] if f['severity'] in \\('Critical','Warning'\\)]; print\\(f'Findings: {len\\(findings\\)}'\\); [print\\(f['severity'], f['summary']\\) for f in findings]\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d['state'], d['progress']\\)\")"
     ]
   }
 }

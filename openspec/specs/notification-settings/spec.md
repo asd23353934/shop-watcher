@@ -346,3 +346,97 @@ code:
   - webapp/package.json
   - src/scrapers/shopee.py
 -->
+
+---
+### Requirement: User can manage global seller blocklist in notification settings
+
+The system SHALL allow an authenticated user to manage `globalSellerBlocklist: String[]` on their `NotificationSetting` record via the settings page. The UI SHALL use the same tag-style add/delete input as the keyword blocklist. Changes SHALL be saved via `PATCH /api/settings`.
+
+#### Scenario: User adds a seller to global blocklist
+
+- **WHEN** a user types a seller name in the global seller blocklist input and presses Enter or clicks "新增"
+- **THEN** the seller name SHALL be added as a tag in the UI
+- **AND** on save, `NotificationSetting.globalSellerBlocklist` SHALL be updated to include the new entry
+
+#### Scenario: User removes a seller from global blocklist
+
+- **WHEN** a user clicks the × button on an existing seller tag in the global blocklist
+- **THEN** that entry SHALL be removed from the tag list in the UI
+- **AND** on save, `NotificationSetting.globalSellerBlocklist` SHALL be updated without that entry
+
+#### Scenario: Global seller blocklist is pre-filled on settings page load
+
+- **WHEN** a user navigates to /settings and has an existing `globalSellerBlocklist: ["黃牛"]`
+- **THEN** the global seller blocklist input SHALL display "黃牛" as a pre-filled tag
+
+#### Scenario: Settings API accepts globalSellerBlocklist
+
+- **WHEN** a user submits `PATCH /api/settings` with `{ "globalSellerBlocklist": ["SuspectSeller", "FakeDeal"] }`
+- **THEN** `NotificationSetting.globalSellerBlocklist` SHALL be updated to `["SuspectSeller", "FakeDeal"]`
+- **AND** the API SHALL return HTTP 200 with the updated settings
+
+#### Scenario: GET /api/settings includes globalSellerBlocklist
+
+- **WHEN** a user calls `GET /api/settings`
+- **THEN** the response SHALL include `globalSellerBlocklist` as a string array
+
+<!-- @trace
+source: enhance-monitoring-conditions
+updated: 2026-04-13
+code:
+  - webapp/components/KeywordClientSection.tsx
+  - webapp/prisma/migrations/20260407072920_enhance_monitoring_conditions/migration.sql
+  - webapp/app/layout.tsx
+  - webapp/app/circles/page.tsx
+  - requirements.txt
+  - webapp/app/api/circles/[id]/route.ts
+  - src/scrapers/dlsite.py
+  - .github/workflows/worker.yml
+  - src/scrapers/ruten.py
+  - webapp/constants/platform.ts
+  - webapp/components/NotificationForm.tsx
+  - src/scrapers/booth.py
+  - webapp/app/api/circles/route.ts
+  - webapp/components/PlatformScanHealthBadge.tsx
+  - webapp/app/api/worker/notify/batch/route.ts
+  - webapp/app/history/page.tsx
+  - webapp/app/api/settings/route.ts
+  - CLAUDE.md
+  - webapp/app/dashboard/page.tsx
+  - webapp/components/CircleFollowForm.tsx
+  - webapp/scripts/test-batch-api.mjs
+  - src/scrapers/melonbooks.py
+  - webapp/components/DashboardStats.tsx
+  - src/watchers/base.py
+  - webapp/lib/discord.ts
+  - webapp/prisma/schema.prisma
+  - webapp/components/KeywordList.tsx
+  - webapp/components/Navbar.tsx
+  - webapp/prisma/migrations/20260407070500_worker_scalability/migration.sql
+  - README.md
+  - webapp/app/api/history/route.ts
+  - webapp/app/keywords/new/page.tsx
+  - src/scrapers/pchome.py
+  - webapp/app/robots.ts
+  - webapp/app/api/worker/platform-status/route.ts
+  - webapp/components/KeywordCard.tsx
+  - src/api_client.py
+  - webapp/app/api/platform-status/route.ts
+  - webapp/app/status/page.tsx
+  - webapp/app/api/worker/keywords/route.ts
+  - webapp/app/api/worker/circles/route.ts
+  - src/scrapers/myacg.py
+  - webapp/app/circles/layout.tsx
+  - webapp/components/KeywordForm.tsx
+  - webapp/types/keyword.ts
+  - webapp/app/api/keywords/route.ts
+  - src/scrapers/toranoana.py
+  - docs/index.html
+  - webapp/app/sitemap.ts
+  - webapp/app/keywords/new/layout.tsx
+  - src/scheduler.py
+  - webapp/app/api/keywords/[id]/route.ts
+  - webapp/components/PlatformScanHealthSection.tsx
+  - src/scrapers/yahoo_auction.py
+  - webapp/app/status/layout.tsx
+-->
