@@ -1,6 +1,8 @@
 # 🛍️ Shop Watcher
 
-自動監控**蝦皮（Shopee）**與**露天拍賣（Ruten）**最新商品上架，關鍵字命中時透過 **Discord** 或 **Email** 即時通知你。
+自動監控台灣電商、拍賣、動漫專門店及同人誌販售平台最新商品上架，關鍵字命中時透過 **Discord** 或 **Email** 即時通知你。
+
+支援平台：**露天、PChome、MOMO、Animate、Yahoo拍賣、Mandarake、買動漫、金石堂ACG、Melonbooks、虎之穴、Booth、DLsite**（蝦皮暫停）
 
 🔗 **線上使用**：[shop-watcher.vercel.app](https://shop-watcher.vercel.app)
 
@@ -10,7 +12,7 @@
 
 | 功能 | 說明 |
 |------|------|
-| 🔍 多平台監控 | 同時監控蝦皮 & 露天，每 10 分鐘自動掃描 |
+| 🔍 多平台監控 | 同時監控 12 個平台，每 10 分鐘自動掃描 |
 | 🎮 Discord 通知 | Webhook Embed 格式，含商品圖片、名稱、價格、賣家、連結 |
 | 📧 Email 通知 | 彙整所有新商品為一封表格信件（Resend 發送） |
 | 💰 降價提醒 | 已通知商品若降價，自動重新通知並標示原價 |
@@ -25,7 +27,9 @@
 ```
 shop-watcher/
 ├── webapp/          # Next.js 15 SaaS 應用（Vercel 部署）
-├── src/             # Python 3.12 Worker（GitHub Actions 執行）
+├── src/             # Python 3.12 Worker 程式碼
+├── run_once.py      # GitHub Actions 入口（單次掃描）
+├── requirements.txt # Python 依賴
 ├── .github/
 │   └── workflows/
 │       ├── worker.yml   # 每 10 分鐘掃描
@@ -91,6 +95,7 @@ python run_once.py
 | `DATABASE_URL` | Neon.tech 連線字串（cleanup workflow 使用） |
 | `DISCORD_ERROR_WEBHOOK` | （選填）逐筆爬取失敗通知 Discord Webhook |
 | `SYSTEM_ALERT_WEBHOOK` | （選填）系統級告警 Discord Webhook（逾時、嚴重錯誤），與用戶 webhook 分離 |
+| `SHOPEE_COOKIES_JSON` | （選填）蝦皮 session cookies（JSON 陣列），用於繞過 fraud detection |
 
 **Worker 行為調整環境變數（可設於 GitHub Actions Variables）：**
 

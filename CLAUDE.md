@@ -72,6 +72,7 @@ shop-watcher/
 │   ├── watchers/         # base.py（WatcherItem dataclass）
 │   ├── api_client.py     # WorkerApiClient
 │   └── scheduler.py      # run_scan_cycle()
+├── run_once.py           # GitHub Actions 入口（單次掃描）
 ├── .github/workflows/    # worker.yml / cleanup.yml / ci.yml
 ├── docs/                 # Landing page（GitHub Pages）
 └── openspec/             # Spectra SDD artifacts
