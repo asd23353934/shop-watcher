@@ -99,6 +99,71 @@ shop-watcher/
 - **API 認證**：Worker API 以 `WORKER_SECRET` Bearer token 驗證
 - **環境變數**：參考 `webapp/.env.example`
 
+## API Route 規範（Next.js）
+
+### 認證模式
+
+**User API（需登入）：**
+```ts
+const session = await auth()
+if (!session?.user?.id) return NextResponse.json({ error: '未授權' }, { status: 401 })
+const userId = session.user.id
+```
+
+**Worker API（Bearer token）：**
+```ts
+const authError = verifyWorkerToken(request)
+if (authError) return authError
+```
+
+**資源 ownership 驗證**（修改/刪除前必做）：
+```ts
+if (existing.userId !== userId) return NextResponse.json({ error: '禁止存取' }, { status: 403 })
+```
+
+### 錯誤回應格式
+
+- 錯誤一律用 `{ error: string }`，不用 `{ message: }` 或其他 key
+- Prisma unique constraint 違反（P2002）→ 回 409
+- 找不到資源 → 回 404，不回 200
+
+```ts
+// 正確
+return NextResponse.json({ error: '關鍵字已存在' }, { status: 409 })
+
+// 錯誤
+return NextResponse.json({ message: '...' }, { status: 409 })
+```
+
+### 錯誤處理
+
+```ts
+try {
+  // ...
+} catch (err: unknown) {
+  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+    return NextResponse.json({ error: '...' }, { status: 409 })
+  }
+  console.error(err)
+  return NextResponse.json({ error: '伺服器錯誤' }, { status: 500 })
+}
+```
+
+## TypeScript 規範
+
+- **匯出型別**用 `interface`，**組合型別**用 `type`
+- 捕捉錯誤一律 `catch (err: unknown)`，不用 `catch (err: any)`
+- 共用 utility 函式放 `webapp/lib/utils.ts`，不在 route / component 內重複定義
+- Route 內的 payload interface 定義在檔案頂部，不散落各處
+
+## Python Scraper 規範
+
+- 每個 scraper 以 **module-level async function** 為主要入口，命名 `scrape_<platform>(page, keyword, **kwargs)`
+- 回傳 `list[WatcherItem]`，**絕對不 raise**，錯誤 log 後回傳空 list
+- Price filtering 用 `_apply_price_filter()`（在 `shopee.py` 定義，其他 scraper 匯入）
+- Logger：`logger = logging.getLogger(__name__)`，module level
+- 網路逾時：Playwright 用 `timeout=15_000`（ms），httpx 用 `timeout=15`（s）
+
 ## 環境變數（webapp）
 
 | 變數 | 說明 |
