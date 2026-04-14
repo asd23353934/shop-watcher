@@ -97,9 +97,10 @@ export async function POST(request: Request) {
     keyword.keyword
   )
 
-  // Send email notification (errors are caught internally and don't block response)
+  // Send email notification — only when emailEnabled, use the user's Google account email
+  const emailAddress = notificationSetting?.emailEnabled ? (keyword.user.email ?? null) : null
   await sendEmailNotification(
-    notificationSetting?.emailAddress ?? null,
+    emailAddress,
     item,
     keyword.keyword
   )

@@ -12,7 +12,7 @@ export default async function NotificationStatus({ userId }: Props) {
   })
 
   const hasNotification =
-    !!notificationSetting?.discordWebhookUrl || !!notificationSetting?.emailAddress
+    !!notificationSetting?.discordWebhookUrl || !!notificationSetting?.emailEnabled
 
   if (hasNotification) return null
   return <NotificationBanner />

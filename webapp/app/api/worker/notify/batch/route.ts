@@ -104,7 +104,8 @@ export async function POST(request: Request) {
 
   // Mode-based lookup: keyword or circle follow
   let userId: string
-  let notificationSetting: { discordWebhookUrl: string | null; discordUserId: string | null; emailAddress: string | null; globalSellerBlocklist: string[] } | null = null
+  let notificationSetting: { discordWebhookUrl: string | null; discordUserId: string | null; emailEnabled: boolean; globalSellerBlocklist: string[] } | null = null
+  let userEmail: string | null = null
   let effectiveKeywordLabel: string
   let effectiveWebhook: string | null
   let keywordSellerBlocklist: string[] = []
@@ -122,6 +123,7 @@ export async function POST(request: Request) {
     }
     userId = keyword.userId
     notificationSetting = keyword.user.notificationSetting
+    userEmail = keyword.user.email ?? null
     effectiveKeywordLabel = keyword.keyword
     keywordSellerBlocklist = keyword.sellerBlocklist ?? []
     keywordIdForRecord = keyword_id
@@ -148,6 +150,7 @@ export async function POST(request: Request) {
     }
     userId = circleFollow.userId
     notificationSetting = circleFollow.user.notificationSetting
+    userEmail = circleFollow.user.email ?? null
     effectiveKeywordLabel = `circle:${circleFollow.circleName}`
     keywordIdForRecord = null
 
@@ -269,7 +272,7 @@ export async function POST(request: Request) {
   if (notifyItems.length > 0) {
     const webhookUrl = effectiveWebhook
     const discordUserId = notificationSetting?.discordUserId ?? null
-    const emailAddress = notificationSetting?.emailAddress ?? null
+    const emailAddress = notificationSetting?.emailEnabled ? userEmail : null
     const label = effectiveKeywordLabel
     after(async () => {
       try {

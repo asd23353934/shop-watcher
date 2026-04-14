@@ -53,7 +53,7 @@ model NotificationSetting {
   userId               String   @unique
   discordWebhookUrl    String?
   discordUserId        String?
-  emailAddress         String?
+  emailEnabled         Boolean  @default(false)
   globalSellerBlocklist String[] @default([])
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
 import { Send, Mail, Shield, AlertTriangle, Loader2, X } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -14,7 +16,7 @@ import { cn } from '@/lib/utils'
 interface NotificationSettings {
   discordWebhookUrl: string | null
   discordUserId: string | null
-  emailAddress: string | null
+  emailEnabled: boolean
   globalSellerBlocklist: string[]
 }
 
@@ -27,10 +29,11 @@ function DiscordIcon({ className }: { className?: string }) {
 }
 
 export default function NotificationForm() {
+  const { data: session } = useSession()
   const [form, setForm] = useState<NotificationSettings>({
     discordWebhookUrl: null,
     discordUserId: null,
-    emailAddress: null,
+    emailEnabled: false,
     globalSellerBlocklist: [],
   })
   const [loading, setLoading]               = useState(true)
@@ -51,7 +54,7 @@ export default function NotificationForm() {
       .then((data) => setForm({
         discordWebhookUrl:    data.discordWebhookUrl ?? '',
         discordUserId:        data.discordUserId ?? '',
-        emailAddress:         data.emailAddress ?? '',
+        emailEnabled:         data.emailEnabled ?? false,
         globalSellerBlocklist: data.globalSellerBlocklist ?? [],
       }))
       .catch((err) => { if (err.name !== 'AbortError') toast.error('載入設定失敗') })
@@ -110,11 +113,7 @@ export default function NotificationForm() {
     setEmailTestResult(null)
     setEmailTesting(true)
     try {
-      const res = await fetch('/api/settings/test-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emailAddress: form.emailAddress }),
-      })
+      const res = await fetch('/api/settings/test-email', { method: 'POST' })
       const data = await res.json()
       setEmailTestResult(data.ok
         ? { ok: true,  message: '✓ 測試信已送出，請檢查收件匣（含垃圾郵件）' }
@@ -126,12 +125,16 @@ export default function NotificationForm() {
     }
   }
 
-  const handleSaveEmail = async () => {
+  const handleToggleEmail = async (enabled: boolean) => {
+    const prev = form.emailEnabled
+    setForm((p) => ({ ...p, emailEnabled: enabled }))
+    setEmailTestResult(null)
     setSavingEmail(true)
     try {
-      await patchSettings({ emailAddress: form.emailAddress || null })
-      toast.success('Email 設定已儲存')
+      await patchSettings({ emailEnabled: enabled })
+      toast.success(enabled ? 'Email 通知已啟用' : 'Email 通知已停用')
     } catch (err) {
+      setForm((p) => ({ ...p, emailEnabled: prev }))
       toast.error(err instanceof Error ? err.message : '儲存失敗')
     } finally {
       setSavingEmail(false)
@@ -155,7 +158,6 @@ export default function NotificationForm() {
   }
 
   const discordConfigured = !!form.discordWebhookUrl
-  const emailConfigured   = !!form.emailAddress
 
   return (
     <div className="space-y-6">
@@ -228,20 +230,24 @@ export default function NotificationForm() {
               Email 通知
             </CardTitle>
             <div className="flex items-center gap-2">
-              <span className={cn('h-2 w-2 rounded-full', emailConfigured ? 'bg-green-500' : 'bg-gray-400')} />
-              <span className="text-sm text-gray-500">{emailConfigured ? '已設定' : '未設定'}</span>
+              <span className={cn('h-2 w-2 rounded-full', form.emailEnabled ? 'bg-green-500' : 'bg-gray-400')} />
+              <span className="text-sm text-gray-500">{form.emailEnabled ? '已啟用' : '未啟用'}</span>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1.5">Email 信箱</label>
-            <input type="email" placeholder="your@email.com"
-              value={form.emailAddress ?? ''}
-              onChange={(e) => { setForm((p) => ({ ...p, emailAddress: e.target.value })); setEmailTestResult(null) }}
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">發送 Email 通知</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                通知將寄送至：<span className="font-medium text-gray-600 dark:text-gray-300">{session?.user?.email ?? '—'}</span>
+              </p>
+            </div>
+            <Switch
+              checked={form.emailEnabled}
+              onCheckedChange={handleToggleEmail}
+              disabled={savingEmail}
             />
-            <p className="text-xs text-gray-400 mt-1">清空此欄位即可停用 Email 通知</p>
           </div>
 
           {emailTestResult && (
@@ -250,17 +256,15 @@ export default function NotificationForm() {
             </p>
           )}
 
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={handleTestEmail}
-              disabled={emailTesting || !form.emailAddress}>
-              {emailTesting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
-              測試
-            </Button>
-            <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white"
-              onClick={handleSaveEmail} disabled={savingEmail}>
-              {savingEmail ? '儲存中...' : '儲存'}
-            </Button>
-          </div>
+          {form.emailEnabled && (
+            <div className="flex justify-end">
+              <Button variant="outline" size="sm" onClick={handleTestEmail} disabled={emailTesting}>
+                {emailTesting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
+                測試
+              </Button>
+            </div>
+          )}
+
           <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-3">
             <p className="text-xs text-blue-700 dark:text-blue-300">
               ℹ️ Email 通知與 Discord 通知可同時啟用，兩者都會收到通知。

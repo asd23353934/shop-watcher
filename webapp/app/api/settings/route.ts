@@ -1,7 +1,7 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { isValidDiscordWebhookUrl } from '@/lib/webhook-validation'
-import { DISCORD_USER_ID_RE, isValidEmail } from '@/lib/utils'
+import { DISCORD_USER_ID_RE } from '@/lib/utils'
 import { NextResponse } from 'next/server'
 
 // GET /api/settings — Settings are pre-filled with existing values on load
@@ -20,7 +20,7 @@ export async function GET() {
     settings ?? {
       discordWebhookUrl: null,
       discordUserId: null,
-      emailAddress: null,
+      emailEnabled: false,
       globalSellerBlocklist: [],
     }
   )
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { discordWebhookUrl, discordUserId, emailAddress, globalSellerBlocklist } = body
+  const { discordWebhookUrl, discordUserId, emailEnabled, globalSellerBlocklist } = body
 
   // Validate Discord Webhook URL — Invalid Discord Webhook URL is rejected
   if (discordWebhookUrl && discordWebhookUrl.trim() !== '') {
@@ -53,13 +53,6 @@ export async function POST(request: Request) {
     }
   }
 
-  // Validate email format — Invalid email format is rejected
-  if (emailAddress && emailAddress.trim() !== '') {
-    if (!isValidEmail(emailAddress)) {
-      return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
-    }
-  }
-
   const parsedGlobalSellerBlocklist: string[] = Array.isArray(globalSellerBlocklist)
     ? globalSellerBlocklist.map((w: string) => String(w).trim()).filter((w) => w.length > 0)
     : []
@@ -70,14 +63,14 @@ export async function POST(request: Request) {
     update: {
       discordWebhookUrl: discordWebhookUrl?.trim() || null,
       discordUserId: discordUserId?.trim() || null,
-      emailAddress: emailAddress?.trim() || null,
+      emailEnabled: emailEnabled === true,
       globalSellerBlocklist: parsedGlobalSellerBlocklist,
     },
     create: {
       userId: session.user.id,
       discordWebhookUrl: discordWebhookUrl?.trim() || null,
       discordUserId: discordUserId?.trim() || null,
-      emailAddress: emailAddress?.trim() || null,
+      emailEnabled: emailEnabled === true,
       globalSellerBlocklist: parsedGlobalSellerBlocklist,
     },
   })
@@ -93,7 +86,7 @@ export async function PATCH(request: Request) {
   }
 
   const body = await request.json()
-  const { discordWebhookUrl, discordUserId, emailAddress, globalSellerBlocklist } = body
+  const { discordWebhookUrl, discordUserId, emailEnabled, globalSellerBlocklist } = body
 
   if (discordWebhookUrl !== undefined && discordWebhookUrl && discordWebhookUrl.trim() !== '') {
     if (!isValidDiscordWebhookUrl(discordWebhookUrl)) {
@@ -110,12 +103,6 @@ export async function PATCH(request: Request) {
     }
   }
 
-  if (emailAddress !== undefined && emailAddress && emailAddress.trim() !== '') {
-    if (!isValidEmail(emailAddress)) {
-      return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
-    }
-  }
-
   const parsedGlobalSellerBlocklist: string[] | undefined = globalSellerBlocklist !== undefined
     ? (Array.isArray(globalSellerBlocklist)
         ? globalSellerBlocklist.map((w: string) => String(w).trim()).filter((w) => w.length > 0)
@@ -127,14 +114,14 @@ export async function PATCH(request: Request) {
     update: {
       ...(discordWebhookUrl !== undefined && { discordWebhookUrl: discordWebhookUrl?.trim() || null }),
       ...(discordUserId !== undefined && { discordUserId: discordUserId?.trim() || null }),
-      ...(emailAddress !== undefined && { emailAddress: emailAddress?.trim() || null }),
+      ...(emailEnabled !== undefined && { emailEnabled: emailEnabled === true }),
       ...(parsedGlobalSellerBlocklist !== undefined && { globalSellerBlocklist: parsedGlobalSellerBlocklist }),
     },
     create: {
       userId: session.user.id,
       discordWebhookUrl: discordWebhookUrl?.trim() || null,
       discordUserId: discordUserId?.trim() || null,
-      emailAddress: emailAddress?.trim() || null,
+      emailEnabled: emailEnabled === true,
       globalSellerBlocklist: parsedGlobalSellerBlocklist ?? [],
     },
   })

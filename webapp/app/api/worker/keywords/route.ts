@@ -44,7 +44,7 @@ export async function GET(request: Request) {
       ? {
           discordWebhookUrl: kw.user.notificationSetting.discordWebhookUrl,
           discordUserId: kw.user.notificationSetting.discordUserId,
-          emailAddress: kw.user.notificationSetting.emailAddress,
+          emailEnabled: kw.user.notificationSetting.emailEnabled,
           globalSellerBlocklist: kw.user.notificationSetting.globalSellerBlocklist,
         }
       : null,

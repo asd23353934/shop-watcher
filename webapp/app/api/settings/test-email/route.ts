@@ -1,39 +1,31 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { isValidEmail } from '@/lib/utils'
 import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
 
 /**
  * POST /api/settings/test-email
- * Sends a test email to the user's configured address.
- * Requires authenticated session.
+ * Sends a test email to the user's Google account email address.
+ * Requires authenticated session and emailEnabled = true.
  */
-export async function POST(request: Request) {
+export async function POST() {
   const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
   }
 
-  let emailAddress: string
-  try {
-    const body = await request.json()
-    emailAddress = body?.emailAddress ?? ''
-  } catch {
-    return NextResponse.json({ ok: false, error: 'Invalid request body' }, { status: 400 })
+  const userEmail = session.user.email
+  if (!userEmail) {
+    return NextResponse.json({ ok: false, error: '無法取得帳戶 Email' }, { status: 400 })
   }
 
-  if (!isValidEmail(emailAddress)) {
-    return NextResponse.json({ ok: false, error: '請輸入有效的 Email 地址' }, { status: 400 })
-  }
-
-  // Only allow sending to the user's own configured email address
+  // Only allow sending if emailEnabled is true
   const settings = await prisma.notificationSetting.findUnique({
     where: { userId: session.user.id },
-    select: { emailAddress: true },
+    select: { emailEnabled: true },
   })
-  if (!settings?.emailAddress || settings.emailAddress !== emailAddress.trim()) {
-    return NextResponse.json({ ok: false, error: '只能寄送至已儲存的 Email 地址' }, { status: 403 })
+  if (!settings?.emailEnabled) {
+    return NextResponse.json({ ok: false, error: '請先啟用 Email 通知' }, { status: 403 })
   }
 
   const from = process.env.RESEND_FROM_EMAIL
@@ -50,7 +42,7 @@ export async function POST(request: Request) {
   try {
     const { error } = await resend.emails.send({
       from,
-      to: emailAddress.trim(),
+      to: userEmail,
       subject: '[Shop Watcher] Email 通知測試',
       html: `
 <!DOCTYPE html>
@@ -61,7 +53,7 @@ export async function POST(request: Request) {
   <p>✅ 您的 Email 通知設定正常，此為測試信。</p>
   <p style="color:#6b7280;font-size:14px;">當監控關鍵字發現新商品時，通知信件將寄送至此信箱。</p>
   <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />
-  <p style="font-size:12px;color:#9ca3af;">由 Shop Watcher 自動發送。在設定頁面清空 Email 欄位即可停用此通知。</p>
+  <p style="font-size:12px;color:#9ca3af;">由 Shop Watcher 自動發送。在設定頁面關閉 Email 通知開關即可停用。</p>
 </body>
 </html>`.trim(),
     })
