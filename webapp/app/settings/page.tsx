@@ -1,6 +1,8 @@
+import { auth } from '@/auth'
 import NotificationForm from '@/components/NotificationForm'
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const session = await auth()
   return (
     <>
       <div className="mb-6">
@@ -9,7 +11,7 @@ export default function SettingsPage() {
           設定 Discord Webhook 或 Email 接收新商品通知
         </p>
       </div>
-      <NotificationForm />
+      <NotificationForm displayEmail={session?.user?.email} />
     </>
   )
 }

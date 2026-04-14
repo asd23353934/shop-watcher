@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
 import { Send, Mail, Shield, AlertTriangle, Loader2, X } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -28,8 +27,7 @@ function DiscordIcon({ className }: { className?: string }) {
   )
 }
 
-export default function NotificationForm() {
-  const { data: session } = useSession()
+export default function NotificationForm({ displayEmail }: { displayEmail?: string | null }) {
   const [form, setForm] = useState<NotificationSettings>({
     discordWebhookUrl: null,
     discordUserId: null,
@@ -240,7 +238,7 @@ export default function NotificationForm() {
             <div>
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300">發送 Email 通知</p>
               <p className="text-xs text-gray-400 mt-0.5">
-                通知將寄送至：<span className="font-medium text-gray-600 dark:text-gray-300">{session?.user?.email ?? '—'}</span>
+                通知將寄送至：<span className="font-medium text-gray-600 dark:text-gray-300">{displayEmail ?? '—'}</span>
               </p>
             </div>
             <Switch
