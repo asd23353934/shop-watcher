@@ -78,3 +78,19 @@ export async function GET(request: Request) {
     { headers: { 'Cache-Control': CACHE_CONTROL_PRIVATE_SWR_60 } }
   )
 }
+
+/**
+ * DELETE /api/history
+ * Permanently deletes all SeenItems for the authenticated user.
+ * Resets notification history so future scans will re-notify for the same items.
+ */
+export async function DELETE() {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  await prisma.seenItem.deleteMany({ where: { userId: session.user.id } })
+
+  return NextResponse.json({ ok: true })
+}

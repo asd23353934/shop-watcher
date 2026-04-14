@@ -40,6 +40,7 @@ export default function NotificationForm() {
   const [webhookTesting, setWebhookTesting] = useState(false)
   const [webhookTestResult, setWebhookTestResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [sellerInput, setSellerInput]       = useState('')
+  const [clearingHistory, setClearingHistory] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -310,15 +311,23 @@ export default function NotificationForm() {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>取消</AlertDialogCancel>
-                <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white"
+                <AlertDialogAction
+                  className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+                  disabled={clearingHistory}
                   onClick={async () => {
+                    setClearingHistory(true)
                     try {
                       const res = await fetch('/api/history', { method: 'DELETE' })
-                      if (res.ok) toast.success('通知歷史已清除')
-                      else toast.error('清除失敗')
-                    } catch { toast.error('網路錯誤') }
+                      if (res.ok) {
+                        toast.success('通知歷史已清除')
+                      } else {
+                        console.error('[clear-history] DELETE failed:', res.status)
+                        toast.error('清除失敗，請再試一次')
+                      }
+                    } catch { toast.error('網路錯誤，請再試一次') }
+                    finally { setClearingHistory(false) }
                   }}>
-                  確認清除
+                  {clearingHistory ? '清除中...' : '確認清除'}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
