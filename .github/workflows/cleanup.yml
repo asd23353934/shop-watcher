@@ -26,6 +26,16 @@ jobs:
         working-directory: webapp
         run: npm ci
 
+      - name: 喚醒 DB（Neon scale-to-zero 冷啟動）
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          WORKER_SECRET: ${{ secrets.WORKER_SECRET }}
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $WORKER_SECRET" \
+            "$NEXT_PUBLIC_API_URL/api/worker/keywords")
+          echo "Warmup status: $STATUS"
+
       - name: Run cleanup
         working-directory: webapp
         env:
