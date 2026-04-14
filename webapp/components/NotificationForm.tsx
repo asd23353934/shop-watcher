@@ -39,6 +39,8 @@ export default function NotificationForm() {
   const [savingBlocklist, setSavingBlocklist] = useState(false)
   const [webhookTesting, setWebhookTesting] = useState(false)
   const [webhookTestResult, setWebhookTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [emailTesting, setEmailTesting]     = useState(false)
+  const [emailTestResult, setEmailTestResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [sellerInput, setSellerInput]       = useState('')
   const [clearingHistory, setClearingHistory] = useState(false)
 
@@ -101,6 +103,26 @@ export default function NotificationForm() {
       toast.error(err instanceof Error ? err.message : '儲存失敗')
     } finally {
       setSavingDiscord(false)
+    }
+  }
+
+  const handleTestEmail = async () => {
+    setEmailTestResult(null)
+    setEmailTesting(true)
+    try {
+      const res = await fetch('/api/settings/test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emailAddress: form.emailAddress }),
+      })
+      const data = await res.json()
+      setEmailTestResult(data.ok
+        ? { ok: true,  message: '✓ 測試信已送出，請檢查收件匣（含垃圾郵件）' }
+        : { ok: false, message: `✗ ${data.error ?? '測試失敗'}` })
+    } catch {
+      setEmailTestResult({ ok: false, message: '✗ 網路錯誤，請再試一次' })
+    } finally {
+      setEmailTesting(false)
     }
   }
 
@@ -216,12 +238,24 @@ export default function NotificationForm() {
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1.5">Email 信箱</label>
             <input type="email" placeholder="your@email.com"
               value={form.emailAddress ?? ''}
-              onChange={(e) => setForm((p) => ({ ...p, emailAddress: e.target.value }))}
+              onChange={(e) => { setForm((p) => ({ ...p, emailAddress: e.target.value })); setEmailTestResult(null) }}
               className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
             <p className="text-xs text-gray-400 mt-1">清空此欄位即可停用 Email 通知</p>
           </div>
-          <div className="flex justify-end">
+
+          {emailTestResult && (
+            <p className={`text-xs font-medium ${emailTestResult.ok ? 'text-green-600' : 'text-red-600'}`}>
+              {emailTestResult.message}
+            </p>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={handleTestEmail}
+              disabled={emailTesting || !form.emailAddress}>
+              {emailTesting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
+              測試
+            </Button>
             <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white"
               onClick={handleSaveEmail} disabled={savingEmail}>
               {savingEmail ? '儲存中...' : '儲存'}

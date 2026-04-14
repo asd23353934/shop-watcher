@@ -1,7 +1,7 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { isValidDiscordWebhookUrl } from '@/lib/webhook-validation'
-import { DISCORD_USER_ID_RE } from '@/lib/utils'
+import { DISCORD_USER_ID_RE, isValidEmail } from '@/lib/utils'
 import { NextResponse } from 'next/server'
 
 // GET /api/settings — Settings are pre-filled with existing values on load
@@ -55,8 +55,7 @@ export async function POST(request: Request) {
 
   // Validate email format — Invalid email format is rejected
   if (emailAddress && emailAddress.trim() !== '') {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(emailAddress.trim())) {
+    if (!isValidEmail(emailAddress)) {
       return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
     }
   }
@@ -112,8 +111,7 @@ export async function PATCH(request: Request) {
   }
 
   if (emailAddress !== undefined && emailAddress && emailAddress.trim() !== '') {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(emailAddress.trim())) {
+    if (!isValidEmail(emailAddress)) {
       return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
     }
   }
