@@ -52,7 +52,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    return NextResponse.json({ ok: false, error: `無法連線：${message}` }, { status: 200 })
+    console.error('[test-webhook] fetch failed:', err)
+    return NextResponse.json({ ok: false, error: '連線失敗，請確認 Webhook URL 是否正確' }, { status: 200 })
   }
 }

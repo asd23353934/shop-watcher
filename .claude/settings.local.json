@@ -180,7 +180,16 @@
       "Bash(node -e \"const d=require\\('./C:/Users/user/Desktop/gitlab/shop-watcher/.claude/settings.json'\\); const h=d.hooks.PreToolUse[0].hooks[0]; console.log\\('type:', h.type, '| if:', h.if, '| timeout:', h.timeout, '| JSON valid: OK'\\)\")",
       "Bash(node -e \"const d=require\\('./.claude/settings.json'\\); const h=d.hooks.PreToolUse[0].hooks[0]; console.log\\('type:', h.type, '| if:', h.if, '| timeout:', h.timeout, '| JSON valid: OK'\\)\" --cwd \"C:/Users/user/Desktop/gitlab/shop-watcher\")",
       "Bash(node -e \"const fs=require\\('fs'\\); JSON.parse\\(fs.readFileSync\\('C:\\\\\\\\\\\\\\\\Users\\\\\\\\\\\\\\\\user\\\\\\\\\\\\\\\\Desktop\\\\\\\\\\\\\\\\gitlab\\\\\\\\\\\\\\\\shop-watcher\\\\\\\\\\\\\\\\.claude\\\\\\\\\\\\\\\\settings.json','utf8'\\)\\); console.log\\('JSON valid: OK'\\)\")",
-      "Bash(xargs cat:*)"
+      "Bash(xargs cat:*)",
+      "Bash(git remote:*)",
+      "Bash(node -e \"console.log\\('NEXTAUTH_SECRET=' + require\\('crypto'\\).randomBytes\\(32\\).toString\\('base64'\\)\\); console.log\\('WORKER_SECRET=' + require\\('crypto'\\).randomBytes\\(32\\).toString\\('base64'\\)\\)\")",
+      "Bash(node -e 'const { PrismaClient } = require\\('\\\\''@prisma/client'\\\\''\\); const p = new PrismaClient\\(\\); p.user.count\\(\\).then\\(n => console.log\\('\\\\''OK, users:'\\\\'', n\\)\\).catch\\(e => console.error\\('\\\\''FAIL:'\\\\'', e.message\\)\\).finally\\(\\(\\) => p.$disconnect\\(\\)\\)')",
+      "Bash(node -e 'require\\('\\\\''dotenv'\\\\''\\).config\\({path:'\\\\''.env.local'\\\\''}\\); const { PrismaClient } = require\\('\\\\''@prisma/client'\\\\''\\); const p = new PrismaClient\\(\\); p.user.count\\(\\).then\\(n => console.log\\('\\\\''OK, users:'\\\\'', n\\)\\).catch\\(e => console.error\\('\\\\''FAIL:'\\\\'', e.message\\)\\).finally\\(\\(\\) => p.$disconnect\\(\\)\\)')",
+      "Bash(node -e ':*)",
+      "Read(//c/Users/user/Downloads/**)",
+      "Bash(mkdir -p v0_extracted)",
+      "Bash(unzip -o b_2akJF7dN0Ql.zip -d v0_extracted)",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); print\\(data[0]['text']\\)\")"
     ]
   }
 }

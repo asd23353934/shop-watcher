@@ -45,6 +45,13 @@ export async function POST(request: Request) {
     }
   }
 
+  // Validate Discord User ID — must be a numeric snowflake (17-20 digits)
+  if (discordUserId && discordUserId.trim() !== '') {
+    if (!/^\d{17,20}$/.test(discordUserId.trim())) {
+      return NextResponse.json({ error: 'Invalid Discord User ID' }, { status: 400 })
+    }
+  }
+
   // Validate email format — Invalid email format is rejected
   if (emailAddress && emailAddress.trim() !== '') {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -94,6 +101,12 @@ export async function PATCH(request: Request) {
         { error: 'Invalid Discord Webhook URL' },
         { status: 400 }
       )
+    }
+  }
+
+  if (discordUserId !== undefined && discordUserId && discordUserId.trim() !== '') {
+    if (!/^\d{17,20}$/.test(discordUserId.trim())) {
+      return NextResponse.json({ error: 'Invalid Discord User ID' }, { status: 400 })
     }
   }
 

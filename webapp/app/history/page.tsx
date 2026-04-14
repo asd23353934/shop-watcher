@@ -45,11 +45,12 @@ function groupByDate(items: SeenItem[]): DateGroup[] {
 
   const map = new Map<string, SeenItem[]>()
   for (const item of items) {
-    const day = fmtDay(new Date(item.firstSeen))
+    const d = new Date(item.firstSeen)
+    const day = fmtDay(d)
     const label =
       day === todayStr ? '今天' :
       day === yesterdayStr ? '昨天' :
-      new Date(item.firstSeen).toLocaleDateString('zh-TW', { month: 'long', day: 'numeric' })
+      d.toLocaleDateString('zh-TW', { month: 'long', day: 'numeric' })
     const group = map.get(label)
     if (group) {
       group.push(item)
@@ -82,7 +83,8 @@ export default function HistoryPage() {
     if (platform) params.set('platform', platform)
     if (cursor) params.set('cursor', cursor)
 
-    const res = await fetch(`/api/history?${params}`)
+    const qs = params.toString()
+    const res = await fetch(`/api/history${qs ? `?${qs}` : ''}`)
     if (!res.ok) throw new Error('fetch failed')
     return res.json() as Promise<{ items: SeenItem[]; nextCursor: string | null }>
   }, [])
@@ -115,15 +117,16 @@ export default function HistoryPage() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">通知記錄</h1>
-        <p className="mt-1 text-sm text-gray-500">已通知商品記錄，每頁 50 筆</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">通知記錄</h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">已通知商品記錄，每頁 50 筆</p>
       </div>
 
+      {/* Filters */}
       <div className="mb-6 flex flex-wrap gap-3">
         <select
           value={selectedKeywordId}
           onChange={(e) => setSelectedKeywordId(e.target.value)}
-          className="rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">全部關鍵字</option>
           {keywords.map((kw) => (
@@ -134,7 +137,7 @@ export default function HistoryPage() {
         <select
           value={selectedPlatform}
           onChange={(e) => setSelectedPlatform(e.target.value)}
-          className="rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">全部平台</option>
           {ALL_PLATFORMS.map((p) => (
@@ -144,9 +147,9 @@ export default function HistoryPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-sm text-gray-400">載入中...</div>
+        <div className="text-center py-16 text-sm text-gray-400">載入中...</div>
       ) : items.length === 0 ? (
-        <div className="rounded-xl border bg-white shadow-sm">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
           <EmptyState
             heading="尚無通知紀錄"
             subtitle="當有新商品符合你的關鍵字時，通知紀錄會顯示在這裡"
@@ -157,18 +160,18 @@ export default function HistoryPage() {
           {groups.map((group) => (
             <section key={group.label} className="mb-8">
               <div className="mb-3 flex items-center gap-3">
-                <span className="text-sm font-semibold text-gray-700">{group.label}</span>
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{group.label}</span>
                 <span className="text-xs text-gray-400">{group.items.length} 筆</span>
-                <div className="flex-1 border-t border-gray-200" />
+                <div className="flex-1 border-t border-gray-200 dark:border-gray-700" />
               </div>
 
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                 {group.items.map((item) => (
                   <div
                     key={item.id}
-                    className="flex flex-col overflow-hidden rounded-xl border bg-white shadow-sm hover:shadow-md transition-shadow"
+                    className="flex flex-col overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm hover:shadow-md transition-shadow"
                   >
-                    <div className="h-40 w-full bg-gray-100 flex items-center justify-center overflow-hidden">
+                    <div className="h-40 w-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden">
                       {isHttpUrl(item.imageUrl) ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -178,18 +181,18 @@ export default function HistoryPage() {
                           onError={handleImageError}
                         />
                       ) : (
-                        <span className="text-2xl text-gray-300">🛒</span>
+                        <span className="text-2xl text-gray-300 dark:text-gray-600">🛒</span>
                       )}
                     </div>
 
                     <div className="flex flex-1 flex-col gap-1.5 p-3">
-                      <div className="clamp-2 text-xs font-medium text-gray-900 leading-snug min-h-[2.5rem]">
+                      <div className="clamp-2 text-xs font-medium text-gray-900 dark:text-gray-100 leading-snug min-h-[2.5rem]">
                         {item.itemName && isHttpUrl(item.itemUrl) ? (
                           <a
                             href={item.itemUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-indigo-600 hover:underline"
+                            className="text-indigo-600 dark:text-indigo-400 hover:underline"
                           >
                             {item.itemName}
                           </a>
@@ -201,7 +204,7 @@ export default function HistoryPage() {
                       </div>
 
                       <div className="mt-auto flex items-center justify-between gap-1 pt-1">
-                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600 truncate max-w-[5rem]">
+                        <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[11px] text-gray-600 dark:text-gray-400 truncate max-w-[5rem]">
                           {PLATFORM_LABELS[item.platform] ?? item.platform}
                         </span>
                         <span className="text-[11px] text-gray-400 whitespace-nowrap">
@@ -212,7 +215,7 @@ export default function HistoryPage() {
                         </span>
                       </div>
 
-                      <div className="text-[11px] text-gray-400 truncate">
+                      <div className="text-[11px] text-gray-400 dark:text-gray-500 truncate">
                         關鍵字：{item.keyword}
                       </div>
                     </div>
@@ -227,7 +230,7 @@ export default function HistoryPage() {
               <button
                 onClick={handleLoadMore}
                 disabled={loadingMore}
-                className="rounded-lg border border-gray-300 px-5 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                className="rounded-lg border border-gray-300 dark:border-gray-700 px-5 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
               >
                 {loadingMore ? '載入中...' : '載入更多'}
               </button>

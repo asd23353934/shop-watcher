@@ -1,34 +1,32 @@
 import { prisma } from '@/lib/prisma'
+import { cn } from '@/lib/utils'
+import { PLATFORM_LABELS } from '@/constants/platform'
 
 interface Props {
   userId: string
 }
 
-const PLATFORM_LABELS: Record<string, string> = {
-  ruten: '露天拍賣',
-  pchome: 'PChome 24h',
-  momo: 'momo 購物',
-  animate: 'Animate Online',
-  'yahoo-auction': 'Yahoo! 拍賣',
-  mandarake: 'Mandarake',
-  myacg: 'MyACG',
-  kingstone: '金石堂',
-  booth: 'BOOTH',
-  dlsite: 'DLsite',
-  toranoana: '虎之穴',
-  melonbooks: 'Melonbooks',
-}
-
 function formatRelativeTime(date: Date | null): string {
-  if (!date) return '尚無掃描記錄'
-  const diffMs = Date.now() - date.getTime()
+  if (!date) return '尚無記錄'
+  const diffMs  = Date.now() - date.getTime()
   const diffMin = Math.floor(diffMs / 60000)
-  if (diffMin < 1) return '剛剛'
+  if (diffMin < 1)  return '剛剛'
   if (diffMin < 60) return `${diffMin} 分鐘前`
   const diffHr = Math.floor(diffMin / 60)
-  if (diffHr < 24) return `${diffHr} 小時前`
-  const diffDay = Math.floor(diffHr / 24)
-  return `${diffDay} 天前`
+  if (diffHr < 24)  return `${diffHr} 小時前`
+  return `${Math.floor(diffHr / 24)} 天前`
+}
+
+type Status = 'normal' | 'warning' | 'error'
+
+function getStatus(failCount: number, lastSuccess: Date | null): Status {
+  if (failCount >= 3) return 'error'
+  if (failCount > 0)  return 'warning'
+  if (!lastSuccess)   return 'warning'
+  const diffMin = (Date.now() - lastSuccess.getTime()) / 60000
+  if (diffMin > 120)  return 'error'
+  if (diffMin > 30)   return 'warning'
+  return 'normal'
 }
 
 export default async function PlatformScanHealthSection({ userId }: Props) {
@@ -37,60 +35,103 @@ export default async function PlatformScanHealthSection({ userId }: Props) {
     orderBy: { platform: 'asc' },
   })
 
-  const statusMap = Object.fromEntries(statuses.map((s) => [s.platform, s]))
-
+  const statusMap    = Object.fromEntries(statuses.map((s) => [s.platform, s]))
   const allPlatforms = Object.keys(PLATFORM_LABELS)
 
+  const platformData = allPlatforms.map((platform) => {
+    const record    = statusMap[platform]
+    const failCount = record?.failCount ?? 0
+    const lastSuccess = record?.lastSuccess ?? null
+    const status    = record ? getStatus(failCount, lastSuccess) : 'warning'
+    return { platform, label: PLATFORM_LABELS[platform], failCount, lastSuccess, status, lastError: record?.lastError ?? null }
+  })
+
+  const normalCount  = platformData.filter((p) => p.status === 'normal').length
+  const warningCount = platformData.filter((p) => p.status === 'warning').length
+  const errorCount   = platformData.filter((p) => p.status === 'error').length
+
   return (
-    <section>
-      <h2 className="mb-3 text-sm font-semibold text-gray-700">平台掃描狀態</h2>
-      <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
-        <table className="min-w-full divide-y divide-gray-100 text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-2 text-left font-medium text-gray-500">平台</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-500">上次成功</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-500">狀態</th>
+    <div className="space-y-6">
+      {/* Summary cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="rounded-xl bg-green-50 dark:bg-green-950 p-4 text-center">
+          <p className="text-3xl font-bold text-green-600 dark:text-green-400">{normalCount}</p>
+          <p className="text-sm text-green-600 dark:text-green-400 mt-1">正常 · 平台</p>
+        </div>
+        <div className="rounded-xl bg-yellow-50 dark:bg-yellow-950 p-4 text-center">
+          <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">{warningCount}</p>
+          <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-1">注意 · 平台</p>
+        </div>
+        <div className="rounded-xl bg-red-50 dark:bg-red-950 p-4 text-center">
+          <p className="text-3xl font-bold text-red-600 dark:text-red-400">{errorCount}</p>
+          <p className="text-sm text-red-600 dark:text-red-400 mt-1">異常 · 平台</p>
+        </div>
+      </div>
+
+      {/* Status table */}
+      <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gray-50 dark:bg-gray-800/50">
+              <th className="text-xs font-medium text-gray-500 uppercase tracking-wider text-left px-4 py-3">平台</th>
+              <th className="text-xs font-medium text-gray-500 uppercase tracking-wider text-left px-4 py-3">上次成功掃描</th>
+              <th className="text-xs font-medium text-gray-500 uppercase tracking-wider text-left px-4 py-3">連續失敗</th>
+              <th className="text-xs font-medium text-gray-500 uppercase tracking-wider text-left px-4 py-3">狀態</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
-            {allPlatforms.map((platform) => {
-              const record = statusMap[platform]
-              const failCount = record?.failCount ?? 0
-              const lastSuccess = record?.lastSuccess ?? null
-              const lastError = record?.lastError ?? null
-              const isWarning = failCount >= 3
-
-              return (
-                <tr key={platform} className={isWarning ? 'bg-orange-50' : ''}>
-                  <td className="px-4 py-2 font-medium text-gray-800">
-                    {PLATFORM_LABELS[platform] ?? platform}
-                  </td>
-                  <td className="px-4 py-2 text-gray-500">
-                    {formatRelativeTime(lastSuccess)}
-                  </td>
-                  <td className="px-4 py-2">
-                    {!record ? (
-                      <span className="text-gray-400 text-xs">尚無掃描記錄</span>
-                    ) : isWarning ? (
-                      <span
-                        className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700"
-                        title={lastError ?? undefined}
-                      >
-                        ⚠️ 連續失敗 {failCount} 次
-                      </span>
-                    ) : failCount > 0 ? (
-                      <span className="text-xs text-yellow-600">失敗 {failCount} 次</span>
-                    ) : (
-                      <span className="text-xs text-green-600">✓ 正常</span>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+            {platformData.map(({ platform, label, failCount, lastSuccess, status, lastError }) => (
+              <tr key={platform} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <span className={cn('w-2 h-2 rounded-full flex-shrink-0',
+                      status === 'normal'  ? 'bg-green-500'
+                      : status === 'warning' ? 'bg-yellow-500'
+                      : 'bg-red-500'
+                    )} />
+                    <span className="text-sm text-gray-900 dark:text-gray-100">{label}</span>
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                  {lastSuccess ? formatRelativeTime(lastSuccess) : <span className="text-gray-400">從未</span>}
+                </td>
+                <td className="px-4 py-3 text-sm">
+                  {failCount === 0 ? (
+                    <span className="text-gray-300 dark:text-gray-600">—</span>
+                  ) : failCount >= 3 ? (
+                    <span className="text-red-600 font-bold">{failCount}</span>
+                  ) : (
+                    <span className="text-yellow-600">{failCount}</span>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  {status === 'normal' && (
+                    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400">
+                      ✓ 正常
+                    </span>
+                  )}
+                  {status === 'warning' && (
+                    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-400"
+                      title={lastError ?? undefined}>
+                      ⚠ 注意
+                    </span>
+                  )}
+                  {status === 'error' && (
+                    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400"
+                      title={lastError ?? undefined}>
+                      ✕ 異常
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
-    </section>
+
+      <p className="text-xs text-gray-400 text-center">
+        平台狀態由 Worker 自動回報，若持續顯示異常請檢查 GitHub Actions 執行記錄
+      </p>
+    </div>
   )
 }

@@ -8,11 +8,11 @@ export default async function KeywordsNewLayout({ children }: { children: React.
   if (!session?.user) redirect('/login')
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <Navbar
         user={{ name: session.user.name, image: session.user.image }}
         signOutAction={logoutAction}
-        activeHref="/dashboard"
+
       />
       <main className="mx-auto max-w-2xl px-4 py-8">{children}</main>
     </div>

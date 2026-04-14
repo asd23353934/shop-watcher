@@ -1,11 +1,28 @@
 'use client'
 
 import type { Keyword } from '@/types/keyword'
-import { PLATFORM_LABELS, PLATFORM_BADGE_CLASS, PLATFORM_SEARCH_URL } from '@/constants/platform'
+import { PLATFORM_LABELS, PLATFORM_SEARCH_URL } from '@/constants/platform'
 import { MATCH_MODE_BADGE_LABELS } from '@/constants/matchMode'
-import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
+import { Pencil, Trash2, Link2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+// Platform pill colors (light + dark)
+const PLATFORM_COLORS: Record<string, string> = {
+  ruten:         'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
+  pchome:        'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
+  momo:          'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
+  animate:       'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300',
+  'yahoo-auction': 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300',
+  mandarake:     'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+  myacg:         'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300',
+  kingstone:     'bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300',
+  booth:         'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300',
+  dlsite:        'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
+  toranoana:     'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+  melonbooks:    'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300',
+}
 
 interface KeywordCardProps {
   keyword: Keyword
@@ -18,114 +35,100 @@ interface KeywordCardProps {
 function PriceRange({ minPrice, maxPrice }: { minPrice: number | null; maxPrice: number | null }) {
   if (minPrice == null && maxPrice == null) return null
   let label = ''
-  if (minPrice != null && maxPrice != null) label = `NT$ ${minPrice} – ${maxPrice}`
-  else if (minPrice != null) label = `NT$ ${minPrice} 以上`
-  else label = `NT$ ${maxPrice} 以下`
-  return <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500">{label}</span>
+  if (minPrice != null && maxPrice != null) label = `NT$ ${minPrice.toLocaleString()} – ${maxPrice.toLocaleString()}`
+  else if (minPrice != null) label = `NT$ ${minPrice.toLocaleString()} 以上`
+  else label = `NT$ ${maxPrice!.toLocaleString()} 以下`
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+      💰 {label}
+    </span>
+  )
 }
 
 export default function KeywordCard({ keyword: kw, onEdit, onDelete, onToggle, toggleDisabled }: KeywordCardProps) {
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex-1 min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-semibold text-gray-900">{kw.keyword}</span>
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-              kw.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-            }`}
-          >
-            {kw.active ? '監控中' : '已停用'}
+    <div className="space-y-3">
+      {/* Top row: name + status + controls */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 truncate">{kw.keyword}</h3>
+          <span className={cn(
+            'px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0',
+            kw.active
+              ? 'bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-500'
+          )}>
+            {kw.active ? '監控中' : '已暫停'}
           </span>
           {kw.matchMode && kw.matchMode !== 'any' && (
-            <Badge variant="outline" className="text-indigo-600 border-indigo-300 text-xs">
+            <span className="px-2 py-0.5 rounded-full text-xs border border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 flex-shrink-0">
               {MATCH_MODE_BADGE_LABELS[kw.matchMode] ?? kw.matchMode}
-            </Badge>
+            </span>
           )}
         </div>
-
-        <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {kw.platforms.map((p) => {
-            const searchUrl = PLATFORM_SEARCH_URL[p]?.(kw.keyword)
-            return searchUrl ? (
-              <a
-                key={p}
-                href={searchUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={`在 ${PLATFORM_LABELS[p] ?? p} 搜尋「${kw.keyword}」`}
-              >
-                <Badge variant="outline" className={`text-xs cursor-pointer hover:opacity-70 transition-opacity ${PLATFORM_BADGE_CLASS[p] ?? ''}`}>
-                  {PLATFORM_LABELS[p] ?? p}
-                </Badge>
-              </a>
-            ) : (
-              <Badge key={p} variant="outline" className={`text-xs ${PLATFORM_BADGE_CLASS[p] ?? ''}`}>
-                {PLATFORM_LABELS[p] ?? p}
-              </Badge>
-            )
-          })}
-          <PriceRange minPrice={kw.minPrice} maxPrice={kw.maxPrice} />
-          {kw.mustInclude?.map((word) => (
-            <span key={word} className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">
-              +{word}
-            </span>
-          ))}
-          {kw.blocklist?.map((word) => (
-            <span key={word} className="rounded bg-red-100 px-2 py-0.5 text-xs text-red-700">
-              -{word}
-            </span>
-          ))}
-          {kw.sellerBlocklist?.map((word) => (
-            <span key={word} className="rounded bg-orange-100 px-2 py-0.5 text-xs text-orange-700">
-              賣家:{word}
-            </span>
-          ))}
-          {kw.maxNotifyPerScan != null && (
-            <span className="rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
-              上限 {kw.maxNotifyPerScan} 則
-            </span>
-          )}
-          {kw.discordWebhookUrl && (
-            <span className="rounded bg-purple-100 px-2 py-0.5 text-xs text-purple-700" title={kw.discordWebhookUrl}>
-              Webhook: {kw.discordWebhookUrl.slice(-20)}
-            </span>
-          )}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <Switch checked={kw.active} onCheckedChange={onToggle} disabled={toggleDisabled} aria-label={kw.active ? '停用' : '啟用'} />
+          <Button variant="ghost" size="icon" onClick={onEdit} aria-label="編輯" className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={onDelete} disabled={toggleDisabled} aria-label="刪除" className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950">
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
-        <Switch
-          checked={kw.active}
-          onCheckedChange={onToggle}
-          disabled={toggleDisabled}
-          aria-label={kw.active ? '停用' : '啟用'}
-        />
+      {/* Platform badges */}
+      <div className="flex flex-wrap gap-1.5">
+        {kw.platforms.map((p) => {
+          const searchUrl = PLATFORM_SEARCH_URL[p]?.(kw.keyword)
+          const colorClass = PLATFORM_COLORS[p] ?? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+          const content = (
+            <span className={cn(
+              'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium hover:opacity-80 transition-opacity',
+              colorClass,
+              searchUrl && 'cursor-pointer'
+            )}>
+              {PLATFORM_LABELS[p] ?? p}
+            </span>
+          )
+          return searchUrl ? (
+            <a key={p} href={searchUrl} target="_blank" rel="noopener noreferrer" title={`在 ${PLATFORM_LABELS[p] ?? p} 搜尋「${kw.keyword}」`}>
+              {content}
+            </a>
+          ) : (
+            <span key={p}>{content}</span>
+          )
+        })}
+      </div>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onEdit}
-          aria-label="編輯"
-          className="h-8 w-8 text-gray-500 hover:text-gray-700"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4">
-            <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
-          </svg>
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onDelete}
-          disabled={toggleDisabled}
-          aria-label="刪除"
-          className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4">
-            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-          </svg>
-        </Button>
+      {/* Info tags */}
+      <div className="flex flex-wrap gap-1.5">
+        <PriceRange minPrice={kw.minPrice} maxPrice={kw.maxPrice} />
+        {kw.mustInclude?.map((word) => (
+          <span key={word} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
+            🔤 {word}
+          </span>
+        ))}
+        {kw.blocklist?.map((word) => (
+          <span key={word} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400">
+            🚫 {word}
+          </span>
+        ))}
+        {kw.sellerBlocklist?.map((word) => (
+          <span key={word} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-orange-50 dark:bg-orange-950 text-orange-600 dark:text-orange-400">
+            🏪 {word}
+          </span>
+        ))}
+        {kw.discordWebhookUrl && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+            <Link2 className="h-3 w-3" /> 自訂通知
+          </span>
+        )}
+        {kw.maxNotifyPerScan != null && (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400">
+            📊 最多 {kw.maxNotifyPerScan} 筆
+          </span>
+        )}
       </div>
     </div>
   )

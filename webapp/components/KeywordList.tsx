@@ -8,15 +8,10 @@ import { PLATFORM_LABELS } from '@/constants/platform'
 import KeywordCard from '@/components/KeywordCard'
 import EmptyState from '@/components/EmptyState'
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { cn } from '@/lib/utils'
 
 interface KeywordListProps {
   keywords: Keyword[]
@@ -68,6 +63,7 @@ export default function KeywordList({
       })
       if (res.ok) {
         onOptimisticToggle(kw.id, newActive)
+        toast.success(newActive ? '關鍵字已啟用' : '關鍵字已暫停')
       } else {
         onOptimisticToggle(kw.id, kw.active)
         toast.error('切換失敗，請稍後再試')
@@ -148,161 +144,130 @@ export default function KeywordList({
 
   return (
     <>
-      <div className="space-y-3">
+      <div className="space-y-4">
         {optimisticKeywords.map((kw) => (
-          <div key={kw.id} className="rounded-xl border bg-white p-5 shadow-sm">
+          <div key={kw.id} className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 shadow-sm">
             {editingId === kw.id ? (
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  value={editForm.keyword ?? ''}
-                  onChange={(e) => setEditForm((p) => ({ ...p, keyword: e.target.value }))}
-                  className="w-full rounded-md border px-3 py-2 text-sm"
-                />
-                <div className="flex flex-wrap gap-4">
-                  {Object.entries(PLATFORM_LABELS).map(([p, label]) => (
-                    <label key={p} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={(editForm.platforms ?? []).includes(p)}
-                        onChange={() => toggleEditPlatform(p)}
-                      />
-                      {label}
-                    </label>
-                  ))}
+              // ── Edit form ────────────────────────────────────────────
+              <div className="space-y-4 animate-in slide-in-from-top-2 duration-200">
+                {/* Keyword name */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">關鍵字</label>
+                  <input
+                    type="text"
+                    value={editForm.keyword ?? ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, keyword: e.target.value }))}
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
                 </div>
-                <div>
-                  <p className="mb-1 text-xs font-medium text-gray-600">搜尋精確度</p>
+
+                {/* Platforms */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">監控平台</label>
+                    <div className="flex gap-2 text-xs">
+                      <button onClick={() => setEditForm((p) => ({ ...p, platforms: Object.keys(PLATFORM_LABELS) }))} className="text-indigo-600 dark:text-indigo-400 hover:underline">全選</button>
+                      <span className="text-gray-300 dark:text-gray-600">|</span>
+                      <button onClick={() => setEditForm((p) => ({ ...p, platforms: [] }))} className="text-indigo-600 dark:text-indigo-400 hover:underline">全消</button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {Object.entries(PLATFORM_LABELS).map(([p, label]) => {
+                      const isSelected = (editForm.platforms ?? []).includes(p)
+                      return (
+                        <label key={p} className={cn(
+                          'flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all text-sm',
+                          isSelected
+                            ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300'
+                            : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                        )}>
+                          <input type="checkbox" checked={isSelected} onChange={() => toggleEditPlatform(p)} className="h-4 w-4 text-indigo-600" />
+                          {label}
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Match mode */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">搜尋精確度</label>
                   <select
                     value={editForm.matchMode ?? 'any'}
                     onChange={(e) => setEditForm((prev) => ({ ...prev, matchMode: e.target.value }))}
-                    className="w-full rounded-md border px-2 py-1 text-sm"
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     {Object.entries(MATCH_MODE_LABELS).map(([value, label]) => (
                       <option key={value} value={value}>{label}</option>
                     ))}
                   </select>
                   {editForm.matchMode && MATCH_MODE_EXAMPLES[editForm.matchMode] && (
-                    <p className="mt-1 text-xs text-gray-400">{MATCH_MODE_EXAMPLES[editForm.matchMode]}</p>
+                    <p className="text-xs text-gray-400">{MATCH_MODE_EXAMPLES[editForm.matchMode]}</p>
                   )}
                 </div>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    value={editForm.minPrice ?? ''}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, minPrice: e.target.value ? Number(e.target.value) : null }))}
-                    placeholder="最低價格"
-                    className="w-full rounded-md border px-3 py-2 text-sm"
-                  />
-                  <input
-                    type="number"
-                    value={editForm.maxPrice ?? ''}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, maxPrice: e.target.value ? Number(e.target.value) : null }))}
-                    placeholder="最高價格"
-                    className="w-full rounded-md border px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <p className="mb-1 text-xs font-medium text-gray-600">必包詞</p>
-                  <div className="mb-1 flex flex-wrap gap-1">
-                    {(editForm.mustInclude ?? []).map((word) => (
-                      <span key={word} className="flex items-center gap-1 rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">
-                        {word}
-                        <button type="button" onClick={() => setEditForm((prev) => ({ ...prev, mustInclude: (prev.mustInclude ?? []).filter((w) => w !== word) }))} className="ml-0.5 text-green-400 hover:text-green-600">×</button>
-                      </span>
-                    ))}
+
+                {/* Price range */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">最低價格</label>
+                    <input type="number" placeholder="NT$" value={editForm.minPrice ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, minPrice: e.target.value ? Number(e.target.value) : null }))}
+                      className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                   </div>
-                  <div className="flex gap-1">
-                    <input
-                      type="text"
-                      value={editMustIncludeInput}
-                      onChange={(e) => setEditMustIncludeInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (editMustIncludeInput.trim()) { setEditForm((prev) => ({ ...prev, mustInclude: [...(prev.mustInclude ?? []), editMustIncludeInput.trim()] })); setEditMustIncludeInput('') } } }}
-                      placeholder="輸入必包詞"
-                      className="flex-1 rounded-md border px-2 py-1 text-xs"
-                    />
-                    <button type="button" onClick={() => { if (editMustIncludeInput.trim()) { setEditForm((prev) => ({ ...prev, mustInclude: [...(prev.mustInclude ?? []), editMustIncludeInput.trim()] })); setEditMustIncludeInput('') } }} className="rounded-md border px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">新增</button>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">最高價格</label>
+                    <input type="number" placeholder="NT$" value={editForm.maxPrice ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, maxPrice: e.target.value ? Number(e.target.value) : null }))}
+                      className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                   </div>
                 </div>
-                <div>
-                  <p className="mb-1 text-xs font-medium text-gray-600">禁詞</p>
-                  <div className="mb-1 flex flex-wrap gap-1">
-                    {(editForm.blocklist ?? []).map((word) => (
-                      <span key={word} className="flex items-center gap-1 rounded bg-red-100 px-2 py-0.5 text-xs text-red-700">
-                        {word}
-                        <button type="button" onClick={() => setEditForm((prev) => ({ ...prev, blocklist: (prev.blocklist ?? []).filter((w) => w !== word) }))} className="ml-0.5 text-red-400 hover:text-red-600">×</button>
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex gap-1">
-                    <input
-                      type="text"
-                      value={editBlocklistInput}
-                      onChange={(e) => setEditBlocklistInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (editBlocklistInput.trim()) { setEditForm((prev) => ({ ...prev, blocklist: [...(prev.blocklist ?? []), editBlocklistInput.trim()] })); setEditBlocklistInput('') } } }}
-                      placeholder="輸入禁詞"
-                      className="flex-1 rounded-md border px-2 py-1 text-xs"
-                    />
-                    <button type="button" onClick={() => { if (editBlocklistInput.trim()) { setEditForm((prev) => ({ ...prev, blocklist: [...(prev.blocklist ?? []), editBlocklistInput.trim()] })); setEditBlocklistInput('') } }} className="rounded-md border px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">新增</button>
-                  </div>
+
+                {/* Must-include chips */}
+                <ChipInput label="必包詞" chips={editForm.mustInclude ?? []} inputValue={editMustIncludeInput} onInputChange={setEditMustIncludeInput}
+                  onAdd={() => { if (editMustIncludeInput.trim()) { setEditForm((p) => ({ ...p, mustInclude: [...(p.mustInclude ?? []), editMustIncludeInput.trim()] })); setEditMustIncludeInput('') } }}
+                  onRemove={(w) => setEditForm((p) => ({ ...p, mustInclude: (p.mustInclude ?? []).filter((x) => x !== w) }))}
+                  chipClass="bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300" />
+
+                {/* Blocklist chips */}
+                <ChipInput label="禁詞" chips={editForm.blocklist ?? []} inputValue={editBlocklistInput} onInputChange={setEditBlocklistInput}
+                  onAdd={() => { if (editBlocklistInput.trim()) { setEditForm((p) => ({ ...p, blocklist: [...(p.blocklist ?? []), editBlocklistInput.trim()] })); setEditBlocklistInput('') } }}
+                  onRemove={(w) => setEditForm((p) => ({ ...p, blocklist: (p.blocklist ?? []).filter((x) => x !== w) }))}
+                  chipClass="bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300" />
+
+                {/* Seller blocklist chips */}
+                <ChipInput label="屏蔽賣場" chips={editForm.sellerBlocklist ?? []} inputValue={editSellerBlocklistInput} onInputChange={setEditSellerBlocklistInput}
+                  onAdd={() => { if (editSellerBlocklistInput.trim()) { setEditForm((p) => ({ ...p, sellerBlocklist: [...(p.sellerBlocklist ?? []), editSellerBlocklistInput.trim()] })); setEditSellerBlocklistInput('') } }}
+                  onRemove={(w) => setEditForm((p) => ({ ...p, sellerBlocklist: (p.sellerBlocklist ?? []).filter((x) => x !== w) }))}
+                  chipClass="bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300" />
+
+                {/* Webhook */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">專屬 Discord Webhook（選填）</label>
+                  <input type="url" placeholder="https://discord.com/api/webhooks/..." value={editForm.discordWebhookUrl ?? ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, discordWebhookUrl: e.target.value || null }))}
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
-                <div>
-                  <p className="mb-1 text-xs font-medium text-gray-600">賣家/社團黑名單</p>
-                  <div className="mb-1 flex flex-wrap gap-1">
-                    {(editForm.sellerBlocklist ?? []).map((word) => (
-                      <span key={word} className="flex items-center gap-1 rounded bg-orange-100 px-2 py-0.5 text-xs text-orange-700">
-                        {word}
-                        <button type="button" onClick={() => setEditForm((prev) => ({ ...prev, sellerBlocklist: (prev.sellerBlocklist ?? []).filter((w) => w !== word) }))} className="ml-0.5 text-orange-400 hover:text-orange-600">×</button>
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex gap-1">
-                    <input
-                      type="text"
-                      value={editSellerBlocklistInput}
-                      onChange={(e) => setEditSellerBlocklistInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (editSellerBlocklistInput.trim()) { setEditForm((prev) => ({ ...prev, sellerBlocklist: [...(prev.sellerBlocklist ?? []), editSellerBlocklistInput.trim()] })); setEditSellerBlocklistInput('') } } }}
-                      placeholder="輸入賣家名稱或 ID"
-                      className="flex-1 rounded-md border px-2 py-1 text-xs"
-                    />
-                    <button type="button" onClick={() => { if (editSellerBlocklistInput.trim()) { setEditForm((prev) => ({ ...prev, sellerBlocklist: [...(prev.sellerBlocklist ?? []), editSellerBlocklistInput.trim()] })); setEditSellerBlocklistInput('') } }} className="rounded-md border px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">新增</button>
-                  </div>
+
+                {/* Max notify */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">每次最多通知筆數（選填）</label>
+                  <input type="number" placeholder="空白 = 無上限" min="1" value={editForm.maxNotifyPerScan ?? ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, maxNotifyPerScan: e.target.value ? Number(e.target.value) : null }))}
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 max-w-xs" />
                 </div>
-                <div>
-                  <p className="mb-1 text-xs font-medium text-gray-600">專屬 Discord Webhook（選填）</p>
-                  <input
-                    type="url"
-                    value={editForm.discordWebhookUrl ?? ''}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, discordWebhookUrl: e.target.value || null }))}
-                    placeholder="https://discord.com/api/webhooks/..."
-                    className="w-full rounded-md border px-2 py-1 text-xs"
-                  />
-                </div>
-                <div>
-                  <p className="mb-1 text-xs font-medium text-gray-600">每次掃描通知上限（選填）</p>
-                  <input
-                    type="number"
-                    value={editForm.maxNotifyPerScan ?? ''}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, maxNotifyPerScan: e.target.value ? Number(e.target.value) : null }))}
-                    min="1"
-                    placeholder="預設使用系統設定"
-                    className="w-full rounded-md border px-2 py-1 text-xs"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEditSave(kw.id)}
-                    disabled={editLoading}
-                    className="rounded-md bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50"
-                  >
+
+                {/* Actions */}
+                <div className="flex gap-2 pt-2">
+                  <button onClick={() => handleEditSave(kw.id)} disabled={editLoading}
+                    className="flex-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
                     {editLoading ? '儲存中...' : '儲存'}
                   </button>
-                  <button onClick={() => setEditingId(null)} className="rounded-md border px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">
+                  <button onClick={() => setEditingId(null)}
+                    className="rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
                     取消
                   </button>
                 </div>
               </div>
             ) : (
+              // ── Card display ─────────────────────────────────────────
               <KeywordCard
                 keyword={kw}
                 onEdit={() => handleEdit(kw)}
@@ -315,7 +280,7 @@ export default function KeywordList({
         ))}
       </div>
 
-      {/* 刪除確認 AlertDialog */}
+      {/* Delete confirm dialog */}
       <AlertDialog open={deleteTargetId !== null} onOpenChange={(open) => { if (!open) setDeleteTargetId(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -326,15 +291,55 @@ export default function KeywordList({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-            >
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 focus:ring-red-600">
               刪除
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
+  )
+}
+
+// ── Reusable chip input ─────────────────────────────────────────────────────
+interface ChipInputProps {
+  label: string
+  chips: string[]
+  inputValue: string
+  onInputChange: (v: string) => void
+  onAdd: () => void
+  onRemove: (v: string) => void
+  chipClass: string
+}
+
+function ChipInput({ label, chips, inputValue, onInputChange, onAdd, onRemove, chipClass }: ChipInputProps) {
+  return (
+    <div className="space-y-1">
+      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
+      {chips.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {chips.map((c) => (
+            <span key={c} className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs', chipClass)}>
+              {c}
+              <button type="button" onClick={() => onRemove(c)} className="hover:opacity-70">×</button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-1">
+        <input
+          type="text"
+          value={inputValue}
+          onChange={(e) => onInputChange(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAdd() } }}
+          placeholder="輸入後按 Enter 或新增"
+          className="flex-1 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+        <button type="button" onClick={onAdd}
+          className="rounded-md border border-gray-300 dark:border-gray-700 px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
+          新增
+        </button>
+      </div>
+    </div>
   )
 }

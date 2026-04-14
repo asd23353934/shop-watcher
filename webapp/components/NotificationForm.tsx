@@ -1,12 +1,29 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
+import { Send, Mail, Shield, AlertTriangle, Loader2, X } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { cn } from '@/lib/utils'
 
 interface NotificationSettings {
   discordWebhookUrl: string | null
   discordUserId: string | null
   emailAddress: string | null
   globalSellerBlocklist: string[]
+}
+
+function DiscordIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+    </svg>
+  )
 }
 
 export default function NotificationForm() {
@@ -16,35 +33,40 @@ export default function NotificationForm() {
     emailAddress: null,
     globalSellerBlocklist: [],
   })
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
+  const [loading, setLoading]               = useState(true)
+  const [savingDiscord, setSavingDiscord]   = useState(false)
+  const [savingEmail, setSavingEmail]       = useState(false)
+  const [savingBlocklist, setSavingBlocklist] = useState(false)
   const [webhookTesting, setWebhookTesting] = useState(false)
   const [webhookTestResult, setWebhookTestResult] = useState<{ ok: boolean; message: string } | null>(null)
-  const [sellerBlocklistInput, setSellerBlocklistInput] = useState('')
+  const [sellerInput, setSellerInput]       = useState('')
 
-  // Settings are pre-filled with existing values on load
   useEffect(() => {
     const controller = new AbortController()
-
     fetch('/api/settings', { signal: controller.signal })
-      .then((res) => res.json())
-      .then((data) => {
-        setForm({
-          discordWebhookUrl: data.discordWebhookUrl ?? '',
-          discordUserId: data.discordUserId ?? '',
-          emailAddress: data.emailAddress ?? '',
-          globalSellerBlocklist: data.globalSellerBlocklist ?? [],
-        })
-      })
-      .catch((err) => {
-        if (err.name !== 'AbortError') setError('載入設定失敗')
-      })
+      .then((r) => r.json())
+      .then((data) => setForm({
+        discordWebhookUrl:    data.discordWebhookUrl ?? '',
+        discordUserId:        data.discordUserId ?? '',
+        emailAddress:         data.emailAddress ?? '',
+        globalSellerBlocklist: data.globalSellerBlocklist ?? [],
+      }))
+      .catch((err) => { if (err.name !== 'AbortError') toast.error('載入設定失敗') })
       .finally(() => setLoading(false))
-
     return () => controller.abort()
   }, [])
+
+  const patchSettings = async (patch: Partial<NotificationSettings>) => {
+    const res = await fetch('/api/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    })
+    if (!res.ok) {
+      const data = await res.json()
+      throw new Error(data.error ?? '儲存失敗')
+    }
+  }
 
   const handleTestWebhook = async () => {
     setWebhookTestResult(null)
@@ -56,11 +78,9 @@ export default function NotificationForm() {
         body: JSON.stringify({ webhookUrl: form.discordWebhookUrl }),
       })
       const data = await res.json()
-      if (data.ok) {
-        setWebhookTestResult({ ok: true, message: '✓ 測試訊息已送出' })
-      } else {
-        setWebhookTestResult({ ok: false, message: `✗ ${data.error ?? '測試失敗'}` })
-      }
+      setWebhookTestResult(data.ok
+        ? { ok: true,  message: '✓ 測試訊息已送出' }
+        : { ok: false, message: `✗ ${data.error ?? '測試失敗'}` })
     } catch {
       setWebhookTestResult({ ok: false, message: '✗ 網路錯誤，請再試一次' })
     } finally {
@@ -68,37 +88,42 @@ export default function NotificationForm() {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    setSuccess(false)
-    setSaving(true)
-
+  const handleSaveDiscord = async () => {
+    setSavingDiscord(true)
     try {
-      const res = await fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          discordWebhookUrl: form.discordWebhookUrl || null,
-          discordUserId: form.discordUserId || null,
-          // User clears email address to disable email notifications
-          emailAddress: form.emailAddress || null,
-          globalSellerBlocklist: form.globalSellerBlocklist,
-        }),
+      await patchSettings({
+        discordWebhookUrl: form.discordWebhookUrl || null,
+        discordUserId:     form.discordUserId || null,
       })
-
-      if (!res.ok) {
-        const data = await res.json()
-        setError(data.error ?? '儲存失敗')
-        return
-      }
-
-      setSuccess(true)
-      setTimeout(() => setSuccess(false), 3000)
-    } catch {
-      setError('網路錯誤，請再試一次')
+      toast.success('Discord 設定已儲存')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '儲存失敗')
     } finally {
-      setSaving(false)
+      setSavingDiscord(false)
+    }
+  }
+
+  const handleSaveEmail = async () => {
+    setSavingEmail(true)
+    try {
+      await patchSettings({ emailAddress: form.emailAddress || null })
+      toast.success('Email 設定已儲存')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '儲存失敗')
+    } finally {
+      setSavingEmail(false)
+    }
+  }
+
+  const handleSaveBlocklist = async () => {
+    setSavingBlocklist(true)
+    try {
+      await patchSettings({ globalSellerBlocklist: form.globalSellerBlocklist })
+      toast.success('屏蔽清單已儲存')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '儲存失敗')
+    } finally {
+      setSavingBlocklist(false)
     }
   }
 
@@ -106,161 +131,198 @@ export default function NotificationForm() {
     return <div className="text-center text-sm text-gray-500 py-8">載入中...</div>
   }
 
+  const discordConfigured = !!form.discordWebhookUrl
+  const emailConfigured   = !!form.emailAddress
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
-      )}
-      {success && (
-        <div className="rounded-md bg-green-50 px-4 py-3 text-sm text-green-600">設定已儲存</div>
-      )}
-
-      {/* Discord section */}
-      <div className="rounded-xl border bg-white p-6 shadow-sm">
-        <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
-          <span className="text-indigo-600">🎮</span> Discord 通知
-        </h2>
-
-        <div className="mb-4">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            Webhook URL
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="url"
-              value={form.discordWebhookUrl ?? ''}
-              onChange={(e) => {
-                setForm((p) => ({ ...p, discordWebhookUrl: e.target.value }))
-                setWebhookTestResult(null)
-              }}
-              placeholder="https://discord.com/api/webhooks/..."
-              className="flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <button
-              type="button"
-              onClick={handleTestWebhook}
-              disabled={webhookTesting || !form.discordWebhookUrl}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40"
-            >
-              {webhookTesting ? '測試中...' : '測試'}
-            </button>
+    <div className="space-y-6">
+      {/* Discord card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>
+              <DiscordIcon className="h-5 w-5 text-purple-600" />
+              Discord Webhook 通知
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <span className={cn('h-2 w-2 rounded-full', discordConfigured ? 'bg-green-500' : 'bg-gray-400')} />
+              <span className="text-sm text-gray-500">{discordConfigured ? '已設定' : '未設定'}</span>
+            </div>
           </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1.5">Webhook URL</label>
+            <input
+              type="url" placeholder="https://discord.com/api/webhooks/..."
+              value={form.discordWebhookUrl ?? ''}
+              onChange={(e) => { setForm((p) => ({ ...p, discordWebhookUrl: e.target.value })); setWebhookTestResult(null) }}
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <p className="text-xs text-gray-400 mt-1">從 Discord 頻道設定 → 整合 → Webhooks 取得</p>
+          </div>
+
           {webhookTestResult && (
-            <p className={`mt-1 text-xs font-medium ${webhookTestResult.ok ? 'text-green-600' : 'text-red-600'}`}>
+            <p className={`text-xs font-medium ${webhookTestResult.ok ? 'text-green-600' : 'text-red-600'}`}>
               {webhookTestResult.message}
             </p>
           )}
-          <p className="mt-1 text-xs text-gray-400">
-            從 Discord 頻道設定 → 整合 → Webhooks 取得
-          </p>
-        </div>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            Discord User ID <span className="text-gray-400">（選填，用於 @ 提及）</span>
-          </label>
-          <input
-            type="text"
-            value={form.discordUserId ?? ''}
-            onChange={(e) => setForm((p) => ({ ...p, discordUserId: e.target.value }))}
-            placeholder="例：123456789012345678"
-            className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          <p className="mt-1 text-xs text-gray-400">
-            在 Discord 開啟開發者模式後，右鍵點擊自己即可複製 User ID
-          </p>
-        </div>
-      </div>
-
-      {/* Email section */}
-      <div className="rounded-xl border bg-white p-6 shadow-sm">
-        <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
-          <span className="text-indigo-600">📧</span> Email 通知
-        </h2>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            Email 地址 <span className="text-gray-400">（選填）</span>
-          </label>
-          <input
-            type="email"
-            value={form.emailAddress ?? ''}
-            onChange={(e) => setForm((p) => ({ ...p, emailAddress: e.target.value }))}
-            placeholder="your@email.com"
-            className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          <p className="mt-1 text-xs text-gray-400">清空此欄位即可停用 Email 通知</p>
-        </div>
-      </div>
-
-      {/* Global seller blocklist */}
-      <div className="rounded-xl border bg-white p-6 shadow-sm">
-        <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-800">
-          <span className="text-indigo-600">🚫</span> 全域賣家/社團黑名單
-        </h2>
-        <p className="mb-3 text-xs text-gray-500">加入此名單的賣家或社團，所有關鍵字的通知都會過濾（不分大小寫，substring 比對）</p>
-
-        {form.globalSellerBlocklist.length > 0 && (
-          <div className="mb-3 flex flex-wrap gap-1.5">
-            {form.globalSellerBlocklist.map((word) => (
-              <span
-                key={word}
-                className="flex items-center gap-1 rounded bg-orange-100 px-2 py-0.5 text-xs text-orange-700"
-              >
-                {word}
-                <button
-                  type="button"
-                  onClick={() => setForm((p) => ({ ...p, globalSellerBlocklist: p.globalSellerBlocklist.filter((w) => w !== word) }))}
-                  className="ml-0.5 text-orange-400 hover:text-orange-600"
-                >
-                  ×
-                </button>
-              </span>
-            ))}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={handleTestWebhook}
+              disabled={webhookTesting || !form.discordWebhookUrl}>
+              {webhookTesting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
+              測試
+            </Button>
+            <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              onClick={handleSaveDiscord} disabled={savingDiscord}>
+              {savingDiscord ? '儲存中...' : '儲存'}
+            </Button>
           </div>
-        )}
 
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={sellerBlocklistInput}
-            onChange={(e) => setSellerBlocklistInput(e.target.value)}
+          <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1.5">
+              Discord 使用者 ID（選填）
+            </label>
+            <input type="text" placeholder="例：123456789012345678"
+              value={form.discordUserId ?? ''}
+              onChange={(e) => setForm((p) => ({ ...p, discordUserId: e.target.value }))}
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              在 Discord 開啟開發者模式後，右鍵點擊自己即可複製 User ID
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Email card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>
+              <Mail className="h-5 w-5 text-blue-500" />
+              Email 通知
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <span className={cn('h-2 w-2 rounded-full', emailConfigured ? 'bg-green-500' : 'bg-gray-400')} />
+              <span className="text-sm text-gray-500">{emailConfigured ? '已設定' : '未設定'}</span>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1.5">Email 信箱</label>
+            <input type="email" placeholder="your@email.com"
+              value={form.emailAddress ?? ''}
+              onChange={(e) => setForm((p) => ({ ...p, emailAddress: e.target.value }))}
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <p className="text-xs text-gray-400 mt-1">清空此欄位即可停用 Email 通知</p>
+          </div>
+          <div className="flex justify-end">
+            <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              onClick={handleSaveEmail} disabled={savingEmail}>
+              {savingEmail ? '儲存中...' : '儲存'}
+            </Button>
+          </div>
+          <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-3">
+            <p className="text-xs text-blue-700 dark:text-blue-300">
+              ℹ️ Email 通知與 Discord 通知可同時啟用，兩者都會收到通知。
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Global seller blocklist card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <Shield className="h-5 w-5 text-orange-500" />
+            全域屏蔽賣場
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            加入此名單的賣家或社團，所有關鍵字的通知都會過濾（不分大小寫，substring 比對）
+          </p>
+          {form.globalSellerBlocklist.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {form.globalSellerBlocklist.map((store) => (
+                <span key={store} className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-sm">
+                  {store}
+                  <button type="button"
+                    onClick={() => setForm((p) => ({ ...p, globalSellerBlocklist: p.globalSellerBlocklist.filter((w) => w !== store) }))}
+                    className="hover:opacity-70 rounded-full">
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <input type="text" placeholder="輸入賣家名稱後按 Enter"
+            value={sellerInput} onChange={(e) => setSellerInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault()
-                const word = sellerBlocklistInput.trim()
+                const word = sellerInput.trim()
                 if (word && !form.globalSellerBlocklist.includes(word)) {
                   setForm((p) => ({ ...p, globalSellerBlocklist: [...p.globalSellerBlocklist, word] }))
-                  setSellerBlocklistInput('')
+                  setSellerInput('')
                 }
               }
             }}
-            placeholder="輸入賣家名稱或 ID 後按新增"
-            className="flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
-          <button
-            type="button"
-            onClick={() => {
-              const word = sellerBlocklistInput.trim()
-              if (word && !form.globalSellerBlocklist.includes(word)) {
-                setForm((p) => ({ ...p, globalSellerBlocklist: [...p.globalSellerBlocklist, word] }))
-                setSellerBlocklistInput('')
-              }
-            }}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
-          >
-            新增
-          </button>
-        </div>
-      </div>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-400">目前共屏蔽 {form.globalSellerBlocklist.length} 個賣場</p>
+            <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              onClick={handleSaveBlocklist} disabled={savingBlocklist}>
+              {savingBlocklist ? '儲存中...' : '儲存屏蔽清單'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
-      <button
-        type="submit"
-        disabled={saving}
-        className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-      >
-        {saving ? '儲存中...' : '儲存設定'}
-      </button>
-    </form>
+      {/* Danger zone */}
+      <Card className="border-red-200 dark:border-red-900">
+        <CardHeader>
+          <CardTitle className="text-red-600">
+            <AlertTriangle className="h-5 w-5" />
+            危險操作
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" className="border-red-300 dark:border-red-800 text-red-600 hover:bg-red-50 dark:hover:bg-red-950">
+                清除所有通知歷史
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>確定要清除所有通知歷史？</AlertDialogTitle>
+                <AlertDialogDescription>
+                  此操作無法復原，所有已通知商品記錄將被永久刪除，下次掃描時同樣商品會再次觸發通知。
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>取消</AlertDialogCancel>
+                <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/history', { method: 'DELETE' })
+                      if (res.ok) toast.success('通知歷史已清除')
+                      else toast.error('清除失敗')
+                    } catch { toast.error('網路錯誤') }
+                  }}>
+                  確認清除
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

@@ -75,11 +75,8 @@ export async function sendDiscordNotification(
   const platformLabel = PLATFORM_LABELS[item.platform] ?? item.platform
   const color = PLATFORM_COLORS[item.platform] ?? 0x7289da
 
-  // User mention is included when discordUserId is set
-  // No mention when discordUserId is null
-  const content = discordUserId
-    ? `<@${discordUserId}> 發現新商品！`
-    : '發現新商品！'
+  const safeMention = discordUserId && /^\d{17,20}$/.test(discordUserId) ? `<@${discordUserId}>` : null
+  const content = safeMention ? `${safeMention} 發現新商品！` : '發現新商品！'
 
   const fields: Array<{ name: string; value: string; inline: boolean }> = [
     { name: '平台', value: platformLabel, inline: true },
@@ -133,14 +130,14 @@ export async function sendDiscordBatchNotification(
 ): Promise<void> {
   if (!webhookUrl || items.length === 0) return
 
-  // Cap items at MAX_NOTIFY_PER_BATCH (default 10)
-  const maxBatch = parseInt(process.env.MAX_NOTIFY_PER_BATCH ?? '100', 10) || 100
+  const maxBatch = parseInt(process.env.MAX_NOTIFY_PER_BATCH ?? '10', 10) || 10
   const capped = items.slice(0, maxBatch)
   const omitted = items.length - capped.length
 
   const totalLabel = items.length > maxBatch ? `${maxBatch}/${items.length}` : String(items.length)
-  const content = discordUserId
-    ? `<@${discordUserId}> 關鍵字「${keyword}」發現 ${totalLabel} 個新商品！`
+  const safeMention = discordUserId && /^\d{17,20}$/.test(discordUserId) ? `<@${discordUserId}>` : null
+  const content = safeMention
+    ? `${safeMention} 關鍵字「${keyword}」發現 ${totalLabel} 個新商品！`
     : `關鍵字「${keyword}」發現 ${totalLabel} 個新商品！`
 
   const toEmbed = (item: Item) => {

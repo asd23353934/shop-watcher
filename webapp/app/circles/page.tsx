@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import CircleFollowForm from '@/components/CircleFollowForm'
 import EmptyState from '@/components/EmptyState'
+import { PLATFORM_LABELS } from '@/constants/platform'
 
 interface CircleFollow {
   id: string
@@ -15,9 +16,9 @@ interface CircleFollow {
   createdAt: string
 }
 
-const PLATFORM_LABELS: Record<string, string> = {
-  booth: 'BOOTH',
-  dlsite: 'DLsite',
+const PLATFORM_STYLES: Record<string, string> = {
+  booth:  'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400',
+  dlsite: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400',
 }
 
 export default function CirclesPage() {
@@ -72,8 +73,8 @@ export default function CirclesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">社團追蹤</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">社團追蹤</h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           追蹤 BOOTH 店家或 DLsite 社團的所有新作，無需設定關鍵字
         </p>
       </div>
@@ -84,7 +85,7 @@ export default function CirclesPage() {
           {loading ? (
             <div className="text-center py-12 text-sm text-gray-400">載入中...</div>
           ) : follows.length === 0 ? (
-            <div className="rounded-xl border bg-white shadow-sm">
+            <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
               <EmptyState
                 heading="尚無社團追蹤"
                 subtitle="新增 BOOTH 店家或 DLsite 社團，當有新作上架時即時通知"
@@ -93,17 +94,22 @@ export default function CirclesPage() {
           ) : (
             <div className="space-y-3">
               {follows.map((follow) => (
-                <div key={follow.id} className="rounded-xl border bg-white p-5 shadow-sm">
+                <div
+                  key={follow.id}
+                  className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 shadow-sm"
+                >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-gray-900">{follow.circleName}</span>
-                        <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs text-indigo-700">
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">{follow.circleName}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${PLATFORM_STYLES[follow.platform] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}`}>
                           {PLATFORM_LABELS[follow.platform] ?? follow.platform}
                         </span>
                         <span
                           className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                            follow.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                            follow.active
+                              ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400'
+                              : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
                           }`}
                         >
                           {follow.active ? '追蹤中' : '已暫停'}
@@ -111,7 +117,7 @@ export default function CirclesPage() {
                       </div>
                       <div className="mt-1 text-xs text-gray-400">ID: {follow.circleId}</div>
                       {follow.webhookUrl && (
-                        <div className="mt-1 text-xs text-purple-600" title={follow.webhookUrl}>
+                        <div className="mt-1 text-xs text-purple-500 dark:text-purple-400" title={follow.webhookUrl}>
                           Webhook: ...{follow.webhookUrl.slice(-20)}
                         </div>
                       )}
@@ -120,10 +126,10 @@ export default function CirclesPage() {
                       <button
                         onClick={() => handleToggleActive(follow)}
                         disabled={pendingIds.has(follow.id)}
-                        className={`rounded-md border px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
+                        className={`rounded-md border px-3 py-1.5 text-xs font-medium disabled:opacity-50 transition-colors ${
                           follow.active
-                            ? 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                            : 'border-indigo-300 text-indigo-600 hover:bg-indigo-50'
+                            ? 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                            : 'border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950'
                         }`}
                       >
                         {pendingIds.has(follow.id) ? '處理中...' : follow.active ? '暫停' : '恢復'}
@@ -131,7 +137,7 @@ export default function CirclesPage() {
                       <button
                         onClick={() => handleDelete(follow.id)}
                         disabled={pendingIds.has(follow.id)}
-                        className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 disabled:opacity-50"
+                        className="rounded-md border border-red-200 dark:border-red-900 px-3 py-1.5 text-xs font-medium text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 disabled:opacity-50 transition-colors"
                       >
                         刪除
                       </button>

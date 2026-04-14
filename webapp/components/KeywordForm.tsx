@@ -2,78 +2,54 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { ChevronDown, ChevronUp, X } from 'lucide-react'
 import type { Keyword } from '@/types/keyword'
-import { MATCH_MODE_LABELS } from '@/constants/matchMode'
+import { MATCH_MODE_LABELS, MATCH_MODE_EXAMPLES } from '@/constants/matchMode'
 import { PLATFORM_LABELS } from '@/constants/platform'
+import { cn } from '@/lib/utils'
 
 interface KeywordFormProps {
   onSuccess?: (keyword: Keyword) => void
 }
 
-const MATCH_MODE_EXAMPLES_FORM: Record<string, string> = {
-  any: '關鍵字「機械 鍵盤」→ 商品名含「機械」或「鍵盤」任一詞即通知，範圍較廣',
-  all: '關鍵字「機械 鍵盤」→ 商品名必須同時含「機械」和「鍵盤」，過濾不相關商品',
-  exact: '關鍵字「機械鍵盤」→ 商品名必須包含「機械鍵盤」這段完整字串，最精確',
-}
+
+const TAIWAN_PLATFORMS = ['ruten', 'pchome', 'momo', 'animate', 'yahoo-auction', 'myacg', 'kingstone']
+const JAPAN_PLATFORMS  = ['mandarake', 'melonbooks', 'toranoana', 'booth', 'dlsite']
 
 export default function KeywordForm({ onSuccess }: KeywordFormProps) {
-  const [keyword, setKeyword] = useState('')
-  const [platforms, setPlatforms] = useState<string[]>(['ruten'])
-  const [minPrice, setMinPrice] = useState('')
-  const [maxPrice, setMaxPrice] = useState('')
-  const [blocklist, setBlocklist] = useState<string[]>([])
+  const [keyword, setKeyword]             = useState('')
+  const [platforms, setPlatforms]         = useState<string[]>(['ruten'])
+  const [matchMode, setMatchMode]         = useState('any')
+  const [minPrice, setMinPrice]           = useState('')
+  const [maxPrice, setMaxPrice]           = useState('')
+  const [blocklist, setBlocklist]         = useState<string[]>([])
   const [blocklistInput, setBlocklistInput] = useState('')
-  const [mustInclude, setMustInclude] = useState<string[]>([])
+  const [mustInclude, setMustInclude]     = useState<string[]>([])
   const [mustIncludeInput, setMustIncludeInput] = useState('')
-  const [matchMode, setMatchMode] = useState('any')
-  const [active, setActive] = useState(true)
-  const [loading, setLoading] = useState(false)
-  const [sellerBlocklist, setSellerBlocklist] = useState<string[]>([])
-  const [sellerBlocklistInput, setSellerBlocklistInput] = useState('')
+  const [sellerBlocklist, setSellerBlocklist]  = useState<string[]>([])
+  const [sellerInput, setSellerInput]          = useState('')
   const [discordWebhookUrl, setDiscordWebhookUrl] = useState('')
-  const [maxNotifyPerScan, setMaxNotifyPerScan] = useState('')
+  const [maxNotifyPerScan, setMaxNotifyPerScan]   = useState('')
+  const [active, setActive]               = useState(true)
+  const [advancedOpen, setAdvancedOpen]   = useState(false)
+  const [loading, setLoading]             = useState(false)
 
-  const togglePlatform = (platform: string) => {
-    setPlatforms((prev) =>
-      prev.includes(platform) ? prev.filter((p) => p !== platform) : [...prev, platform]
-    )
+  const togglePlatform = (p: string) =>
+    setPlatforms((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p])
+
+  const addChip = (val: string, list: string[], setList: (v: string[]) => void, setInput: (v: string) => void) => {
+    const t = val.trim()
+    if (t && !list.includes(t)) setList([...list, t])
+    setInput('')
   }
 
-  const handleAddBlockword = () => {
-    const word = blocklistInput.trim()
-    if (!word || blocklist.includes(word)) return
-    setBlocklist((prev) => [...prev, word])
-    setBlocklistInput('')
-  }
-
-  const handleRemoveBlockword = (word: string) => {
-    setBlocklist((prev) => prev.filter((w) => w !== word))
-  }
-
-  const handleAddMustInclude = () => {
-    const word = mustIncludeInput.trim()
-    if (!word || mustInclude.includes(word)) return
-    setMustInclude((prev) => [...prev, word])
-    setMustIncludeInput('')
-  }
-
-  const handleRemoveMustInclude = (word: string) => {
-    setMustInclude((prev) => prev.filter((w) => w !== word))
-  }
-
-  const handleAddSellerBlockword = () => {
-    const word = sellerBlocklistInput.trim()
-    if (!word || sellerBlocklist.includes(word)) return
-    setSellerBlocklist((prev) => [...prev, word])
-    setSellerBlocklistInput('')
-  }
-
-  const handleRemoveSellerBlockword = (word: string) => {
-    setSellerBlocklist((prev) => prev.filter((w) => w !== word))
-  }
+  const removeChip = (val: string, list: string[], setList: (v: string[]) => void) =>
+    setList(list.filter((v) => v !== val))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!keyword.trim()) { toast.error('請輸入關鍵字'); return }
+    if (platforms.length === 0) { toast.error('請至少選擇一個平台'); return }
     setLoading(true)
 
     try {
@@ -81,15 +57,10 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          keyword,
-          platforms,
+          keyword, platforms,
           minPrice: minPrice ? Number(minPrice) : null,
           maxPrice: maxPrice ? Number(maxPrice) : null,
-          blocklist,
-          mustInclude,
-          matchMode,
-          active,
-          sellerBlocklist,
+          blocklist, mustInclude, matchMode, active, sellerBlocklist,
           discordWebhookUrl: discordWebhookUrl || null,
           maxNotifyPerScan: maxNotifyPerScan ? Number(maxNotifyPerScan) : null,
         }),
@@ -102,22 +73,9 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
       }
 
       const newKeyword: Keyword = await res.json()
-
-      // Reset form
-      setKeyword('')
-      setPlatforms(['ruten'])
-      setMinPrice('')
-      setMaxPrice('')
-      setBlocklist([])
-      setBlocklistInput('')
-      setMustInclude([])
-      setMustIncludeInput('')
-      setMatchMode('any')
-      setActive(true)
-      setSellerBlocklist([])
-      setSellerBlocklistInput('')
-      setDiscordWebhookUrl('')
-      setMaxNotifyPerScan('')
+      setKeyword(''); setPlatforms(['ruten']); setMinPrice(''); setMaxPrice('')
+      setBlocklist([]); setMustInclude([]); setMatchMode('any')
+      setSellerBlocklist([]); setDiscordWebhookUrl(''); setMaxNotifyPerScan('')
       toast.success('關鍵字已新增')
       onSuccess?.(newKeyword)
     } catch {
@@ -128,277 +86,204 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-xl border bg-white p-6 shadow-sm">
-      <h2 className="mb-4 text-lg font-semibold text-gray-800">新增關鍵字</h2>
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {/* ① 基本設定 */}
+      <section className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 shadow-sm space-y-4">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">① 基本設定</p>
 
-      {/* Keyword */}
-      <div className="mb-4">
-        <label className="mb-1 block text-sm font-medium text-gray-700">
-          關鍵字 <span className="text-red-500">*</span>
-        </label>
-        <input
-          type="text"
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          placeholder="例：機械鍵盤"
-          className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          required
-        />
-      </div>
-
-      {/* Platforms */}
-      <div className="mb-4">
-        <label className="mb-2 block text-sm font-medium text-gray-700">
-          平台 <span className="text-red-500">*</span>
-        </label>
-        <div className="flex flex-wrap gap-4">
-          {Object.entries(PLATFORM_LABELS).map(([platform, label]) => (
-            <label key={platform} className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={platforms.includes(platform)}
-                onChange={() => togglePlatform(platform)}
-                className="h-4 w-4 rounded border-gray-300 text-indigo-600"
-              />
-              {label}
-            </label>
-          ))}
-        </div>
-      </div>
-
-      {/* Match mode */}
-      <div className="mb-4">
-        <label className="mb-1 block text-sm font-medium text-gray-700">搜尋精確度</label>
-        <select
-          value={matchMode}
-          onChange={(e) => setMatchMode(e.target.value)}
-          className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        >
-          {Object.entries(MATCH_MODE_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
-        {matchMode && MATCH_MODE_EXAMPLES_FORM[matchMode] && (
-          <p className="mt-1 text-xs text-gray-400">
-            範例：{MATCH_MODE_EXAMPLES_FORM[matchMode]}
-          </p>
-        )}
-      </div>
-
-      {/* Price range */}
-      <div className="mb-4 flex gap-3">
-        <div className="flex-1">
-          <label className="mb-1 block text-sm font-medium text-gray-700">最低價格（NT$）</label>
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            關鍵字 <span className="text-red-500">*</span>
+          </label>
           <input
-            type="number"
-            value={minPrice}
-            onChange={(e) => setMinPrice(e.target.value)}
-            min="0"
-            placeholder="不限"
-            className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            type="text" value={keyword} onChange={(e) => setKeyword(e.target.value)} required
+            placeholder="例：初音ミク figma 1/7"
+            className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
+          <p className="text-xs text-gray-400">建議包含：商品名稱、品牌、尺寸</p>
         </div>
-        <div className="flex-1">
-          <label className="mb-1 block text-sm font-medium text-gray-700">最高價格（NT$）</label>
-          <input
-            type="number"
-            value={maxPrice}
-            onChange={(e) => setMaxPrice(e.target.value)}
-            min="0"
-            placeholder="不限"
-            className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-      </div>
 
-      {/* Must-include */}
-      <div className="mb-4">
-        <label className="mb-1 block text-sm font-medium text-gray-700">必包詞（選填）</label>
-        {mustInclude.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-1">
-            {mustInclude.map((word) => (
-              <span
-                key={word}
-                className="flex items-center gap-1 rounded bg-green-100 px-2 py-0.5 text-xs text-green-700"
-              >
-                {word}
-                <button
-                  type="button"
-                  onClick={() => handleRemoveMustInclude(word)}
-                  className="ml-0.5 text-green-400 hover:text-green-600"
-                >
-                  ×
-                </button>
-              </span>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">搜尋精確度</label>
+          <div className="space-y-2">
+            {Object.entries(MATCH_MODE_LABELS).map(([value, label]) => (
+              <button key={value} type="button" onClick={() => setMatchMode(value)}
+                className={cn('w-full p-3 rounded-lg border-2 text-left transition-all',
+                  matchMode === value
+                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300')}>
+                <div className="flex items-center gap-2">
+                  <span className={cn('w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0',
+                    matchMode === value ? 'border-indigo-600' : 'border-gray-300')}>
+                    {matchMode === value && <span className="w-2 h-2 rounded-full bg-indigo-600" />}
+                  </span>
+                  <span className="font-medium text-sm text-gray-900 dark:text-gray-100">{label}</span>
+                </div>
+                {MATCH_MODE_EXAMPLES[value] && (
+                  <p className="text-xs text-gray-400 ml-6 mt-1">{MATCH_MODE_EXAMPLES[value]}</p>
+                )}
+              </button>
             ))}
           </div>
-        )}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={mustIncludeInput}
-            onChange={(e) => setMustIncludeInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { e.preventDefault(); handleAddMustInclude() }
-            }}
-            placeholder="輸入必包詞後按新增"
-            className="flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          <button
-            type="button"
-            onClick={handleAddMustInclude}
-            className="rounded-md border px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
-          >
-            新增
-          </button>
         </div>
-        <p className="mt-1 text-xs text-gray-400">商品名稱必須包含所有必包詞才會發送通知</p>
-      </div>
+      </section>
 
-      {/* Blocklist */}
-      <div className="mb-4">
-        <label className="mb-1 block text-sm font-medium text-gray-700">
-          禁詞（選填）
-        </label>
-        {blocklist.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-1">
-            {blocklist.map((word) => (
-              <span
-                key={word}
-                className="flex items-center gap-1 rounded bg-red-100 px-2 py-0.5 text-xs text-red-700"
-              >
-                {word}
-                <button
-                  type="button"
-                  onClick={() => handleRemoveBlockword(word)}
-                  className="ml-0.5 text-red-400 hover:text-red-600"
-                >
-                  ×
-                </button>
-              </span>
-            ))}
+      {/* ② 監控平台 */}
+      <section className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 shadow-sm space-y-3">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          ② 監控平台 <span className="text-red-500">*</span>
+        </p>
+        <div className="flex gap-3 text-xs">
+          <button type="button" onClick={() => setPlatforms(Object.keys(PLATFORM_LABELS))} className="text-indigo-600 dark:text-indigo-400 hover:underline">全選</button>
+          <button type="button" onClick={() => setPlatforms([])} className="text-indigo-600 dark:text-indigo-400 hover:underline">全消</button>
+          <button type="button" onClick={() => setPlatforms(TAIWAN_PLATFORMS)} className="text-indigo-600 dark:text-indigo-400 hover:underline">台灣平台</button>
+          <button type="button" onClick={() => setPlatforms(JAPAN_PLATFORMS)} className="text-indigo-600 dark:text-indigo-400 hover:underline">日本平台</button>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+          {Object.entries(PLATFORM_LABELS).map(([p, label]) => {
+            const selected = platforms.includes(p)
+            return (
+              <button key={p} type="button" onClick={() => togglePlatform(p)}
+                className={cn('p-2.5 rounded-lg border-2 text-left text-sm transition-all',
+                  selected
+                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950 ring-1 ring-indigo-500'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300')}>
+                <span className="text-gray-900 dark:text-gray-100">{label}</span>
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* ③ 價格篩選 */}
+      <section className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 shadow-sm space-y-3">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">③ 價格篩選（選填）</p>
+        <div className="flex items-center gap-3">
+          <div className="flex-1 space-y-1">
+            <label className="text-sm text-gray-600 dark:text-gray-400">最低價格</label>
+            <div className="flex items-center gap-1">
+              <span className="text-sm text-gray-500">NT$</span>
+              <input type="number" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} min="0" placeholder="不限"
+                className="flex-1 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+          </div>
+          <span className="text-gray-400 mt-5">—</span>
+          <div className="flex-1 space-y-1">
+            <label className="text-sm text-gray-600 dark:text-gray-400">最高價格</label>
+            <div className="flex items-center gap-1">
+              <span className="text-sm text-gray-500">NT$</span>
+              <input type="number" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} min="0" placeholder="不限"
+                className="flex-1 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+          </div>
+        </div>
+        <p className="text-xs text-gray-400">不填表示無限制</p>
+      </section>
+
+      {/* ④ 進階篩選 — collapsible */}
+      <section className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
+        <button type="button" onClick={() => setAdvancedOpen(!advancedOpen)}
+          className="w-full px-5 py-4 flex items-center justify-between text-left">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">④ 進階篩選（選填）</p>
+          {advancedOpen ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+        </button>
+        {advancedOpen && (
+          <div className="px-5 pb-5 space-y-4 border-t border-gray-100 dark:border-gray-800 pt-4">
+            <FormChipInput label="必包詞" hint="商品名稱必須包含以下任一詞（OR 邏輯）" chips={mustInclude} inputValue={mustIncludeInput}
+              onInputChange={setMustIncludeInput}
+              onAdd={() => addChip(mustIncludeInput, mustInclude, setMustInclude, setMustIncludeInput)}
+              onRemove={(w) => removeChip(w, mustInclude, setMustInclude)}
+              chipClass="bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300" />
+            <FormChipInput label="禁詞" hint="商品名稱含以下詞則跳過（例：二手、代購）" chips={blocklist} inputValue={blocklistInput}
+              onInputChange={setBlocklistInput}
+              onAdd={() => addChip(blocklistInput, blocklist, setBlocklist, setBlocklistInput)}
+              onRemove={(w) => removeChip(w, blocklist, setBlocklist)}
+              chipClass="bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300" />
+            <FormChipInput label="屏蔽賣場" hint="來自以下賣場的商品一律過濾" chips={sellerBlocklist} inputValue={sellerInput}
+              onInputChange={setSellerInput}
+              onAdd={() => addChip(sellerInput, sellerBlocklist, setSellerBlocklist, setSellerInput)}
+              onRemove={(w) => removeChip(w, sellerBlocklist, setSellerBlocklist)}
+              chipClass="bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300" />
           </div>
         )}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={blocklistInput}
-            onChange={(e) => setBlocklistInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { e.preventDefault(); handleAddBlockword() }
-            }}
-            placeholder="輸入禁詞後按新增"
-            className="flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          <button
-            type="button"
-            onClick={handleAddBlockword}
-            className="rounded-md border px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
-          >
-            新增
-          </button>
+      </section>
+
+      {/* ⑤ 通知設定 */}
+      <section className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 shadow-sm space-y-4">
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">⑤ 通知設定（選填）</p>
+          <p className="text-xs text-gray-400 mt-0.5">不填則使用全域通知設定</p>
         </div>
-        <p className="mt-1 text-xs text-gray-400">商品名稱包含禁詞時不會發送通知</p>
-      </div>
 
-      {/* Seller blocklist */}
-      <div className="mb-4">
-        <label className="mb-1 block text-sm font-medium text-gray-700">
-          賣家/社團黑名單（選填）
-        </label>
-        {sellerBlocklist.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-1">
-            {sellerBlocklist.map((word) => (
-              <span
-                key={word}
-                className="flex items-center gap-1 rounded bg-orange-100 px-2 py-0.5 text-xs text-orange-700"
-              >
-                {word}
-                <button
-                  type="button"
-                  onClick={() => handleRemoveSellerBlockword(word)}
-                  className="ml-0.5 text-orange-400 hover:text-orange-600"
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={sellerBlocklistInput}
-            onChange={(e) => setSellerBlocklistInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { e.preventDefault(); handleAddSellerBlockword() }
-            }}
-            placeholder="輸入賣家名稱或 ID 後按新增"
-            className="flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          <button
-            type="button"
-            onClick={handleAddSellerBlockword}
-            className="rounded-md border px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
-          >
-            新增
-          </button>
+        <div className="space-y-1">
+          <label className="text-sm text-gray-600 dark:text-gray-400">自訂 Discord Webhook URL</label>
+          <input type="url" value={discordWebhookUrl} onChange={(e) => setDiscordWebhookUrl(e.target.value)}
+            placeholder="https://discord.com/api/webhooks/..."
+            className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <p className="text-xs text-gray-400">留空時使用全域 Webhook，填寫後此關鍵字的通知單獨送至此頻道</p>
         </div>
-        <p className="mt-1 text-xs text-gray-400">含此賣家名稱或 ID 的商品不會發送通知（不分大小寫）</p>
-      </div>
 
-      {/* Per-keyword Discord Webhook */}
-      <div className="mb-4">
-        <label className="mb-1 block text-sm font-medium text-gray-700">
-          專屬 Discord Webhook（選填）
-        </label>
-        <input
-          type="url"
-          value={discordWebhookUrl}
-          onChange={(e) => setDiscordWebhookUrl(e.target.value)}
-          placeholder="https://discord.com/api/webhooks/..."
-          className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-        <p className="mt-1 text-xs text-gray-400">留空時使用全域 Webhook，填寫後此關鍵字的通知單獨送至此頻道</p>
-      </div>
+        <div className="space-y-1">
+          <label className="text-sm text-gray-600 dark:text-gray-400">每次掃描通知上限（選填）</label>
+          <input type="number" value={maxNotifyPerScan} onChange={(e) => setMaxNotifyPerScan(e.target.value)} min="1"
+            placeholder="空白 = 無上限"
+            className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 max-w-xs" />
+          <p className="text-xs text-gray-400">限制此關鍵字單次掃描最多傳送幾則通知</p>
+        </div>
 
-      {/* maxNotifyPerScan */}
-      <div className="mb-4">
-        <label className="mb-1 block text-sm font-medium text-gray-700">
-          每次掃描通知上限（選填）
-        </label>
-        <input
-          type="number"
-          value={maxNotifyPerScan}
-          onChange={(e) => setMaxNotifyPerScan(e.target.value)}
-          min="1"
-          placeholder="預設使用系統設定"
-          className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-        <p className="mt-1 text-xs text-gray-400">限制此關鍵字單次掃描最多傳送幾則通知，防止熱門商品刷爆頻道</p>
-      </div>
+        {/* Active toggle */}
+        <div className="flex items-center gap-3">
+          <label className="relative inline-flex cursor-pointer items-center">
+            <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} className="peer sr-only" />
+            <div className="peer h-6 w-11 rounded-full bg-gray-200 dark:bg-gray-700 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-indigo-600 peer-checked:after:translate-x-full" />
+          </label>
+          <span className="text-sm text-gray-700 dark:text-gray-300">建立後立即啟用監控</span>
+        </div>
+      </section>
 
-      {/* Active toggle */}
-      <div className="mb-6 flex items-center gap-3">
-        <label className="relative inline-flex cursor-pointer items-center">
-          <input
-            type="checkbox"
-            checked={active}
-            onChange={(e) => setActive(e.target.checked)}
-            className="peer sr-only"
-          />
-          <div className="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-indigo-600 peer-checked:after:translate-x-full"></div>
-        </label>
-        <span className="text-sm text-gray-700">啟用監控</span>
+      {/* Submit */}
+      <div className="flex items-center justify-between pt-2">
+        <span className="text-xs text-gray-400">所有欄位填寫完成後即可建立</span>
+        <button type="submit" disabled={loading}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50">
+          {loading ? '新增中...' : '建立關鍵字'}
+        </button>
       </div>
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-      >
-        {loading ? '新增中...' : '新增關鍵字'}
-      </button>
     </form>
+  )
+}
+
+// ── Form chip input helper ──────────────────────────────────────────────────
+interface FormChipInputProps {
+  label: string
+  hint?: string
+  chips: string[]
+  inputValue: string
+  onInputChange: (v: string) => void
+  onAdd: () => void
+  onRemove: (v: string) => void
+  chipClass: string
+}
+
+function FormChipInput({ label, hint, chips, inputValue, onInputChange, onAdd, onRemove, chipClass }: FormChipInputProps) {
+  return (
+    <div className="space-y-1">
+      <label className="text-sm text-gray-600 dark:text-gray-400">{label}</label>
+      {chips.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {chips.map((c) => (
+            <span key={c} className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs', chipClass)}>
+              {c}
+              <button type="button" onClick={() => onRemove(c)}><X className="h-3 w-3" /></button>
+            </span>
+          ))}
+        </div>
+      )}
+      <input type="text" value={inputValue} onChange={(e) => onInputChange(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAdd() } }}
+        placeholder="輸入後按 Enter"
+        className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+      {hint && <p className="text-xs text-gray-400">{hint}</p>}
+    </div>
   )
 }

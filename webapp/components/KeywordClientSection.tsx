@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { Plus } from 'lucide-react'
 import type { Keyword } from '@/types/keyword'
 import KeywordList from '@/components/KeywordList'
 
@@ -13,9 +14,7 @@ export default function KeywordClientSection({ initialKeywords }: Props) {
   const [keywords, setKeywords] = useState<Keyword[]>(initialKeywords)
 
   const handleToggle = (id: string, newActive: boolean) => {
-    setKeywords((prev) =>
-      prev.map((k) => (k.id === id ? { ...k, active: newActive } : k))
-    )
+    setKeywords((prev) => prev.map((k) => (k.id === id ? { ...k, active: newActive } : k)))
   }
 
   const handleUpdate = (updated: Keyword) => {
@@ -34,15 +33,15 @@ export default function KeywordClientSection({ initialKeywords }: Props) {
   }
 
   return (
-    <div>
-      <div className="mb-4 flex justify-end">
+    <div className="space-y-4">
+      {/* Section header */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">我的關鍵字</h2>
         <Link
           href="/keywords/new"
-          className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-sm font-medium text-white transition-colors"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-4 w-4">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
+          <Plus className="h-4 w-4" />
           新增關鍵字
         </Link>
       </div>

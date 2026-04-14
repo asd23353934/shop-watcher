@@ -1,7 +1,10 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { CACHE_CONTROL_PRIVATE_SWR_60 } from '@/lib/utils'
+import { PLATFORM_LABELS } from '@/constants/platform'
 import { NextResponse } from 'next/server'
+
+const VALID_PLATFORMS = new Set(Object.keys(PLATFORM_LABELS))
 
 /**
  * GET /api/history
@@ -52,6 +55,9 @@ export async function GET(request: Request) {
   }
 
   if (platform) {
+    if (!VALID_PLATFORMS.has(platform)) {
+      return NextResponse.json({ error: '無效的平台' }, { status: 400 })
+    }
     where.platform = platform
   }
 
