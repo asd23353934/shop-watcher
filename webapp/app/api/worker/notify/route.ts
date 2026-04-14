@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     },
   })
 
-  const item = { name, price, url, image_url, platform, item_id }
+  const item = { name, price, url, imageUrl: isHttpUrl(image_url) ? image_url : null, platform, itemId: item_id }
   const notificationSetting = keyword.user.notificationSetting
 
   // Send Discord notification (errors are caught internally and don't block response)
