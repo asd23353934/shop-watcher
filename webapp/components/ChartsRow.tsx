@@ -9,6 +9,7 @@ import {
 interface ChartData {
   lineData: { date: string; count: number }[]
   barData: { platform: string; count: number }[]
+  compact?: boolean
 }
 
 interface CustomTooltipProps {
@@ -29,9 +30,9 @@ function CustomTooltip({ active, payload, type }: CustomTooltipProps) {
   return null
 }
 
-export default function ChartsRow({ lineData, barData }: ChartData) {
+export default function ChartsRow({ lineData, barData, compact = false }: ChartData) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className={`grid gap-4 ${compact ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
       {/* Line chart — 7天通知趨勢 */}
       <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 shadow-sm">
         <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4 text-sm">

@@ -30,33 +30,37 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* Stat cards */}
-      <section>
-        <Suspense fallback={<SkeletonCard count={3} />}>
-          <DashboardStats userId={userId} />
-        </Suspense>
-      </section>
+      {/* Two-column grid: keywords left, stats+charts right.
+          On mobile the grid collapses to 1 col — keywords stay first in DOM so they render first. */}
+      <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] lg:items-start gap-6">
 
-      {/* Notification warning */}
-      <Suspense fallback={null}>
-        <NotificationStatus userId={userId} />
-      </Suspense>
+        {/* LEFT — Keyword list (first in DOM = first on mobile) */}
+        <section>
+          <Suspense fallback={<KeywordSectionSkeleton />}>
+            <KeywordSection userId={userId} />
+          </Suspense>
+        </section>
 
-      {/* Charts */}
-      <section>
-        <Suspense fallback={<SkeletonCard count={2} />}>
-          <DashboardCharts userId={userId} />
-        </Suspense>
-      </section>
+        {/* RIGHT — Stats + notification warning + charts */}
+        <div className="space-y-6">
+          <section>
+            <Suspense fallback={<SkeletonCard count={3} />}>
+              <DashboardStats userId={userId} compact />
+            </Suspense>
+          </section>
 
-      <hr className="border-gray-100 dark:border-gray-800" />
+          <Suspense fallback={null}>
+            <NotificationStatus userId={userId} />
+          </Suspense>
 
-      {/* Keyword list */}
-      <section>
-        <Suspense fallback={<KeywordSectionSkeleton />}>
-          <KeywordSection userId={userId} />
-        </Suspense>
-      </section>
+          <section>
+            <Suspense fallback={<SkeletonCard count={2} />}>
+              <DashboardCharts userId={userId} compact />
+            </Suspense>
+          </section>
+        </div>
+
+      </div>
     </div>
   )
 }

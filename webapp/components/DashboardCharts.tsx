@@ -4,9 +4,10 @@ import ChartsRow from '@/components/ChartsRow'
 
 interface Props {
   userId: string
+  compact?: boolean
 }
 
-export default async function DashboardCharts({ userId }: Props) {
+export default async function DashboardCharts({ userId, compact = false }: Props) {
   const utc8Now = new Date(Date.now() + 8 * 60 * 60 * 1000)
 
   const sevenDaysAgo = new Date(utc8Now.getTime() - 7 * 86400000)
@@ -51,5 +52,5 @@ export default async function DashboardCharts({ userId }: Props) {
       count,
     }))
 
-  return <ChartsRow lineData={lineData} barData={barData} />
+  return <ChartsRow lineData={lineData} barData={barData} compact={compact} />
 }

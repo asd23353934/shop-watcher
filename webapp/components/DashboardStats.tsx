@@ -5,9 +5,10 @@ import { PLATFORM_LABELS } from '@/constants/platform'
 
 interface Props {
   userId: string
+  compact?: boolean
 }
 
-export default async function DashboardStats({ userId }: Props) {
+export default async function DashboardStats({ userId, compact = false }: Props) {
   const utc8Now = new Date(Date.now() + 8 * 60 * 60 * 1000)
   const todayStr  = utc8Now.toISOString().slice(0, 10)
   const yesterdayUtc8 = new Date(Date.now() + 8 * 60 * 60 * 1000 - 86400000)
@@ -48,7 +49,7 @@ export default async function DashboardStats({ userId }: Props) {
     : `${totalPlatforms}/${totalPlatforms}`
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className={`grid gap-4 ${compact ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-3'}`}>
       <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 shadow-sm">
         <div className="flex items-start gap-4">
           <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800">
