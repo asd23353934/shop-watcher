@@ -1,0 +1,30 @@
+# 手動喚醒 Neon.tech DB — 打一個輕量 API 讓 DB 從 scale-to-zero 恢復
+# 在 Vercel 網頁載入緩慢前手動觸發，約 5 秒內完成
+name: Warmup DB
+
+on:
+  workflow_dispatch:
+
+jobs:
+  warmup:
+    name: 喚醒 DB
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Ping API（觸發 DB 連線）
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          WORKER_SECRET: ${{ secrets.WORKER_SECRET }}
+        run: |
+          echo "Pinging $NEXT_PUBLIC_API_URL ..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $WORKER_SECRET" \
+            "$NEXT_PUBLIC_API_URL/api/worker/keywords")
+          echo "HTTP status: $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            echo "DB is warm."
+          else
+            echo "Unexpected status $STATUS"
+            exit 1
+          fi
