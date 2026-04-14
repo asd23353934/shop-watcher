@@ -189,7 +189,12 @@
       "Read(//c/Users/user/Downloads/**)",
       "Bash(mkdir -p v0_extracted)",
       "Bash(unzip -o b_2akJF7dN0Ql.zip -d v0_extracted)",
-      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); print\\(data[0]['text']\\)\")"
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); print\\(data[0]['text']\\)\")",
+      "Bash(echo \"Dev server starting, PID: $!\")",
+      "Bash(ls /c/Users/user/Desktop/gitlab/shop-watcher/webapp/.env*)",
+      "Bash(npx tsx -e ':*)",
+      "Bash(node -r dotenv/config -e ':*)",
+      "Bash(node -r dotenv/config -e \"console.log\\(process.env.DATABASE_URL ? 'DB URL found: ' + process.env.DATABASE_URL.slice\\(0,40\\) + '...' : 'DB URL NOT FOUND'\\)\")"
     ]
   }
 }

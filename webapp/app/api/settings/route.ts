@@ -1,6 +1,7 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { isValidDiscordWebhookUrl } from '@/lib/webhook-validation'
+import { DISCORD_USER_ID_RE } from '@/lib/utils'
 import { NextResponse } from 'next/server'
 
 // GET /api/settings — Settings are pre-filled with existing values on load
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
 
   // Validate Discord User ID — must be a numeric snowflake (17-20 digits)
   if (discordUserId && discordUserId.trim() !== '') {
-    if (!/^\d{17,20}$/.test(discordUserId.trim())) {
+    if (!DISCORD_USER_ID_RE.test(discordUserId.trim())) {
       return NextResponse.json({ error: 'Invalid Discord User ID' }, { status: 400 })
     }
   }
@@ -105,7 +106,7 @@ export async function PATCH(request: Request) {
   }
 
   if (discordUserId !== undefined && discordUserId && discordUserId.trim() !== '') {
-    if (!/^\d{17,20}$/.test(discordUserId.trim())) {
+    if (!DISCORD_USER_ID_RE.test(discordUserId.trim())) {
       return NextResponse.json({ error: 'Invalid Discord User ID' }, { status: 400 })
     }
   }

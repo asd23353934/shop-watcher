@@ -16,3 +16,6 @@ export function isHttpUrl(url: string | null | undefined): url is string {
 }
 
 export const CACHE_CONTROL_PRIVATE_SWR_60 = 'private, stale-while-revalidate=60'
+
+// Discord snowflake ID: 17–20 digit numeric string
+export const DISCORD_USER_ID_RE = /^\d{17,20}$/

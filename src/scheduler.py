@@ -351,17 +351,19 @@ async def _run_scan_tasks(
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     # Aggregate per-platform results
-    # platform_errors[platform] = None means success, str means first error
+    # platform_errors[platform] = None means success, str means first error.
+    # Any success from any keyword overrides a prior failure for the same platform
+    # (platform reachability is shared — one keyword timing out doesn't mean the platform is down).
     platform_errors: dict[str, Optional[str]] = {}
     for res in results:
         if isinstance(res, Exception):
             logger.error("Unexpected gather exception: %s", res)
             continue
         p_name, success, err_msg = res
-        if not success and p_name not in platform_errors:
-            platform_errors[p_name] = err_msg
-        elif p_name not in platform_errors:
-            platform_errors[p_name] = None  # success marker
+        if p_name not in platform_errors:
+            platform_errors[p_name] = None if success else err_msg
+        elif success:
+            platform_errors[p_name] = None  # success from any keyword overrides earlier failure
 
     # Report per-platform health status to API (one upsert per platform per user)
     seen: set[tuple[str, str]] = set()

@@ -6,6 +6,8 @@
  * Embed color reflects the platform
  */
 
+import { DISCORD_USER_ID_RE } from '@/lib/utils'
+
 interface Item {
   name: string
   price: number | null
@@ -75,7 +77,7 @@ export async function sendDiscordNotification(
   const platformLabel = PLATFORM_LABELS[item.platform] ?? item.platform
   const color = PLATFORM_COLORS[item.platform] ?? 0x7289da
 
-  const safeMention = discordUserId && /^\d{17,20}$/.test(discordUserId) ? `<@${discordUserId}>` : null
+  const safeMention = discordUserId && DISCORD_USER_ID_RE.test(discordUserId) ? `<@${discordUserId}>` : null
   const content = safeMention ? `${safeMention} 發現新商品！` : '發現新商品！'
 
   const fields: Array<{ name: string; value: string; inline: boolean }> = [
@@ -116,7 +118,8 @@ export async function sendDiscordNotification(
 
 /**
  * Sends batch Discord Embed notifications for multiple newly found items.
- * More than 10 new items are chunked into multiple Webhook calls (max 10 embeds per call).
+ * Items are chunked into multiple Webhook calls (max 10 embeds per call).
+ * A 500ms delay is inserted between calls to avoid Discord rate limits.
  *
  * New item triggers a Discord Embed notification via the user's Webhook URL
  * More than 10 new items are chunked into multiple Webhook calls
@@ -130,15 +133,10 @@ export async function sendDiscordBatchNotification(
 ): Promise<void> {
   if (!webhookUrl || items.length === 0) return
 
-  const maxBatch = parseInt(process.env.MAX_NOTIFY_PER_BATCH ?? '10', 10) || 10
-  const capped = items.slice(0, maxBatch)
-  const omitted = items.length - capped.length
-
-  const totalLabel = items.length > maxBatch ? `${maxBatch}/${items.length}` : String(items.length)
-  const safeMention = discordUserId && /^\d{17,20}$/.test(discordUserId) ? `<@${discordUserId}>` : null
+  const safeMention = discordUserId && DISCORD_USER_ID_RE.test(discordUserId) ? `<@${discordUserId}>` : null
   const content = safeMention
-    ? `${safeMention} 關鍵字「${keyword}」發現 ${totalLabel} 個新商品！`
-    : `關鍵字「${keyword}」發現 ${totalLabel} 個新商品！`
+    ? `${safeMention} 關鍵字「${keyword}」發現 ${items.length} 個新商品！`
+    : `關鍵字「${keyword}」發現 ${items.length} 個新商品！`
 
   const toEmbed = (item: Item) => {
     const platformLabel = PLATFORM_LABELS[item.platform] ?? item.platform
@@ -188,43 +186,28 @@ export async function sendDiscordBatchNotification(
     }
   }
 
-  // Split capped items into chunks of max 10 embeds per Webhook call
+  // Split all items into chunks of max 10 embeds per Webhook call
   const CHUNK_SIZE = 10
   const chunks: Item[][] = []
-  for (let i = 0; i < capped.length; i += CHUNK_SIZE) {
-    chunks.push(capped.slice(i, i + CHUNK_SIZE))
+  for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+    chunks.push(items.slice(i, i + CHUNK_SIZE))
   }
 
   for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
-    const chunk = chunks[chunkIdx]
-    const isFirst = chunkIdx === 0
-    const isLast = chunkIdx === chunks.length - 1
+    // Respect Discord rate limit: 5 requests / 2s per webhook
+    if (chunkIdx > 0) {
+      await new Promise(resolve => setTimeout(resolve, 500))
+    }
 
-    const embeds = chunk.map((item, itemIdx) => {
-      const embed = toEmbed(item)
-      // Add overflow notice field to the very last embed of the last chunk
-      if (isLast && itemIdx === chunk.length - 1 && omitted > 0) {
-        return {
-          ...embed,
-          fields: [
-            ...(embed.fields ?? []),
-            {
-              name: '⚠️ 提示',
-              value: `還有 ${omitted} 筆未顯示，請縮小關鍵字範圍`,
-              inline: false,
-            },
-          ],
-        }
-      }
-      return embed
-    })
+    const chunk = chunks[chunkIdx]
+    const embeds = chunk.map(item => toEmbed(item))
 
     try {
       const res = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content: isFirst ? content : undefined,
+          content: chunkIdx === 0 ? content : undefined,
           embeds,
         }),
       })

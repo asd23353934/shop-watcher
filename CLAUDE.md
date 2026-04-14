@@ -85,7 +85,7 @@ shop-watcher/
 - **去重機制**：`SeenItem(userId, platform, itemId)` 唯一鍵，避免重複通知
 - **降價提醒**：`SeenItem.lastPrice` 追蹤歷史價格，降價時重新通知
 - **禁詞過濾**：`Keyword.blocklist String[]`，Worker 端過濾商品名稱
-- **Discord 通知**：Embed 格式，最多 10 個/次，超過分批送出，上限由 `MAX_NOTIFY_PER_BATCH` 控制
+- **Discord 通知**：Embed 格式，所有新商品全數送出；每次 Webhook 呼叫最多 10 embeds，自動分批，批次間隔 500ms 避免 rate limit
 - **Email 通知**：Resend SDK，所有新商品彙整為一封表格 Email
 - **Webhook 測試**：`POST /api/settings/test-webhook` 即時驗證 Discord Webhook
 - **通知歷史**：`/history` 頁面顯示最近 50 筆通知記錄

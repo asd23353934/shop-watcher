@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { sendDiscordBatchNotification } from '@/lib/discord'
 import { sendEmailBatchNotification } from '@/lib/email'
 import { isHttpUrl } from '@/lib/utils'
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 
 interface BatchItem {
   platform: string
@@ -263,23 +263,24 @@ export async function POST(request: Request) {
     )
   }
 
-  // ── 5. Send notifications ─────────────────────────────────────────────────
+  // ── 5. Send notifications (after response to avoid Vercel timeout) ──────────
   const notifyItems: NotifyItem[] = [...filteredNewItems, ...priceDropItems]
 
   if (notifyItems.length > 0) {
-    await Promise.all([
-      sendDiscordBatchNotification(
-        effectiveWebhook,
-        notificationSetting?.discordUserId ?? null,
-        notifyItems,
-        effectiveKeywordLabel
-      ),
-      sendEmailBatchNotification(
-        notificationSetting?.emailAddress ?? null,
-        notifyItems,
-        effectiveKeywordLabel
-      ),
-    ])
+    const webhookUrl = effectiveWebhook
+    const discordUserId = notificationSetting?.discordUserId ?? null
+    const emailAddress = notificationSetting?.emailAddress ?? null
+    const label = effectiveKeywordLabel
+    after(async () => {
+      try {
+        await Promise.all([
+          sendDiscordBatchNotification(webhookUrl, discordUserId, notifyItems, label),
+          sendEmailBatchNotification(emailAddress, notifyItems, label),
+        ])
+      } catch (err) {
+        console.error('[notify/batch] post-response notification failed:', err)
+      }
+    })
   }
 
   return NextResponse.json({

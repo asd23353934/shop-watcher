@@ -24,8 +24,8 @@ function getStatus(failCount: number, lastSuccess: Date | null): Status {
   if (failCount > 0)  return 'warning'
   if (!lastSuccess)   return 'warning'
   const diffMin = (Date.now() - lastSuccess.getTime()) / 60000
-  if (diffMin > 120)  return 'error'
-  if (diffMin > 30)   return 'warning'
+  if (diffMin > 240)  return 'error'
+  if (diffMin > 60)   return 'warning'
   return 'normal'
 }
 
@@ -35,15 +35,14 @@ export default async function PlatformScanHealthSection({ userId }: Props) {
     orderBy: { platform: 'asc' },
   })
 
-  const statusMap    = Object.fromEntries(statuses.map((s) => [s.platform, s]))
-  const allPlatforms = Object.keys(PLATFORM_LABELS)
-
-  const platformData = allPlatforms.map((platform) => {
-    const record    = statusMap[platform]
-    const failCount = record?.failCount ?? 0
-    const lastSuccess = record?.lastSuccess ?? null
-    const status    = record ? getStatus(failCount, lastSuccess) : 'warning'
-    return { platform, label: PLATFORM_LABELS[platform], failCount, lastSuccess, status, lastError: record?.lastError ?? null }
+  // Only show platforms that have been scanned at least once (i.e., user has keywords for them).
+  // Platforms with no record are irrelevant to this user — showing them would always be 'warning'.
+  const platformData = statuses.map((record) => {
+    const label      = PLATFORM_LABELS[record.platform] ?? record.platform
+    const failCount  = record.failCount
+    const lastSuccess = record.lastSuccess
+    const status     = getStatus(failCount, lastSuccess)
+    return { platform: record.platform, label, failCount, lastSuccess, status, lastError: record.lastError }
   })
 
   const normalCount  = platformData.filter((p) => p.status === 'normal').length
@@ -69,6 +68,9 @@ export default async function PlatformScanHealthSection({ userId }: Props) {
       </div>
 
       {/* Status table */}
+      {platformData.length === 0 ? (
+        <p className="text-center text-sm text-gray-400 py-8">尚無掃描記錄，請先新增關鍵字並等待 Worker 執行</p>
+      ) : (
       <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
         <table className="w-full">
           <thead>
@@ -128,6 +130,7 @@ export default async function PlatformScanHealthSection({ userId }: Props) {
           </tbody>
         </table>
       </div>
+      )}
 
       <p className="text-xs text-gray-400 text-center">
         平台狀態由 Worker 自動回報，若持續顯示異常請檢查 GitHub Actions 執行記錄
