@@ -60,7 +60,7 @@ def _extract_goods_info_list(rsc_text: str) -> list[dict]:
 
 
 async def scrape_momo(
-    page: Page,
+    page: Page,  # unused — kept for consistent scraper signature
     keyword: str,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,

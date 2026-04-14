@@ -171,14 +171,17 @@ async def _scan_one(
     api: WorkerApiClient,
     kw: dict,
     platform: str,
-) -> tuple[str, bool, Optional[str]]:
+) -> tuple[str, str, bool, Optional[str]]:
     """
     Scrape one keyword×platform combination and notify via API.
 
-    Returns (platform, success, error_message).
+    Returns (userId, platform, success, error_message).
     Acquires the per-platform Semaphore before scraping.
     """
     keyword_id: str = kw.get("id", "")
+    user_id: str = kw.get("userId", "")
+    if not user_id:
+        logger.warning("[%s] keyword id=%s has no userId — platform status will not be tracked", platform, keyword_id)
     keyword_text: str = kw.get("keyword", "")
     min_price: Optional[float] = kw.get("minPrice")
     max_price: Optional[float] = kw.get("maxPrice")
@@ -189,7 +192,7 @@ async def _scan_one(
     # Shopee is suspended — log and skip
     if platform == "shopee":
         logger.warning("[shopee] Platform is suspended, skipping keyword '%s'", keyword_text)
-        return platform, True, None
+        return user_id, platform, True, None
 
     # Acquire per-platform Semaphore (create lazily at the limit set by env)
     if platform not in semaphores:
@@ -228,7 +231,7 @@ async def _scan_one(
         except Exception as exc:
             logger.error("[%s] %s — unhandled error: %s", platform, keyword_text, exc)
             await _notify_scrape_error(platform, keyword_text, exc)
-            return platform, False, str(exc)
+            return user_id, platform, False, str(exc)
         finally:
             await page.close()
 
@@ -260,7 +263,7 @@ async def _scan_one(
     dup_count = result.get("duplicate", 0)
 
     logger.info("[%s] %s — %d found, %d new, %d duplicate", platform, keyword_text, len(items), new_count, dup_count)
-    return platform, True, None
+    return user_id, platform, True, None
 
 
 # ---------------------------------------------------------------------------
@@ -350,36 +353,28 @@ async def _run_scan_tasks(
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    # Aggregate per-platform results
-    # platform_errors[platform] = None means success, str means first error.
-    # Any success from any keyword overrides a prior failure for the same platform
-    # (platform reachability is shared — one keyword timing out doesn't mean the platform is down).
-    platform_errors: dict[str, Optional[str]] = {}
+    # Aggregate per-(userId, platform) results.
+    # Key is (userId, platform); value is None on success or the first error message.
+    # Any success for a given user+platform overrides a prior failure for that same pair
+    # (one keyword timing out doesn't mean every keyword for that user is broken).
+    user_platform_errors: dict[tuple[str, str], Optional[str]] = {}
     for res in results:
         if isinstance(res, Exception):
             logger.error("Unexpected gather exception: %s", res)
             continue
-        p_name, success, err_msg = res
-        if p_name not in platform_errors:
-            platform_errors[p_name] = None if success else err_msg
+        uid, p_name, success, err_msg = res
+        key = (uid, p_name)
+        if key not in user_platform_errors:
+            user_platform_errors[key] = None if success else err_msg
         elif success:
-            platform_errors[p_name] = None  # success from any keyword overrides earlier failure
+            user_platform_errors[key] = None  # success overrides earlier failure for this user+platform
 
-    # Report per-platform health status to API (one upsert per platform per user)
-    seen: set[tuple[str, str]] = set()
-    for kw in keywords:
-        user_id: str = kw.get("userId", "")
-        if not user_id:
-            continue
-        for platform in kw.get("platforms", ["ruten"]):
-            if platform == "shopee":
-                continue
-            key = (user_id, platform)
-            if key in seen:
-                continue
-            seen.add(key)
-            err = platform_errors.get(platform)
-            await api.update_platform_scan_status(platform, err is None, err, user_id)
+    # Report per-platform health status to API (concurrent — one upsert per user per platform)
+    await asyncio.gather(*[
+        api.update_platform_scan_status(p_name, err is None, err, uid)
+        for (uid, p_name), err in user_platform_errors.items()
+        if uid and p_name != "shopee"
+    ])
 
 
 async def run_scan_cycle(api: WorkerApiClient) -> None:
@@ -391,8 +386,17 @@ async def run_scan_cycle(api: WorkerApiClient) -> None:
     4. Close browser
     5. Post scan log
     """
-    keywords = await api.get_keywords()
-    circle_follows = await api.get_circle_follows()
+    results = await asyncio.gather(
+        api.get_keywords(),
+        api.get_circle_follows(),
+        return_exceptions=True,
+    )
+    keywords: list[dict] = results[0] if not isinstance(results[0], Exception) else []
+    circle_follows: list[dict] = results[1] if not isinstance(results[1], Exception) else []
+    if isinstance(results[0], Exception):
+        logger.error("get_keywords failed: %s", results[0])
+    if isinstance(results[1], Exception):
+        logger.error("get_circle_follows failed: %s", results[1])
 
     if not keywords and not circle_follows:
         logger.info("No active keywords or circle follows, skipping scan")

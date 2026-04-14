@@ -194,7 +194,13 @@
       "Bash(ls /c/Users/user/Desktop/gitlab/shop-watcher/webapp/.env*)",
       "Bash(npx tsx -e ':*)",
       "Bash(node -r dotenv/config -e ':*)",
-      "Bash(node -r dotenv/config -e \"console.log\\(process.env.DATABASE_URL ? 'DB URL found: ' + process.env.DATABASE_URL.slice\\(0,40\\) + '...' : 'DB URL NOT FOUND'\\)\")"
+      "Bash(node -r dotenv/config -e \"console.log\\(process.env.DATABASE_URL ? 'DB URL found: ' + process.env.DATABASE_URL.slice\\(0,40\\) + '...' : 'DB URL NOT FOUND'\\)\")",
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('src/scheduler.py'\\).read\\(\\)\\); print\\('syntax OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('src/scheduler.py', encoding='utf-8'\\).read\\(\\)\\); print\\('syntax OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('src/api_client.py', encoding='utf-8'\\).read\\(\\)\\); print\\('api_client.py OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('src/scrapers/booth.py', encoding='utf-8'\\).read\\(\\)\\); print\\('booth.py OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('src/scrapers/dlsite.py', encoding='utf-8'\\).read\\(\\)\\); print\\('dlsite.py OK'\\)\")"
     ]
   }
 }

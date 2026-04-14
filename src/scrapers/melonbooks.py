@@ -40,7 +40,7 @@ _COOKIES = {"AUTH_ADULT": "1"}
 
 
 async def scrape_melonbooks(
-    page: Page,
+    page: Page,  # unused — kept for consistent scraper signature
     keyword: str,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,

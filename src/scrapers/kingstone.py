@@ -65,7 +65,7 @@ def _parse_kingstone_price(container: BeautifulSoup) -> tuple[Optional[float], O
 
 
 async def scrape_kingstone(
-    page: Page,
+    page: Page,  # unused — kept for consistent scraper signature
     keyword: str,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,

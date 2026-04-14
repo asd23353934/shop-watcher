@@ -50,7 +50,7 @@ def _parse_jpy(text: str) -> Optional[float]:
 
 
 async def scrape_mandarake(
-    page: Page,
+    page: Page,  # unused — kept for consistent scraper signature
     keyword: str,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,

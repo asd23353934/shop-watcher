@@ -40,10 +40,10 @@ class WorkerApiClient:
         GET /api/worker/keywords
 
         Returns list of active keyword dicts:
-          { id, keyword, platforms, min_price, max_price,
-            discordWebhookUrl, discordUserId, emailAddress,
-            sellerBlocklist, discordWebhookUrl (per-keyword),
-            maxNotifyPerScan, globalSellerBlocklist }
+          { id, userId, keyword, platforms, minPrice, maxPrice,
+            blocklist, mustInclude, matchMode, sellerBlocklist,
+            discordWebhookUrl, maxNotifyPerScan }
+        Notification settings are resolved server-side in /api/worker/notify/batch.
 
         Returns empty list on any error (non-2xx or network exception).
         """
@@ -143,23 +143,23 @@ class WorkerApiClient:
             "items": [
                 {
                     "platform": item.platform,
-                    "item_id": item.item_id,
+                    "itemId": item.item_id,
                     "name": item.name,
                     "price": item.price,
-                    "price_text": item.price_text,
+                    "priceText": item.price_text,
                     "url": item.url,
-                    "image_url": item.image_url,
-                    "seller_name": item.seller_name,
-                    "seller_id": item.seller_id,
+                    "imageUrl": item.image_url,
+                    "sellerName": item.seller_name,
+                    "sellerId": item.seller_id,
                 }
                 for item in items
             ],
         }
-        # Set either keyword_id or circle_follow_id
+        # Set either keywordId or circleFollowId
         if keyword_id is not None:
-            payload["keyword_id"] = keyword_id
+            payload["keywordId"] = keyword_id
         if circle_follow_id is not None:
-            payload["circle_follow_id"] = circle_follow_id
+            payload["circleFollowId"] = circle_follow_id
         # Forward per-keyword overrides only when explicitly provided
         if keyword_webhook_url is not None:
             payload["keywordWebhookUrl"] = keyword_webhook_url

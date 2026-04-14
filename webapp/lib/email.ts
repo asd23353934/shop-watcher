@@ -1,5 +1,6 @@
 import { Resend } from 'resend'
 import { isHttpUrl } from '@/lib/utils'
+import { PLATFORM_LABELS } from '@/constants/platform'
 
 /**
  * Email notification via Resend SDK.
@@ -11,12 +12,12 @@ import { isHttpUrl } from '@/lib/utils'
 interface Item {
   name: string
   price: number | null
-  price_text?: string | null
+  priceText?: string | null
   url: string
-  image_url: string | null
+  imageUrl: string | null
   platform: string
-  item_id: string
-  seller_name?: string | null
+  itemId: string
+  sellerName?: string | null
   isPriceDrop?: boolean
   originalPrice?: number
 }
@@ -30,10 +31,6 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#39;')
 }
 
-const PLATFORM_LABELS: Record<string, string> = {
-  shopee: '蝦皮購物',
-  ruten: '露天拍賣',
-}
 
 /**
  * Sends an email notification for a newly found item.
@@ -62,8 +59,8 @@ export async function sendEmailNotification(
   const resend = new Resend(process.env.RESEND_API_KEY)
 
   const platformLabel = escapeHtml(PLATFORM_LABELS[item.platform] ?? item.platform)
-  const priceText = item.price_text
-    ? `NT$ ${escapeHtml(item.price_text)}`
+  const priceText = item.priceText
+    ? `NT$ ${escapeHtml(item.priceText)}`
     : item.price != null
       ? `NT$ ${item.price.toLocaleString('zh-TW')}`
       : '價格未知'
@@ -77,7 +74,7 @@ export async function sendEmailNotification(
   const safeItemName = escapeHtml(item.name)
   const safeKeyword = escapeHtml(keyword)
   const safeUrl = item.url.startsWith('https://') ? item.url : '#'
-  const safeImageUrl = isHttpUrl(item.image_url) ? item.image_url : null
+  const safeImageUrl = isHttpUrl(item.imageUrl) ? item.imageUrl : null
 
   const html = `
 <!DOCTYPE html>
@@ -130,10 +127,10 @@ export async function sendEmailNotification(
 
     if (error) {
       // Resend API errors do not block the notify response — log only
-      console.error(`[email] Resend error for item ${item.item_id}:`, error)
+      console.error(`[email] Resend error for item ${item.itemId}:`, error)
     }
   } catch (err) {
-    console.error(`[email] Failed to send email for item ${item.item_id}:`, err)
+    console.error(`[email] Failed to send email for item ${item.itemId}:`, err)
   }
 }
 
@@ -166,13 +163,13 @@ export async function sendEmailBatchNotification(
   const rows = items
     .map((item) => {
       const platformLabel = escapeHtml(PLATFORM_LABELS[item.platform] ?? item.platform)
-      const priceText = item.price_text
-        ? `NT$ ${escapeHtml(item.price_text)}`
+      const priceText = item.priceText
+        ? `NT$ ${escapeHtml(item.priceText)}`
         : item.price != null
           ? `NT$ ${item.price.toLocaleString('zh-TW')}`
           : '價格未知'
-      const sellerText = escapeHtml(item.seller_name ?? '未知')
-      const safeImageUrl = isHttpUrl(item.image_url) ? item.image_url : null
+      const sellerText = escapeHtml(item.sellerName ?? '未知')
+      const safeImageUrl = isHttpUrl(item.imageUrl) ? item.imageUrl : null
       const safeUrl = item.url.startsWith('https://') ? item.url : '#'
       const safeItemName = escapeHtml(item.name)
       const thumbnail = safeImageUrl

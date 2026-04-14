@@ -27,6 +27,11 @@ logger = logging.getLogger(__name__)
 _BASE_URL = "https://www.dlsite.com"
 _AJAX_URL = _BASE_URL + "/maniax/fsr/ajax"
 
+
+def _product_url(product_id: str) -> str:
+    return f"{_BASE_URL}/maniax/work/=/product_id/{product_id}.html"
+
+
 _HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -105,7 +110,7 @@ async def scrape_dlsite(
             m = re.search(r'thumb-candidates="\[\'(//[^\']+)\'', thumb_attr)
             image_url = ("https:" + m.group(1)) if m else None
 
-            product_url = f"{_BASE_URL}/maniax/work/=/product_id/{product_id}.html"
+            product_url = _product_url(product_id)
 
             # Circle/maker name — DLsite uses .maker_name or .work_maker anchor
             circle_el = li.select_one(".maker_name a, .work_maker a, .maker_name")
@@ -173,7 +178,7 @@ async def scrape_dlsite_circle(
             if len(name) < 3:  # Skip navigation-style short-text links
                 continue
 
-            product_url = f"{_BASE_URL}/maniax/work/=/product_id/{product_id}.html"
+            product_url = _product_url(product_id)
 
             items.append(
                 WatcherItem(

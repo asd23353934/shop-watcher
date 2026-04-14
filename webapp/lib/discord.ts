@@ -6,17 +6,17 @@
  * Embed color reflects the platform
  */
 
-import { DISCORD_USER_ID_RE } from '@/lib/utils'
+import { DISCORD_USER_ID_RE, isHttpUrl } from '@/lib/utils'
 
 interface Item {
   name: string
   price: number | null
-  price_text?: string | null
+  priceText?: string | null
   url: string
-  image_url: string | null
+  imageUrl: string | null
   platform: string
-  item_id: string
-  seller_name?: string | null
+  itemId: string
+  sellerName?: string | null
   isPriceDrop?: boolean
   originalPrice?: number
 }
@@ -68,8 +68,8 @@ export async function sendDiscordNotification(
   // Discord notification is skipped when no Webhook URL is configured
   if (!webhookUrl) return
 
-  const priceText = item.price_text
-    ? `NT$ ${item.price_text}`
+  const priceText = item.priceText
+    ? `NT$ ${item.priceText}`
     : item.price != null
       ? `NT$ ${item.price.toLocaleString('zh-TW')}`
       : '價格未知'
@@ -85,8 +85,8 @@ export async function sendDiscordNotification(
     { name: '價格', value: priceText, inline: true },
     { name: '關鍵字', value: keyword, inline: true },
   ]
-  if (item.seller_name) {
-    fields.push({ name: '賣家', value: item.seller_name, inline: true })
+  if (item.sellerName) {
+    fields.push({ name: '賣家', value: item.sellerName, inline: true })
   }
 
   const embed = {
@@ -94,7 +94,7 @@ export async function sendDiscordNotification(
     url: item.url,
     color,
     fields,
-    ...(item.image_url ? { thumbnail: { url: item.image_url } } : {}),
+    ...(isHttpUrl(item.imageUrl) ? { thumbnail: { url: item.imageUrl } } : {}),
     footer: { text: 'Shop Watcher' },
     timestamp: new Date().toISOString(),
   }
@@ -144,8 +144,8 @@ export async function sendDiscordBatchNotification(
     const color = item.isPriceDrop
       ? 0x57f287
       : (PLATFORM_COLORS[item.platform] ?? 0x7289da)
-    const priceText = item.price_text
-      ? `NT$ ${item.price_text}`
+    const priceText = item.priceText
+      ? `NT$ ${item.priceText}`
       : item.price != null
         ? `NT$ ${item.price.toLocaleString('zh-TW')}`
         : '價格未知'
@@ -167,8 +167,8 @@ export async function sendDiscordBatchNotification(
     }
 
     fields.push({ name: '關鍵字', value: keyword, inline: true })
-    if (item.seller_name) {
-      fields.push({ name: '賣家', value: item.seller_name, inline: true })
+    if (item.sellerName) {
+      fields.push({ name: '賣家', value: item.sellerName, inline: true })
     }
 
     // Price drop items get [降價] prefix in title
@@ -180,7 +180,7 @@ export async function sendDiscordBatchNotification(
       url: item.url,
       color,
       fields,
-      ...(item.image_url ? { thumbnail: { url: item.image_url } } : {}),
+      ...(isHttpUrl(item.imageUrl) ? { thumbnail: { url: item.imageUrl } } : {}),
       footer: { text: 'Shop Watcher' },
       timestamp: new Date().toISOString(),
     }

@@ -32,7 +32,7 @@ _IMAGE_BASE = "https://cs-b.ecimg.tw"
 
 
 async def scrape_pchome(
-    page: Page,
+    page: Page,  # unused — kept for consistent scraper signature
     keyword: str,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,

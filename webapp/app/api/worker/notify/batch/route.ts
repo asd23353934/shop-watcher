@@ -7,19 +7,19 @@ import { NextResponse, after } from 'next/server'
 
 interface BatchItem {
   platform: string
-  item_id: string
+  itemId: string
   name: string
   price: number | null
-  price_text?: string | null
+  priceText?: string | null
   url: string
-  image_url: string | null
-  seller_name: string | null
-  seller_id?: string | null
+  imageUrl: string | null
+  sellerName: string | null
+  sellerId?: string | null
 }
 
 interface BatchPayload {
-  keyword_id?: string | null
-  circle_follow_id?: string | null
+  keywordId?: string | null
+  circleFollowId?: string | null
   items: BatchItem[]
   keywordWebhookUrl?: string | null
   maxNotifyPerScan?: number | null
@@ -75,8 +75,8 @@ export async function POST(request: Request) {
   }
 
   const {
-    keyword_id,
-    circle_follow_id,
+    keywordId,
+    circleFollowId,
     items,
     keywordWebhookUrl,
     maxNotifyPerScan: payloadMaxNotify,
@@ -89,9 +89,15 @@ export async function POST(request: Request) {
       { status: 400 }
     )
   }
-  if (!keyword_id && !circle_follow_id) {
+  if (keywordId && circleFollowId) {
     return NextResponse.json(
-      { error: 'keyword_id or circle_follow_id is required' },
+      { error: 'keywordId and circleFollowId are mutually exclusive' },
+      { status: 400 }
+    )
+  }
+  if (!keywordId && !circleFollowId) {
+    return NextResponse.json(
+      { error: 'keywordId or circleFollowId is required' },
       { status: 400 }
     )
   }
@@ -102,7 +108,6 @@ export async function POST(request: Request) {
 
   const envMax = parseInt(process.env.MAX_NOTIFY_PER_BATCH ?? '100', 10) || 100
 
-  // Mode-based lookup: keyword or circle follow
   let userId: string
   let notificationSetting: { discordWebhookUrl: string | null; discordUserId: string | null; emailEnabled: boolean; globalSellerBlocklist: string[] } | null = null
   let userEmail: string | null = null
@@ -112,10 +117,9 @@ export async function POST(request: Request) {
   let keywordIdForRecord: string | null = null
   let cap: number
 
-  if (keyword_id) {
-    // Keyword mode
+  if (keywordId) {
     const keyword = await prisma.keyword.findUnique({
-      where: { id: keyword_id },
+      where: { id: keywordId },
       include: { user: { include: { notificationSetting: true } } },
     })
     if (!keyword) {
@@ -126,7 +130,7 @@ export async function POST(request: Request) {
     userEmail = keyword.user.email ?? null
     effectiveKeywordLabel = keyword.keyword
     keywordSellerBlocklist = keyword.sellerBlocklist ?? []
-    keywordIdForRecord = keyword_id
+    keywordIdForRecord = keywordId
 
     effectiveWebhook =
       keywordWebhookUrl !== undefined
@@ -140,9 +144,8 @@ export async function POST(request: Request) {
           ? keyword.maxNotifyPerScan
           : envMax
   } else {
-    // Circle follow mode
     const circleFollow = await prisma.circleFollow.findUnique({
-      where: { id: circle_follow_id! },
+      where: { id: circleFollowId! },
       include: { user: { include: { notificationSetting: true } } },
     })
     if (!circleFollow) {
@@ -162,7 +165,6 @@ export async function POST(request: Request) {
     cap = payloadMaxNotify != null ? payloadMaxNotify : envMax
   }
 
-  // Resolve globalSellerBlocklist: prefer payload (Worker already fetched) or DB fallback
   const globalSellerBlocklist: string[] =
     Array.isArray(payloadGlobalBlocklist)
       ? payloadGlobalBlocklist
@@ -174,7 +176,7 @@ export async function POST(request: Request) {
       userId,
       OR: items.map((item) => ({
         platform: item.platform,
-        itemId: item.item_id,
+        itemId: item.itemId,
       })),
     },
     select: { platform: true, itemId: true, lastPrice: true },
@@ -189,7 +191,7 @@ export async function POST(request: Request) {
   let duplicateCount = 0
 
   for (const item of items) {
-    const key = `${item.platform}:${item.item_id}`
+    const key = `${item.platform}:${item.itemId}`
     const existing = existingMap.get(key)
 
     if (!existing) {
@@ -208,20 +210,17 @@ export async function POST(request: Request) {
   }
 
   // ── 2. Seller filtering (new items only) ──────────────────────────────────
-  // Global seller blocklist drops item before per-keyword check
-  // Per-keyword seller blocklist drops item not caught by global
   let filteredNewItems = rawNewItems.filter((item) => {
-    if (isSellerBlocked(item.seller_name, item.seller_id, globalSellerBlocklist)) {
+    if (isSellerBlocked(item.sellerName, item.sellerId, globalSellerBlocklist)) {
       return false
     }
-    if (isSellerBlocked(item.seller_name, item.seller_id, keywordSellerBlocklist)) {
+    if (isSellerBlocked(item.sellerName, item.sellerId, keywordSellerBlocklist)) {
       return false
     }
     return true
   })
 
   // ── 3. maxNotifyPerScan cap ───────────────────────────────────────────────
-  // New items after filtering are capped at maxNotifyPerScan
   if (filteredNewItems.length > cap) {
     filteredNewItems = filteredNewItems.slice(0, cap)
   }
@@ -233,13 +232,13 @@ export async function POST(request: Request) {
       data: filteredNewItems.map((item) => ({
         userId,
         platform: item.platform,
-        itemId: item.item_id,
+        itemId: item.itemId,
         keyword: effectiveKeywordLabel,
         keywordId: keywordIdForRecord,
         lastPrice: item.price ?? null,
         itemName: item.name ? item.name.slice(0, 255) : null,
         itemUrl: isHttpUrl(item.url) ? item.url : null,
-        imageUrl: isHttpUrl(item.image_url) ? item.image_url : null,
+        imageUrl: isHttpUrl(item.imageUrl) ? item.imageUrl : null,
       })),
       skipDuplicates: true,
     })
@@ -253,13 +252,13 @@ export async function POST(request: Request) {
           where: {
             userId,
             platform: item.platform,
-            itemId: item.item_id,
+            itemId: item.itemId,
           },
           data: {
             lastPrice: item.price,
             itemName: item.name ? item.name.slice(0, 255) : undefined,
             itemUrl: isHttpUrl(item.url) ? item.url : undefined,
-            imageUrl: isHttpUrl(item.image_url) ? item.image_url : undefined,
+            imageUrl: isHttpUrl(item.imageUrl) ? item.imageUrl : undefined,
           },
         })
       )

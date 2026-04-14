@@ -16,17 +16,11 @@ export async function GET(request: Request) {
 
   const keywords = await prisma.keyword.findMany({
     where: { active: true },
-    include: {
-      user: {
-        include: {
-          notificationSetting: true,
-        },
-      },
-    },
     orderBy: { createdAt: 'asc' },
   })
 
   // Map to a clean API shape — includes new fields for seller filtering, webhook routing, and rate limiting
+  // Notification settings (Discord/email) are resolved server-side in /api/worker/notify/batch
   const result = keywords.map((kw) => ({
     id: kw.id,
     userId: kw.userId,
@@ -40,14 +34,6 @@ export async function GET(request: Request) {
     sellerBlocklist: kw.sellerBlocklist,
     discordWebhookUrl: kw.discordWebhookUrl,
     maxNotifyPerScan: kw.maxNotifyPerScan,
-    notificationSetting: kw.user.notificationSetting
-      ? {
-          discordWebhookUrl: kw.user.notificationSetting.discordWebhookUrl,
-          discordUserId: kw.user.notificationSetting.discordUserId,
-          emailEnabled: kw.user.notificationSetting.emailEnabled,
-          globalSellerBlocklist: kw.user.notificationSetting.globalSellerBlocklist,
-        }
-      : null,
   }))
 
   return NextResponse.json(result)
