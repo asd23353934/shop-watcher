@@ -294,11 +294,13 @@ export default function NotificationForm() {
         </CardHeader>
         <CardContent>
           <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" className="border-red-300 dark:border-red-800 text-red-600 hover:bg-red-50 dark:hover:bg-red-950">
-                清除所有通知歷史
-              </Button>
-            </AlertDialogTrigger>
+            <AlertDialogTrigger
+              render={
+                <Button variant="outline" className="border-red-300 dark:border-red-800 text-red-600 hover:bg-red-50 dark:hover:bg-red-950">
+                  清除所有通知歷史
+                </Button>
+              }
+            />
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>確定要清除所有通知歷史？</AlertDialogTitle>
