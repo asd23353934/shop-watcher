@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import { CONTACT_EMAIL, Section, Subsection } from "@/components/policy-section"
 
 export const metadata: Metadata = {
@@ -14,12 +15,10 @@ export default function PrivacyPolicyPage() {
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <Button variant="ghost" size="sm" asChild className="mb-6">
-            <Link href="/">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              返回首頁
-            </Link>
-          </Button>
+          <Link href="/" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "mb-6")}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            返回首頁
+          </Link>
           <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             隱私權政策
           </h1>
