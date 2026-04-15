@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
 import { CONTACT_EMAIL, Section, Subsection } from "@/components/policy-section"
 
 export const metadata: Metadata = {
@@ -37,7 +36,7 @@ export default function PrivacyPolicyPage() {
             </p>
           </Section>
 
-          <Separator />
+          <hr className="border-border" />
 
           <Section title="我們收集的資料">
             <div className="space-y-4">
@@ -76,7 +75,7 @@ export default function PrivacyPolicyPage() {
             </div>
           </Section>
 
-          <Separator />
+          <hr className="border-border" />
 
           <Section title="資料的使用方式">
             <ul className="list-inside list-disc space-y-2 text-muted-foreground">
@@ -87,7 +86,7 @@ export default function PrivacyPolicyPage() {
             </ul>
           </Section>
 
-          <Separator />
+          <hr className="border-border" />
 
           <Section title="第三方服務">
             <div className="space-y-4">
@@ -108,7 +107,7 @@ export default function PrivacyPolicyPage() {
             </div>
           </Section>
 
-          <Separator />
+          <hr className="border-border" />
 
           <Section title="資料保留期限">
             <ul className="list-inside list-disc space-y-2 text-muted-foreground">
@@ -127,7 +126,7 @@ export default function PrivacyPolicyPage() {
             </ul>
           </Section>
 
-          <Separator />
+          <hr className="border-border" />
 
           <Section title="您的權利">
             <p className="mb-4 text-muted-foreground">
@@ -144,7 +143,7 @@ export default function PrivacyPolicyPage() {
             </p>
           </Section>
 
-          <Separator />
+          <hr className="border-border" />
 
           <Section title="資料安全">
             <p className="text-muted-foreground">
@@ -152,7 +151,7 @@ export default function PrivacyPolicyPage() {
             </p>
           </Section>
 
-          <Separator />
+          <hr className="border-border" />
 
           <Section title="政策變更">
             <p className="text-muted-foreground">
@@ -160,7 +159,7 @@ export default function PrivacyPolicyPage() {
             </p>
           </Section>
 
-          <Separator />
+          <hr className="border-border" />
 
           <Section title="聯絡我們">
             <p className="text-muted-foreground">
@@ -178,7 +177,7 @@ export default function PrivacyPolicyPage() {
           </Section>
         </div>
 
-        <Separator className="my-8" />
+        <hr className="my-8 border-border" />
 
         <footer className="text-center text-sm text-muted-foreground">
           © {new Date().getFullYear()} Shop Watcher. 保留所有權利。

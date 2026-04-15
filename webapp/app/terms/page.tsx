@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
 import { CONTACT_EMAIL, Section } from "@/components/policy-section"
 
 export const metadata: Metadata = {
@@ -36,7 +35,7 @@ export default function TermsPage() {
             </p>
           </Section>
 
-          <Separator />
+          <hr className="border-border" />
 
           <Section title="服務說明">
             <p className="text-muted-foreground">
@@ -44,7 +43,7 @@ export default function TermsPage() {
             </p>
           </Section>
 
-          <Separator />
+          <hr className="border-border" />
 
           <Section title="帳戶責任">
             <ul className="list-inside list-disc space-y-2 text-muted-foreground">
@@ -54,7 +53,7 @@ export default function TermsPage() {
             </ul>
           </Section>
 
-          <Separator />
+          <hr className="border-border" />
 
           <Section title="使用限制">
             <p className="mb-4 text-muted-foreground">您同意不得將本服務用於以下用途：</p>
@@ -66,7 +65,7 @@ export default function TermsPage() {
             </ul>
           </Section>
 
-          <Separator />
+          <hr className="border-border" />
 
           <Section title="服務可用性">
             <p className="text-muted-foreground">
@@ -74,7 +73,7 @@ export default function TermsPage() {
             </p>
           </Section>
 
-          <Separator />
+          <hr className="border-border" />
 
           <Section title="第三方平台">
             <p className="text-muted-foreground">
@@ -82,7 +81,7 @@ export default function TermsPage() {
             </p>
           </Section>
 
-          <Separator />
+          <hr className="border-border" />
 
           <Section title="免責聲明">
             <p className="text-muted-foreground">
@@ -90,7 +89,7 @@ export default function TermsPage() {
             </p>
           </Section>
 
-          <Separator />
+          <hr className="border-border" />
 
           <Section title="條款變更">
             <p className="text-muted-foreground">
@@ -98,7 +97,7 @@ export default function TermsPage() {
             </p>
           </Section>
 
-          <Separator />
+          <hr className="border-border" />
 
           <Section title="聯絡我們">
             <p className="text-muted-foreground">
@@ -116,7 +115,7 @@ export default function TermsPage() {
           </Section>
         </div>
 
-        <Separator className="my-8" />
+        <hr className="my-8 border-border" />
 
         <footer className="text-center text-sm text-muted-foreground">
           © {new Date().getFullYear()} Shop Watcher. 保留所有權利。
