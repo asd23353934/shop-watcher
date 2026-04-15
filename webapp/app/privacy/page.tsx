@@ -133,10 +133,9 @@ export default function PrivacyPolicyPage() {
               <li>停用電子郵件通知</li>
               <li>移除已設定的 Discord Webhook</li>
               <li>刪除所有通知紀錄</li>
-              <li>刪除您的帳戶及所有相關資料</li>
             </ul>
             <p className="mt-4 text-muted-foreground">
-              如需行使上述權利，請至帳戶設定頁面操作，或透過下方聯絡方式與我們聯繫。
+              如需行使上述權利，請至設定頁面操作，或透過下方聯絡方式與我們聯繫。
             </p>
           </Section>
 
