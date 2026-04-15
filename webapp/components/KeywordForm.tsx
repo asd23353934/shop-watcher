@@ -49,6 +49,7 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!keyword.trim()) { toast.error('請輸入關鍵字'); return }
+    if (keyword.trim().length < 2) { toast.error('關鍵字至少需要 2 個字元'); return }
     if (platforms.length === 0) { toast.error('請至少選擇一個平台'); return }
     setLoading(true)
 

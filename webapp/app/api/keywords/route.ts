@@ -4,12 +4,14 @@ import { CACHE_CONTROL_PRIVATE_SWR_60 } from '@/lib/utils'
 import { isValidDiscordWebhookUrl } from '@/lib/webhook-validation'
 import { NextResponse } from 'next/server'
 
-// Allowed platforms (expand here as new scrapers are added)
 const VALID_PLATFORMS = [
   'shopee', 'ruten', 'pchome', 'momo', 'animate',
   'yahoo-auction', 'mandarake', 'myacg', 'kingstone',
   'booth', 'dlsite', 'toranoana', 'melonbooks',
 ]
+
+const MAX_FREE_KEYWORDS = 3
+const MIN_KEYWORD_LENGTH = 2
 
 /**
  * Validates the three new keyword fields.
@@ -72,9 +74,26 @@ export async function POST(request: Request) {
     sellerBlocklist, discordWebhookUrl, maxNotifyPerScan,
   } = body
 
-  // Keyword creation with empty keyword string is rejected
-  if (!keyword || typeof keyword !== 'string' || keyword.trim() === '') {
+  const trimmedKeyword = typeof keyword === 'string' ? keyword.trim() : ''
+  if (!trimmedKeyword) {
     return NextResponse.json({ error: 'Keyword cannot be empty' }, { status: 400 })
+  }
+  if (trimmedKeyword.length < MIN_KEYWORD_LENGTH) {
+    return NextResponse.json({ error: '關鍵字至少需要 2 個字元' }, { status: 400 })
+  }
+
+  const ownerEmail = process.env.OWNER_EMAIL?.toLowerCase()
+  const isOwner = ownerEmail && session.user.email?.toLowerCase() === ownerEmail
+  if (!isOwner) {
+    try {
+      const keywordCount = await prisma.keyword.count({ where: { userId: session.user.id } })
+      if (keywordCount >= MAX_FREE_KEYWORDS) {
+        return NextResponse.json({ error: '免費方案最多只能新增 3 個關鍵字' }, { status: 403 })
+      }
+    } catch (err: unknown) {
+      console.error('Failed to count keywords:', err)
+      return NextResponse.json({ error: '伺服器錯誤' }, { status: 500 })
+    }
   }
 
   // Keyword creation with no platform selected is rejected
@@ -87,11 +106,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Invalid platforms: ${invalidPlatforms.join(', ')}` }, { status: 400 })
   }
 
-  // Duplicate keyword creation is rejected for the same user
   const existing = await prisma.keyword.findFirst({
     where: {
       userId: session.user.id,
-      keyword: keyword.trim(),
+      keyword: trimmedKeyword,
       platforms: { equals: platforms },
     },
   })
@@ -123,7 +141,7 @@ export async function POST(request: Request) {
   const newKeyword = await prisma.keyword.create({
     data: {
       userId: session.user.id,
-      keyword: keyword.trim(),
+      keyword: trimmedKeyword,
       platforms,
       minPrice: minPrice != null ? Number(minPrice) : null,
       maxPrice: maxPrice != null ? Number(maxPrice) : null,
