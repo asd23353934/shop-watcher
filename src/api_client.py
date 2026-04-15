@@ -5,6 +5,7 @@ All requests use Bearer token authentication (WORKER_SECRET).
 Base URL is read from NEXT_PUBLIC_API_URL environment variable.
 """
 
+import asyncio
 import logging
 import os
 from typing import Optional
@@ -16,9 +17,13 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+# Max concurrent notify_batch HTTP calls — prevents burst congestion on the API
+_NOTIFY_BATCH_CONCURRENCY = 8
+assert _NOTIFY_BATCH_CONCURRENCY > 0, "_NOTIFY_BATCH_CONCURRENCY must be positive"
+
 
 class WorkerApiClient:
-    """Stateless HTTP client for the SaaS Worker API."""
+    """HTTP client for Worker ↔ Next.js API communication."""
 
     def __init__(self) -> None:
         secret = os.environ.get("WORKER_SECRET")
@@ -34,6 +39,7 @@ class WorkerApiClient:
             headers={"Authorization": f"Bearer {secret}"},
             timeout=10.0,
         )
+        self._batch_semaphore = asyncio.Semaphore(_NOTIFY_BATCH_CONCURRENCY)
 
     async def get_keywords(self) -> list[dict]:
         """
@@ -168,19 +174,20 @@ class WorkerApiClient:
         if global_seller_blocklist is not None:
             payload["globalSellerBlocklist"] = global_seller_blocklist
 
-        try:
-            resp = await self._client.post(url, json=payload)
-            if resp.status_code in (200, 201):
-                return resp.json()
-            logger.error(
-                "notify_batch: HTTP %s — %s",
-                resp.status_code,
-                resp.text[:200],
-            )
-            return {"new": 0, "price_drop": 0, "duplicate": 0}
-        except httpx.HTTPError as exc:
-            logger.error("notify_batch: network error — %s", exc)
-            return {"new": 0, "price_drop": 0, "duplicate": 0}
+        async with self._batch_semaphore:
+            try:
+                resp = await self._client.post(url, json=payload)
+                if resp.status_code in (200, 201):
+                    return resp.json()
+                logger.error(
+                    "notify_batch: HTTP %s — %s",
+                    resp.status_code,
+                    resp.text[:200],
+                )
+                return {"new": 0, "price_drop": 0, "duplicate": 0}
+            except httpx.HTTPError as exc:
+                logger.error("notify_batch: network error — %s", exc)
+                return {"new": 0, "price_drop": 0, "duplicate": 0}
 
     async def get_circle_follows(self) -> list[dict]:
         """
