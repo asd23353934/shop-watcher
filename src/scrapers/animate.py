@@ -63,7 +63,7 @@ async def scrape_animate(
         f"?KeyWord={quote(keyword)}&sort=07&udns=1"
     )
     try:
-        async with httpx.AsyncClient(headers=_HEADERS, timeout=20, follow_redirects=True) as client:
+        async with httpx.AsyncClient(headers=_HEADERS, timeout=15, follow_redirects=True) as client:
             resp = await client.get(url)
             resp.raise_for_status()
             html = resp.text

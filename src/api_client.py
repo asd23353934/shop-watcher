@@ -128,7 +128,6 @@ class WorkerApiClient:
         items: list,
         keyword_webhook_url: Optional[str] = None,
         max_notify_per_scan: Optional[int] = None,
-        global_seller_blocklist: Optional[list] = None,
         circle_follow_id: Optional[str] = None,
     ) -> dict:
         """
@@ -139,7 +138,6 @@ class WorkerApiClient:
         Optional fields forwarded to the API for server-side filtering:
           - keyword_webhook_url: per-keyword Discord webhook (None = use global)
           - max_notify_per_scan: cap on new notifications per scan cycle
-          - global_seller_blocklist: list of blocked seller name/id substrings
           - circle_follow_id: for CircleFollow notifications (instead of keyword_id)
         Returns { "new": N, "price_drop": P, "duplicate": M } on success,
         or { "new": 0, "price_drop": 0, "duplicate": 0 } on error.
@@ -171,9 +169,6 @@ class WorkerApiClient:
             payload["keywordWebhookUrl"] = keyword_webhook_url
         if max_notify_per_scan is not None:
             payload["maxNotifyPerScan"] = max_notify_per_scan
-        if global_seller_blocklist is not None:
-            payload["globalSellerBlocklist"] = global_seller_blocklist
-
         async with self._batch_semaphore:
             try:
                 resp = await self._client.post(url, json=payload)

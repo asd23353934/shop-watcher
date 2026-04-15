@@ -23,7 +23,6 @@ interface BatchPayload {
   items: BatchItem[]
   keywordWebhookUrl?: string | null
   maxNotifyPerScan?: number | null
-  globalSellerBlocklist?: string[]
 }
 
 export interface NotifyItem extends BatchItem {
@@ -41,12 +40,12 @@ function isSellerBlocked(
   blocklist: string[]
 ): boolean {
   if (blocklist.length === 0) return false
-  const lower = blocklist.map((s) => s.toLowerCase())
   const sn = (sellerName ?? '').toLowerCase()
   const si = (sellerId ?? '').toLowerCase()
-  return lower.some((entry) =>
-    (sn && sn.includes(entry)) || (si && si.includes(entry))
-  )
+  return blocklist.some((entry) => {
+    const e = entry.toLowerCase()
+    return (sn && sn.includes(e)) || (si && si.includes(e))
+  })
 }
 
 /**
@@ -80,7 +79,6 @@ export async function POST(request: Request) {
     items,
     keywordWebhookUrl,
     maxNotifyPerScan: payloadMaxNotify,
-    globalSellerBlocklist: payloadGlobalBlocklist,
   } = body
 
   if (!Array.isArray(items)) {
@@ -100,6 +98,13 @@ export async function POST(request: Request) {
       { error: 'keywordId or circleFollowId is required' },
       { status: 400 }
     )
+  }
+
+  if (payloadMaxNotify != null) {
+    const n = Number(payloadMaxNotify)
+    if (!Number.isInteger(n) || n < 1 || n > 10000) {
+      return NextResponse.json({ error: 'maxNotifyPerScan must be a positive integer between 1 and 10000' }, { status: 400 })
+    }
   }
 
   if (items.length === 0) {
@@ -165,10 +170,7 @@ export async function POST(request: Request) {
     cap = payloadMaxNotify != null ? payloadMaxNotify : envMax
   }
 
-  const globalSellerBlocklist: string[] =
-    Array.isArray(payloadGlobalBlocklist)
-      ? payloadGlobalBlocklist
-      : (notificationSetting?.globalSellerBlocklist ?? [])
+  const globalSellerBlocklist: string[] = notificationSetting?.globalSellerBlocklist ?? []
 
   // ── 1. Deduplication ──────────────────────────────────────────────────────
   const existingRecords = await prisma.seenItem.findMany({
@@ -209,16 +211,15 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── 2. Seller filtering (new items only) ──────────────────────────────────
-  let filteredNewItems = rawNewItems.filter((item) => {
-    if (isSellerBlocked(item.sellerName, item.sellerId, globalSellerBlocklist)) {
-      return false
-    }
-    if (isSellerBlocked(item.sellerName, item.sellerId, keywordSellerBlocklist)) {
-      return false
-    }
-    return true
-  })
+  // ── 2. Seller filtering (new items + price-drops) ────────────────────────
+  const combinedBlocklist = [...globalSellerBlocklist, ...keywordSellerBlocklist]
+
+  let filteredNewItems = rawNewItems.filter(
+    (item) => !isSellerBlocked(item.sellerName, item.sellerId, combinedBlocklist)
+  )
+  const filteredPriceDropItems = priceDropItems.filter(
+    (item) => !isSellerBlocked(item.sellerName, item.sellerId, combinedBlocklist)
+  )
 
   // ── 3. maxNotifyPerScan cap ───────────────────────────────────────────────
   if (filteredNewItems.length > cap) {
@@ -245,9 +246,9 @@ export async function POST(request: Request) {
     insertedCount = result.count
   }
 
-  if (priceDropItems.length > 0) {
+  if (filteredPriceDropItems.length > 0) {
     await prisma.$transaction(
-      priceDropItems.map((item) =>
+      filteredPriceDropItems.map((item) =>
         prisma.seenItem.updateMany({
           where: {
             userId,
@@ -266,7 +267,7 @@ export async function POST(request: Request) {
   }
 
   // ── 5. Send notifications (after response to avoid Vercel timeout) ──────────
-  const notifyItems: NotifyItem[] = [...filteredNewItems, ...priceDropItems]
+  const notifyItems: NotifyItem[] = [...filteredNewItems, ...filteredPriceDropItems]
 
   if (notifyItems.length > 0) {
     const webhookUrl = effectiveWebhook
@@ -287,7 +288,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     new: insertedCount,
-    price_drop: priceDropItems.length,
+    price_drop: filteredPriceDropItems.length,
     duplicate: duplicateCount,
   })
 }

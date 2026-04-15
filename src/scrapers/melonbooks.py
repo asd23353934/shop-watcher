@@ -55,7 +55,7 @@ async def scrape_melonbooks(
     params = {"search_all": keyword, "sort": "new"}
     try:
         async with httpx.AsyncClient(
-            headers=_HEADERS, cookies=_COOKIES, timeout=20, follow_redirects=True
+            headers=_HEADERS, cookies=_COOKIES, timeout=15, follow_redirects=True
         ) as client:
             resp = await client.get(_SEARCH_URL, params=params)
             resp.raise_for_status()

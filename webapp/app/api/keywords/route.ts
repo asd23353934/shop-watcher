@@ -1,46 +1,11 @@
 import { auth } from '@/auth'
+import { VALID_PLATFORMS } from '@/constants/platform'
+import { MIN_KEYWORD_LENGTH, VALID_MATCH_MODES, validateKeywordFields } from '@/lib/keyword-validation'
 import { prisma } from '@/lib/prisma'
-import { CACHE_CONTROL_PRIVATE_SWR_60 } from '@/lib/utils'
-import { isValidDiscordWebhookUrl } from '@/lib/webhook-validation'
+import { CACHE_CONTROL_PRIVATE_SWR_60, toStringSet } from '@/lib/utils'
 import { NextResponse } from 'next/server'
 
-const VALID_PLATFORMS = [
-  'shopee', 'ruten', 'pchome', 'momo', 'animate',
-  'yahoo-auction', 'mandarake', 'myacg', 'kingstone',
-  'booth', 'dlsite', 'toranoana', 'melonbooks',
-]
-
 const MAX_FREE_KEYWORDS = 3
-const MIN_KEYWORD_LENGTH = 2
-
-/**
- * Validates the three new keyword fields.
- * Returns an error response if invalid, or null if valid.
- */
-function validateNewFields(body: Record<string, unknown>): NextResponse | null {
-  const { discordWebhookUrl, maxNotifyPerScan } = body
-
-  if (discordWebhookUrl !== undefined && discordWebhookUrl !== null) {
-    if (!isValidDiscordWebhookUrl(discordWebhookUrl)) {
-      return NextResponse.json(
-        { error: 'Invalid Discord Webhook URL' },
-        { status: 400 }
-      )
-    }
-  }
-
-  if (maxNotifyPerScan !== undefined && maxNotifyPerScan !== null) {
-    const n = Number(maxNotifyPerScan)
-    if (!Number.isInteger(n) || n < 1) {
-      return NextResponse.json(
-        { error: 'maxNotifyPerScan must be a positive integer (>= 1)' },
-        { status: 400 }
-      )
-    }
-  }
-
-  return null
-}
 
 // GET /api/keywords — User's keyword list shows only their own keywords
 export async function GET() {
@@ -67,7 +32,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const body = await request.json()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
   const {
     keyword, platforms, minPrice, maxPrice, active,
     blocklist, mustInclude, matchMode,
@@ -96,7 +67,6 @@ export async function POST(request: Request) {
     }
   }
 
-  // Keyword creation with no platform selected is rejected
   if (!platforms || !Array.isArray(platforms) || platforms.length === 0) {
     return NextResponse.json({ error: 'At least one platform must be selected' }, { status: 400 })
   }
@@ -106,43 +76,52 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Invalid platforms: ${invalidPlatforms.join(', ')}` }, { status: 400 })
   }
 
+  if (minPrice !== undefined && minPrice !== null) {
+    const n = Number(minPrice)
+    if (isNaN(n) || n < 0) {
+      return NextResponse.json({ error: 'minPrice must be a non-negative number' }, { status: 400 })
+    }
+  }
+  if (maxPrice !== undefined && maxPrice !== null) {
+    const n = Number(maxPrice)
+    if (isNaN(n) || n < 0) {
+      return NextResponse.json({ error: 'maxPrice must be a non-negative number' }, { status: 400 })
+    }
+  }
+  if (minPrice != null && maxPrice != null && Number(minPrice) > Number(maxPrice)) {
+    return NextResponse.json({ error: 'minPrice cannot be greater than maxPrice' }, { status: 400 })
+  }
+
+  if (matchMode != null && !(VALID_MATCH_MODES as readonly string[]).includes(matchMode)) {
+    return NextResponse.json({ error: `Invalid matchMode: must be one of ${VALID_MATCH_MODES.join(', ')}` }, { status: 400 })
+  }
+
+  const newFieldsError = validateKeywordFields(body)
+  if (newFieldsError) return newFieldsError
+
+  // Sort platforms to ensure order-independent duplicate detection
+  const sortedPlatforms: string[] = [...platforms].sort()
+
   const existing = await prisma.keyword.findFirst({
     where: {
       userId: session.user.id,
       keyword: trimmedKeyword,
-      platforms: { equals: platforms },
+      platforms: { equals: sortedPlatforms },
     },
   })
   if (existing) {
     return NextResponse.json({ error: '此關鍵字與平台組合已存在' }, { status: 409 })
   }
 
-  const validMatchModes = ['any', 'all', 'exact']
-  if (matchMode != null && !validMatchModes.includes(matchMode)) {
-    return NextResponse.json({ error: `Invalid matchMode: must be one of ${validMatchModes.join(', ')}` }, { status: 400 })
-  }
-
-  // Validate three new fields
-  const newFieldsError = validateNewFields(body)
-  if (newFieldsError) return newFieldsError
-
-  const parsedBlocklist: string[] = Array.isArray(blocklist)
-    ? blocklist.map((w: string) => w.trim()).filter((w: string) => w.length > 0)
-    : []
-
-  const parsedMustInclude: string[] = Array.isArray(mustInclude)
-    ? mustInclude.map((w: string) => w.trim()).filter((w: string) => w.length > 0)
-    : []
-
-  const parsedSellerBlocklist: string[] = Array.isArray(sellerBlocklist)
-    ? sellerBlocklist.map((w: string) => w.trim()).filter((w: string) => w.length > 0)
-    : []
+  const parsedBlocklist = toStringSet(blocklist)
+  const parsedMustInclude = toStringSet(mustInclude)
+  const parsedSellerBlocklist = toStringSet(sellerBlocklist)
 
   const newKeyword = await prisma.keyword.create({
     data: {
       userId: session.user.id,
       keyword: trimmedKeyword,
-      platforms,
+      platforms: sortedPlatforms,
       minPrice: minPrice != null ? Number(minPrice) : null,
       maxPrice: maxPrice != null ? Number(maxPrice) : null,
       blocklist: parsedBlocklist,

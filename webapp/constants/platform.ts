@@ -1,8 +1,15 @@
 export const TAIWAN_PLATFORMS = ['ruten', 'pchome', 'momo', 'animate', 'yahoo-auction', 'myacg', 'kingstone']
 export const JAPAN_PLATFORMS  = ['mandarake', 'melonbooks', 'toranoana', 'booth', 'dlsite']
 
+/** 可建立關鍵字的平台（shopee 暫停，不在此列） */
+export const VALID_PLATFORMS = [...TAIWAN_PLATFORMS, ...JAPAN_PLATFORMS]
+
+/** 支援社團/店舖追蹤的平台 */
+export const CIRCLE_PLATFORMS: string[] = ['booth', 'dlsite']
+
 export const PLATFORM_LABELS: Record<string, string> = {
   ruten: '露天',
+  shopee: '蝦皮購物',
   pchome: 'PChome 24h',
   momo: 'MOMO購物',
   animate: 'Animate台灣',

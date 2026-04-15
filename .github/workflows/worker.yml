@@ -1,10 +1,10 @@
 # GitHub Actions Worker — 定時執行一次掃描循環
-# 每 10 分鐘觸發，抓取各販售平台最新商品並通知用戶
+# 每小時整點觸發，抓取各販售平台最新商品並通知用戶
 name: Worker Scan
 
 on:
   schedule:
-    - cron: '*/10 * * * *'   # 每 10 分鐘執行一次
+    - cron: '0 * * * *'   # 每小時執行一次
   workflow_dispatch:           # 支援手動觸發
 
 # 防止上一輪 job 尚未結束時下一輪重疊啟動

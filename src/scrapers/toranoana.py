@@ -57,7 +57,7 @@ async def scrape_toranoana(
     """
     params = {"searchWord": keyword, "sort": "newitem", "searchBackorderFlg": "1"}
     try:
-        async with httpx.AsyncClient(headers=_HEADERS, timeout=20, follow_redirects=True) as client:
+        async with httpx.AsyncClient(headers=_HEADERS, timeout=15, follow_redirects=True) as client:
             resp = await client.get(_SEARCH_URL, params=params)
             if resp.status_code == 404:
                 # Non-Japanese keywords yield 404 (no results) on this Japanese platform

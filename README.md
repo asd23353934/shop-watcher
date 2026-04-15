@@ -12,7 +12,7 @@
 
 | 功能 | 說明 |
 |------|------|
-| 🔍 多平台監控 | 同時監控 12 個平台，每 10 分鐘自動掃描 |
+| 🔍 多平台監控 | 同時監控 12 個平台，每小時自動掃描 |
 | 🏪 社團/店舖追蹤 | 追蹤 BOOTH 店舖或 DLsite 社團的新上架作品 |
 | 🎮 Discord 通知 | Webhook Embed 格式，含商品圖片、名稱、價格、賣家、連結 |
 | 📧 Email 通知 | 彙整所有新商品為一封表格信件（Resend 發送） |
@@ -35,7 +35,7 @@ shop-watcher/
 ├── requirements.txt # Python 依賴
 ├── .github/
 │   └── workflows/
-│       ├── worker.yml   # 每 10 分鐘掃描
+│       ├── worker.yml   # 每小時掃描
 │       ├── cleanup.yml  # 每日清理過期資料
 │       ├── warmup.yml   # 手動 DB warmup
 │       ├── ci.yml       # Lint 與部署

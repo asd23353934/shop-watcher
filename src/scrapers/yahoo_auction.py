@@ -77,7 +77,7 @@ async def scrape_yahoo_auction(
         f"?p={quote(keyword)}&sort=ontime"
     )
     try:
-        async with httpx.AsyncClient(headers=_HEADERS, timeout=20, follow_redirects=True) as client:
+        async with httpx.AsyncClient(headers=_HEADERS, timeout=15, follow_redirects=True) as client:
             resp = await client.get(url)
             resp.raise_for_status()
             html = resp.text

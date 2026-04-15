@@ -75,7 +75,7 @@ async def scrape_momo(
     url = f"{_BASE_URL}/search/{quote(keyword)}?searchType=1&cateLevel=0&_isFuzzy=0"
     try:
         async with httpx.AsyncClient(
-            headers=_HEADERS, timeout=20, follow_redirects=True, verify=False
+            headers=_HEADERS, timeout=15, follow_redirects=True, verify=False
         ) as client:
             resp = await client.get(url)
             resp.raise_for_status()

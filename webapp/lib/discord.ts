@@ -6,6 +6,7 @@
  * Embed color reflects the platform
  */
 
+import { PLATFORM_LABELS } from '@/constants/platform'
 import { DISCORD_USER_ID_RE, isHttpUrl } from '@/lib/utils'
 
 interface Item {
@@ -35,22 +36,6 @@ const PLATFORM_COLORS: Record<string, number> = {
   dlsite: 0x4f46e5,    // DLsite indigo
   toranoana: 0xd97706, // Toranoana amber
   melonbooks: 0x0d9488, // Melonbooks teal
-}
-
-const PLATFORM_LABELS: Record<string, string> = {
-  shopee: '蝦皮購物',
-  ruten: '露天拍賣',
-  pchome: 'PChome 24h',
-  momo: 'momo 購物',
-  animate: 'Animate Online',
-  'yahoo-auction': 'Yahoo! 拍賣',
-  mandarake: 'Mandarake',
-  myacg: 'MyACG',
-  kingstone: '金石堂',
-  booth: 'BOOTH',
-  dlsite: 'DLsite',
-  toranoana: '虎之穴',
-  melonbooks: 'Melonbooks',
 }
 
 /**

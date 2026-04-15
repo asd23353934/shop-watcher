@@ -55,7 +55,7 @@ Changes can be parked（暫存）— temporarily moved out of `openspec/changes/
 | 認證 | NextAuth.js v5（Google OAuth） |
 | Email 通知 | Resend SDK |
 | Worker | Python 3.12 + Playwright（Chromium headless） |
-| 排程 | GitHub Actions cron `*/10 * * * *` |
+| 排程 | GitHub Actions cron `0 * * * *`（每小時） |
 | 部署 | Vercel（Next.js）+ GitHub Actions（Worker） |
 
 ## 目錄結構
@@ -87,7 +87,7 @@ shop-watcher/
 
 ## 核心功能
 
-- **關鍵字監控**：每 10 分鐘掃描多個平台，結果依建立時間排序（最新優先）；支援平台：露天、PChome、MOMO、Animate、Yahoo拍賣、Mandarake、買動漫、金石堂ACG、Melonbooks、虎之穴、Booth、DLsite（蝦皮暫停）
+- **關鍵字監控**：每小時掃描多個平台，結果依建立時間排序（最新優先）；支援平台：露天、PChome、MOMO、Animate、Yahoo拍賣、Mandarake、買動漫、金石堂ACG、Melonbooks、虎之穴、Booth、DLsite（蝦皮暫停）
 - **社團/店舖追蹤**：`CircleFollow` 追蹤 BOOTH 店舖或 DLsite 社團的新上架作品（`GET/POST /api/circles`、`PATCH/DELETE /api/circles/[id]`）
 - **批次通知**：每個關鍵字 × 平台一次 API 呼叫（`POST /api/worker/notify/batch`）
 - **去重機制**：`SeenItem(userId, platform, itemId)` 唯一鍵，避免重複通知

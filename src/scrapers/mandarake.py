@@ -70,7 +70,7 @@ async def scrape_mandarake(
         async with httpx.AsyncClient(
             headers=_HEADERS,
             cookies=_COOKIES,
-            timeout=20,
+            timeout=15,
             follow_redirects=False,  # detect redirect manually
         ) as client:
             resp = await client.get(url)

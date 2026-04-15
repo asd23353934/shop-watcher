@@ -35,7 +35,7 @@ async def scrape_ruten(
     search_url = f"https://www.ruten.com.tw/find/?q={keyword}&sort=new"
     try:
         await page.goto(
-            search_url, timeout=20_000, wait_until="domcontentloaded"
+            search_url, timeout=15_000, wait_until="domcontentloaded"
         )
         # Ruten search returns newest listings via Playwright — wait for SPA render
         await asyncio.sleep(SPA_WAIT)

@@ -66,7 +66,7 @@ async def scrape_dlsite(
         "age_category[0]": "18",
     }
     try:
-        async with httpx.AsyncClient(headers=_HEADERS, timeout=20, follow_redirects=True) as client:
+        async with httpx.AsyncClient(headers=_HEADERS, timeout=15, follow_redirects=True) as client:
             resp = await client.get(_AJAX_URL, params=params)
             resp.raise_for_status()
             data = resp.json()
@@ -146,7 +146,7 @@ async def scrape_dlsite_circle(
     """
     url = f"{_BASE_URL}/maniax/circle/profile/=/maker_id/{circle_id}.html"
     try:
-        async with httpx.AsyncClient(headers=_HEADERS, timeout=20, follow_redirects=True) as client:
+        async with httpx.AsyncClient(headers=_HEADERS, timeout=15, follow_redirects=True) as client:
             resp = await client.get(url)
             resp.raise_for_status()
             html = resp.text

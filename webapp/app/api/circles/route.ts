@@ -1,10 +1,9 @@
 import { auth } from '@/auth'
+import { CIRCLE_PLATFORMS } from '@/constants/platform'
 import { prisma } from '@/lib/prisma'
 import { CACHE_CONTROL_PRIVATE_SWR_60 } from '@/lib/utils'
 import { isValidDiscordWebhookUrl } from '@/lib/webhook-validation'
 import { NextResponse } from 'next/server'
-
-const VALID_CIRCLE_PLATFORMS = ['booth', 'dlsite']
 
 /**
  * POST /api/circles — follow a BOOTH shop or DLsite circle
@@ -43,7 +42,7 @@ export async function POST(request: Request) {
 
   const { platform, circleId, circleName, webhookUrl, active } = body
 
-  if (!platform || !VALID_CIRCLE_PLATFORMS.includes(platform as string)) {
+  if (!platform || !CIRCLE_PLATFORMS.includes(platform as string)) {
     return NextResponse.json(
       { error: 'platform must be "booth" or "dlsite"' },
       { status: 400 }

@@ -57,7 +57,7 @@ async def scrape_myacg(
     """
     params = {"keyword_body": keyword}
     try:
-        async with httpx.AsyncClient(headers=_HEADERS, cookies=_COOKIES, timeout=20, follow_redirects=True) as client:
+        async with httpx.AsyncClient(headers=_HEADERS, cookies=_COOKIES, timeout=15, follow_redirects=True) as client:
             resp = await client.get(_AJAX_URL, params=params)
             resp.raise_for_status()
             html = resp.text

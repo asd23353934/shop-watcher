@@ -73,7 +73,7 @@ export async function sendEmailNotification(
 
   const safeItemName = escapeHtml(item.name)
   const safeKeyword = escapeHtml(keyword)
-  const safeUrl = item.url.startsWith('https://') ? item.url : '#'
+  const safeUrl = isHttpUrl(item.url) ? item.url : '#'
   const safeImageUrl = isHttpUrl(item.imageUrl) ? item.imageUrl : null
 
   const html = `
@@ -170,7 +170,7 @@ export async function sendEmailBatchNotification(
           : '價格未知'
       const sellerText = escapeHtml(item.sellerName ?? '未知')
       const safeImageUrl = isHttpUrl(item.imageUrl) ? item.imageUrl : null
-      const safeUrl = item.url.startsWith('https://') ? item.url : '#'
+      const safeUrl = isHttpUrl(item.url) ? item.url : '#'
       const safeItemName = escapeHtml(item.name)
       const thumbnail = safeImageUrl
         ? `<img src="${safeImageUrl}" alt="" style="width:60px;height:60px;object-fit:cover;border-radius:4px;" />`

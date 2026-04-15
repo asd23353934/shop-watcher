@@ -79,7 +79,7 @@ async def scrape_kingstone(
     url = f"{_BASE_URL}/search/key/{quote(keyword, safe='')}/lid/search"
     try:
         # verify=False: kingstone.com.tw certificate lacks Subject Key Identifier extension
-        async with httpx.AsyncClient(headers=_HEADERS, timeout=20, follow_redirects=True, verify=False) as client:
+        async with httpx.AsyncClient(headers=_HEADERS, timeout=15, follow_redirects=True, verify=False) as client:
             resp = await client.get(url)
             resp.raise_for_status()
             html = resp.text
