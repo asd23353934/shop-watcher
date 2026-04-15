@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { ChevronDown, ChevronUp, X } from 'lucide-react'
 import type { Keyword } from '@/types/keyword'
 import { MATCH_MODE_LABELS, MATCH_MODE_EXAMPLES } from '@/constants/matchMode'
-import { PLATFORM_LABELS } from '@/constants/platform'
+import { PLATFORM_LABELS, TAIWAN_PLATFORMS, JAPAN_PLATFORMS } from '@/constants/platform'
 import { cn } from '@/lib/utils'
 
 interface KeywordFormProps {
@@ -13,8 +13,6 @@ interface KeywordFormProps {
 }
 
 
-const TAIWAN_PLATFORMS = ['ruten', 'pchome', 'momo', 'animate', 'yahoo-auction', 'myacg', 'kingstone']
-const JAPAN_PLATFORMS  = ['mandarake', 'melonbooks', 'toranoana', 'booth', 'dlsite']
 
 export default function KeywordForm({ onSuccess }: KeywordFormProps) {
   const [keyword, setKeyword]             = useState('')

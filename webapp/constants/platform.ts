@@ -1,3 +1,6 @@
+export const TAIWAN_PLATFORMS = ['ruten', 'pchome', 'momo', 'animate', 'yahoo-auction', 'myacg', 'kingstone']
+export const JAPAN_PLATFORMS  = ['mandarake', 'melonbooks', 'toranoana', 'booth', 'dlsite']
+
 export const PLATFORM_LABELS: Record<string, string> = {
   ruten: '露天',
   pchome: 'PChome 24h',

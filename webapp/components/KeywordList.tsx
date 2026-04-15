@@ -4,7 +4,7 @@ import { useState, useOptimistic, useTransition } from 'react'
 import { toast } from 'sonner'
 import type { Keyword } from '@/types/keyword'
 import { MATCH_MODE_LABELS, MATCH_MODE_EXAMPLES } from '@/constants/matchMode'
-import { PLATFORM_LABELS } from '@/constants/platform'
+import { PLATFORM_LABELS, TAIWAN_PLATFORMS, JAPAN_PLATFORMS } from '@/constants/platform'
 import KeywordCard from '@/components/KeywordCard'
 import EmptyState from '@/components/EmptyState'
 import {
@@ -108,6 +108,10 @@ export default function KeywordList({
   }
 
   const handleEditSave = async (id: string) => {
+    if ((editForm.platforms ?? []).length === 0) {
+      toast.error('請至少選擇一個平台')
+      return
+    }
     setEditLoading(true)
     try {
       const res = await fetch(`/api/keywords/${id}`, {
@@ -163,12 +167,13 @@ export default function KeywordList({
 
                 {/* Platforms */}
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">監控平台</label>
-                    <div className="flex gap-2 text-xs">
-                      <button onClick={() => setEditForm((p) => ({ ...p, platforms: Object.keys(PLATFORM_LABELS) }))} className="text-indigo-600 dark:text-indigo-400 hover:underline">全選</button>
-                      <span className="text-gray-300 dark:text-gray-600">|</span>
-                      <button onClick={() => setEditForm((p) => ({ ...p, platforms: [] }))} className="text-indigo-600 dark:text-indigo-400 hover:underline">全消</button>
+                    <div className="flex flex-wrap gap-2 text-xs justify-end">
+                      <button type="button" onClick={() => setEditForm((p) => ({ ...p, platforms: Object.keys(PLATFORM_LABELS) }))} className="text-indigo-600 dark:text-indigo-400 hover:underline">全選</button>
+                      <button type="button" onClick={() => setEditForm((p) => ({ ...p, platforms: [] }))} className="text-indigo-600 dark:text-indigo-400 hover:underline">全消</button>
+                      <button type="button" onClick={() => setEditForm((p) => ({ ...p, platforms: TAIWAN_PLATFORMS }))} className="text-indigo-600 dark:text-indigo-400 hover:underline">台灣平台</button>
+                      <button type="button" onClick={() => setEditForm((p) => ({ ...p, platforms: JAPAN_PLATFORMS }))} className="text-indigo-600 dark:text-indigo-400 hover:underline">日本平台</button>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">

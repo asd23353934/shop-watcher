@@ -69,8 +69,8 @@ export async function PATCH(
   }
 
   if (platforms !== undefined) {
-    if (!Array.isArray(platforms) || platforms.some((p: unknown) => !VALID_PLATFORMS.includes(p as string))) {
-      return NextResponse.json({ error: `Invalid platforms` }, { status: 400 })
+    if (!Array.isArray(platforms) || platforms.length === 0 || platforms.some((p: unknown) => !VALID_PLATFORMS.includes(p as string))) {
+      return NextResponse.json({ error: '請至少選擇一個平台' }, { status: 400 })
     }
   }
 
