@@ -13,10 +13,12 @@
 | 功能 | 說明 |
 |------|------|
 | 🔍 多平台監控 | 同時監控 12 個平台，每 10 分鐘自動掃描 |
+| 🏪 社團/店舖追蹤 | 追蹤 BOOTH 店舖或 DLsite 社團的新上架作品 |
 | 🎮 Discord 通知 | Webhook Embed 格式，含商品圖片、名稱、價格、賣家、連結 |
 | 📧 Email 通知 | 彙整所有新商品為一封表格信件（Resend 發送） |
 | 💰 降價提醒 | 已通知商品若降價，自動重新通知並標示原價 |
-| 🚫 禁詞過濾 | 關鍵字層級設定禁詞，過濾不想要的商品 |
+| 🚫 禁詞過濾 | 關鍵字層級設定禁詞與屏蔽賣場，精準過濾 |
+| 📊 平台健康狀態 | Dashboard 即時顯示各平台掃描成功/失敗狀態 |
 | 📋 通知記錄 | 查看最近 50 筆已通知商品記錄 |
 | 🧹 自動清理 | 每日清理過期 SeenItem（30天）與 ScanLog（7天） |
 
@@ -29,11 +31,15 @@ shop-watcher/
 ├── webapp/          # Next.js 15 SaaS 應用（Vercel 部署）
 ├── src/             # Python 3.12 Worker 程式碼
 ├── run_once.py      # GitHub Actions 入口（單次掃描）
+├── main.py          # 本地 scheduler 模式入口（持續循環）
 ├── requirements.txt # Python 依賴
 ├── .github/
 │   └── workflows/
 │       ├── worker.yml   # 每 10 分鐘掃描
-│       └── cleanup.yml  # 每日清理過期資料
+│       ├── cleanup.yml  # 每日清理過期資料
+│       ├── warmup.yml   # 手動 DB warmup
+│       ├── ci.yml       # Lint 與部署
+│       └── pages.yml    # GitHub Pages 部署
 └── docs/            # Landing page（GitHub Pages）
 ```
 
@@ -95,7 +101,6 @@ python run_once.py
 | `DATABASE_URL` | Neon.tech 連線字串（cleanup workflow 使用） |
 | `DISCORD_ERROR_WEBHOOK` | （選填）逐筆爬取失敗通知 Discord Webhook |
 | `SYSTEM_ALERT_WEBHOOK` | （選填）系統級告警 Discord Webhook（逾時、嚴重錯誤），與用戶 webhook 分離 |
-| `SHOPEE_COOKIES_JSON` | （選填）蝦皮 session cookies（JSON 陣列），用於繞過 fraud detection |
 
 **Worker 行為調整環境變數（可設於 GitHub Actions Variables）：**
 
@@ -114,8 +119,10 @@ python run_once.py
 | 方法 | 路徑 | 說明 |
 |------|------|------|
 | `GET` | `/api/worker/keywords` | 取得所有啟用的關鍵字與通知設定 |
+| `GET` | `/api/worker/circles` | 取得所有啟用的社團追蹤清單 |
 | `POST` | `/api/worker/notify/batch` | 批次回報商品，回傳 `{new, price_drop, duplicate}` |
 | `POST` | `/api/worker/scan-log` | 記錄掃描完成時間 |
+| `PATCH` | `/api/worker/platform-status` | 更新平台掃描成功/失敗狀態 |
 
 ### 用戶 API（需要登入 Session）
 
@@ -123,8 +130,12 @@ python run_once.py
 |------|------|------|
 | `GET/POST` | `/api/keywords` | 列出 / 新增關鍵字 |
 | `PATCH/DELETE` | `/api/keywords/[id]` | 更新 / 刪除關鍵字 |
+| `GET/POST` | `/api/circles` | 列出 / 新增社團追蹤（BOOTH / DLsite） |
+| `PATCH/DELETE` | `/api/circles/[id]` | 更新 / 刪除社團追蹤 |
 | `GET/POST` | `/api/settings` | 讀取 / 儲存通知設定 |
 | `POST` | `/api/settings/test-webhook` | 測試 Discord Webhook |
+| `POST` | `/api/settings/test-email` | 測試 Email 通知 |
+| `GET` | `/api/platform-status` | 各平台掃描健康狀態 |
 | `GET` | `/api/history` | 通知記錄（最近 50 筆） |
 
 ---
@@ -132,10 +143,13 @@ python run_once.py
 ## 資料模型
 
 ```prisma
-Keyword     # 關鍵字（含 platforms[], blocklist[], minPrice, maxPrice）
-SeenItem    # 已通知紀錄（userId + platform + itemId 唯一，含 lastPrice）
-NotificationSetting  # Discord Webhook / User ID / Email
-ScanLog     # 掃描完成時間（單一 global 記錄）
+Keyword            # 關鍵字（platforms[], blocklist[], mustInclude[], sellerBlocklist[],
+                   #         minPrice, maxPrice, matchMode, discordWebhookUrl, maxNotifyPerScan）
+SeenItem           # 已通知紀錄（userId + platform + itemId 唯一，含 lastPrice）
+NotificationSetting # Discord Webhook / User ID / Email / globalSellerBlocklist
+ScanLog            # 掃描完成時間（單一 global 記錄）
+PlatformScanStatus # 各平台掃描健康（userId + platform 唯一，含 lastSuccess / lastError / failCount）
+CircleFollow       # 社團/店舖追蹤（userId + platform + circleId 唯一，支援 BOOTH / DLsite）
 ```
 
 ---

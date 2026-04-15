@@ -34,8 +34,11 @@ Changes can be parked（暫存）— temporarily moved out of `openspec/changes/
 
 1. `/simplify` — 檢查剛修改的程式碼品質（重複邏輯、不必要的複雜度、可重用性）
 2. `/spectra:audit` — 檢查安全漏洞（OWASP Top 10、危險預設值、型別混淆、靜默失敗）
+3. **確認文件** — 若本次變更涉及新功能、新 API route、新環境變數或架構異動，須同步更新 `CLAUDE.md` 與 `README.md`
 
-兩個技能都通過後才能 commit。若發現問題，先修復再 commit。
+三個步驟都通過後才能 commit。若發現問題，先修復再 commit。
+
+> **README.md 注意**：專案為公開 repo，不可描述繞過平台反爬、fraud detection 等敏感實作細節。
 
 ---
 
@@ -62,18 +65,22 @@ shop-watcher/
 ├── webapp/               # Next.js SaaS 應用
 │   ├── app/              # App Router pages & API routes
 │   ├── components/       # React 元件
-│   ├── lib/              # discord.ts / email.ts / prisma.ts
+│   ├── constants/        # platform.ts（PLATFORM_LABELS / TAIWAN_PLATFORMS / JAPAN_PLATFORMS 等）
+│   ├── lib/              # discord.ts / email.ts / prisma.ts / utils.ts
+│   │                     # worker-auth.ts / webhook-validation.ts
 │   ├── prisma/           # schema.prisma + migrations
 │   └── scripts/          # cleanup.ts（資料清理）
 ├── src/                  # Python Worker
 │   ├── scrapers/         # ruten.py / pchome.py / momo.py / animate.py / yahoo_auction.py
 │   │                     # mandarake.py / myacg.py / kingstone.py / melonbooks.py
 │   │                     # toranoana.py / booth.py / dlsite.py（shopee.py 暫停）
-│   ├── watchers/         # base.py（WatcherItem dataclass）
+│   ├── watchers/         # base.py（BaseWatcher / WatcherItem dataclass）
+│   │                     # shopee.py（蝦皮 Watcher，暫停使用）
 │   ├── api_client.py     # WorkerApiClient
 │   └── scheduler.py      # run_scan_cycle()
 ├── run_once.py           # GitHub Actions 入口（單次掃描）
-├── .github/workflows/    # worker.yml / cleanup.yml / ci.yml
+├── main.py               # 本地 scheduler 模式入口（持續循環）
+├── .github/workflows/    # worker.yml / cleanup.yml / ci.yml / warmup.yml / pages.yml
 ├── docs/                 # Landing page（GitHub Pages）
 └── openspec/             # Spectra SDD artifacts
 ```
@@ -81,13 +88,15 @@ shop-watcher/
 ## 核心功能
 
 - **關鍵字監控**：每 10 分鐘掃描多個平台，結果依建立時間排序（最新優先）；支援平台：露天、PChome、MOMO、Animate、Yahoo拍賣、Mandarake、買動漫、金石堂ACG、Melonbooks、虎之穴、Booth、DLsite（蝦皮暫停）
+- **社團/店舖追蹤**：`CircleFollow` 追蹤 BOOTH 店舖或 DLsite 社團的新上架作品（`GET/POST /api/circles`、`PATCH/DELETE /api/circles/[id]`）
 - **批次通知**：每個關鍵字 × 平台一次 API 呼叫（`POST /api/worker/notify/batch`）
 - **去重機制**：`SeenItem(userId, platform, itemId)` 唯一鍵，避免重複通知
 - **降價提醒**：`SeenItem.lastPrice` 追蹤歷史價格，降價時重新通知
-- **禁詞過濾**：`Keyword.blocklist String[]`，Worker 端過濾商品名稱
+- **禁詞過濾**：`Keyword.blocklist String[]`，Worker 端過濾商品名稱；`sellerBlocklist` 可屏蔽特定賣場
+- **平台健康監控**：`PlatformScanStatus` 記錄各平台最後成功/失敗時間與連續失敗次數，Dashboard 顯示健康 Badge
 - **Discord 通知**：Embed 格式，所有新商品全數送出；每次 Webhook 呼叫最多 10 embeds，自動分批，批次間隔 500ms 避免 rate limit
 - **Email 通知**：Resend SDK，所有新商品彙整為一封表格 Email
-- **Webhook 測試**：`POST /api/settings/test-webhook` 即時驗證 Discord Webhook
+- **Webhook 測試**：`POST /api/settings/test-webhook` / `POST /api/settings/test-email` 即時驗證通知設定
 - **通知歷史**：`/history` 頁面顯示最近 50 筆通知記錄
 - **掃描時間**：Dashboard 顯示「上次掃描：N 分鐘前」
 - **資料清理**：GitHub Actions 每日 UTC 02:00 清理過期 SeenItem（30天）/ ScanLog（7天）
@@ -169,12 +178,15 @@ try {
 
 | 變數 | 說明 |
 |------|------|
-| `DATABASE_URL` | Neon.tech PostgreSQL 連線字串 |
+| `DATABASE_URL` | Neon.tech PostgreSQL 連線字串（pooled，runtime 用） |
+| `DIRECT_URL` | Neon.tech 直連字串（無 pooler，`prisma migrate deploy` 用） |
 | `NEXTAUTH_SECRET` | NextAuth 簽名金鑰 |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth |
 | `RESEND_API_KEY` / `RESEND_FROM_EMAIL` | Email 發送 |
 | `WORKER_SECRET` | Worker ↔ API 共用密鑰 |
 | `MAX_NOTIFY_PER_BATCH` | Discord 批次通知上限（預設 10） |
+| `OWNER_EMAIL` | 擁有者信箱，此帳號不受關鍵字數量限制 |
+| `SYSTEM_ALERT_WEBHOOK` | 系統級告警 Discord Webhook（逾時、嚴重錯誤），與用戶 webhook 分離 |
 
 ## 環境變數（Worker / GitHub Actions Secrets）
 
@@ -182,3 +194,5 @@ try {
 |------|------|
 | `WORKER_SECRET` | 與 Next.js API 相同密鑰 |
 | `NEXT_PUBLIC_API_URL` | Next.js 部署網址（例：`https://shop-watcher.vercel.app`） |
+| `DISCORD_ERROR_WEBHOOK` | 逐筆爬取失敗通知 Webhook（選填） |
+| `SYSTEM_ALERT_WEBHOOK` | 系統層級告警 Webhook（選填，同 webapp 設定） |
