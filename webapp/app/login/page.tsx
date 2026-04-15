@@ -1,5 +1,6 @@
 import { signIn, auth } from '@/auth'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 
 const platforms = [
   { name: '露天', color: '#0066CC' },
@@ -112,7 +113,10 @@ export default async function LoginPage({
         </form>
 
         <p className="text-center mt-6 text-xs text-gray-600">
-          登入即表示您同意本服務之使用條款與隱私政策
+          登入即表示您同意本服務之{" "}
+          <Link href="/terms" className="underline underline-offset-2 hover:text-gray-400">使用條款</Link>
+          {" "}與{" "}
+          <Link href="/privacy" className="underline underline-offset-2 hover:text-gray-400">隱私政策</Link>
         </p>
       </div>
     </main>
