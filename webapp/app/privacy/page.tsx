@@ -118,7 +118,7 @@ export default function PrivacyPolicyPage() {
               </li>
               <li>
                 <strong className="text-foreground">帳戶資料與設定：</strong>
-                保留至您刪除帳戶為止
+                保留至您聯繫我們要求刪除為止
               </li>
             </ul>
           </Section>
@@ -141,9 +141,9 @@ export default function PrivacyPolicyPage() {
 
           <hr className="border-border" />
 
-          <Section title="資料安全">
+          <Section title="資料存取與安全">
             <p className="text-muted-foreground">
-              我們採用業界標準的安全措施保護您的個人資料，包括資料傳輸加密（HTTPS）、存取控制及定期安全稽核。然而，網際網路上的資料傳輸無法保證絕對安全，我們會盡最大努力保護您的資料。
+              我們採用業界標準的安全措施保護您的個人資料，包括資料傳輸加密（HTTPS）及資料庫靜態加密（AES-256）。作為服務營運者，我們可能基於技術維運目的存取資料庫中的資料，但不會將您的個人資料或關鍵字設定用於任何商業用途。然而，網際網路上的資料傳輸無法保證絕對安全，我們會盡最大努力保護您的資料。
             </p>
           </Section>
 
