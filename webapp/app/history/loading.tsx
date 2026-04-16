@@ -8,27 +8,21 @@ export default function HistoryLoading() {
         <Skeleton className="mt-1 h-4 w-48 rounded" />
       </div>
 
-      <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
-        <table className="w-full text-sm">
-          <thead className="border-b bg-gray-50">
-            <tr>
-              {['關鍵字', '平台', '商品 ID', '首次通知時間', '操作'].map((col) => (
-                <th key={col} className="px-4 py-3 text-left font-medium text-gray-600">{col}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <tr key={i}>
-                {Array.from({ length: 5 }).map((__, j) => (
-                  <td key={j} className="px-4 py-3">
-                    <Skeleton className="h-4 w-full rounded" />
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="mb-6 flex flex-wrap gap-3">
+        <Skeleton className="h-10 w-32 rounded-lg" />
+        <Skeleton className="h-10 w-32 rounded-lg" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+            <Skeleton className="h-40 w-full rounded-none" />
+            <div className="p-3 space-y-2">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+          </div>
+        ))}
       </div>
     </>
   )

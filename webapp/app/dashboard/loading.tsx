@@ -12,18 +12,18 @@ export default function DashboardLoading() {
         <Skeleton className="mt-1 h-4 w-48 rounded" />
       </div>
 
-      <section>
-        <SkeletonCard count={2} />
-      </section>
-
-      <hr className="border-gray-100" />
-
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] lg:items-start gap-6">
+        <section>
           <SkeletonRow count={3} />
-        </div>
-        <div>
-          <Skeleton className="h-96 w-full rounded-xl" />
+        </section>
+
+        <div className="space-y-6">
+          <section>
+            <SkeletonCard count={3} />
+          </section>
+          <section>
+            <SkeletonCard count={2} />
+          </section>
         </div>
       </div>
     </div>
