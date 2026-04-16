@@ -36,6 +36,9 @@ _HEADERS = {
     "Referer": _BASE_URL + "/",
 }
 
+# Cookie 繞過年齡驗證，URL 的 adult=t 參數僅控制搜尋結果，cookie 才能取得真實 R18 圖片
+_COOKIES = {"adult": "t"}
+
 
 def _parse_booth_cards(cards, log_prefix: str) -> list[WatcherItem]:
     """Parse li.item-card[data-product-id] elements into WatcherItem list."""
@@ -103,7 +106,9 @@ async def scrape_booth(
     """
     url = f"{_BASE_URL}/zh-tw/search/{quote(keyword, safe='')}?adult=t&sort=new_arrival"
     try:
-        async with httpx.AsyncClient(headers=_HEADERS, timeout=15, follow_redirects=True) as client:
+        async with httpx.AsyncClient(
+            headers=_HEADERS, cookies=_COOKIES, timeout=15, follow_redirects=True,
+        ) as client:
             resp = await client.get(url)
             resp.raise_for_status()
             html = resp.text
@@ -135,6 +140,15 @@ async def scrape_booth_circle(
     Never raises — returns [] on any error.
     """
     url = f"https://{circle_id}.booth.pm/?adult=t&sort=new_arrival"
+    try:
+        await page.context.add_cookies([{
+            "name": "adult",
+            "value": "t",
+            "domain": f"{circle_id}.booth.pm",
+            "path": "/",
+        }])
+    except Exception as exc:
+        logger.warning("[booth-circle] Failed to set cookies for circle_id=%s: %s", circle_id, exc)
     try:
         resp = await page.goto(url, timeout=15_000, wait_until="domcontentloaded")
         if resp and resp.status >= 400:
