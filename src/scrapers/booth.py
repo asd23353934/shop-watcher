@@ -4,9 +4,11 @@ BOOTH (booth.pm) scraper — SSR HTML with data attributes.
 URL: https://booth.pm/zh-tw/search/{keyword}?adult=t&sort=new_arrival
 adult=t bypasses age verification — exposes all products including R18.
 sort=new_arrival returns newest listings first.
-Products are embedded as li.item-card with data-product-* attributes. No Playwright needed.
+Keyword search: products are embedded as li.item-card with data-product-* attributes (httpx).
+Circle/shop scraping: uses Playwright to bypass Cloudflare on subdomain pages.
 """
 
+import json
 import logging
 import re
 from typing import Optional
@@ -14,10 +16,10 @@ from urllib.parse import quote
 
 import httpx
 from bs4 import BeautifulSoup
-from playwright.async_api import Page
+from playwright.async_api import Page, TimeoutError as PWTimeout
 
 from src.watchers.base import WatcherItem
-from src.scrapers.shopee import _apply_price_filter
+from src.scrapers.shopee import _apply_price_filter, _parse_price
 
 logger = logging.getLogger(__name__)
 
@@ -119,31 +121,83 @@ async def scrape_booth(
 
 
 async def scrape_booth_circle(
-    page,  # Page (unused — kept for consistent scraper signature)
+    page: Page,
     circle_id: str,
 ) -> list[WatcherItem]:
     """
-    Scrape newest items from a BOOTH shop's new-arrival page.
+    Scrape newest items from a BOOTH shop's new-arrival page using Playwright.
 
     URL: https://{circle_id}.booth.pm/?adult=t&sort=new_arrival
-    Parses the same li.item-card[data-product-id] structure as keyword search.
+    Subdomain pages are protected by Cloudflare challenges that block httpx,
+    so Playwright (headless browser) is required.
+    Items are rendered client-side; data is embedded in li[data-item] JSON attributes.
     No price-range filtering — returns all found items.
     Never raises — returns [] on any error.
     """
     url = f"https://{circle_id}.booth.pm/?adult=t&sort=new_arrival"
     try:
-        async with httpx.AsyncClient(headers=_HEADERS, timeout=15, follow_redirects=True) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            html = resp.text
+        resp = await page.goto(url, timeout=15_000, wait_until="domcontentloaded")
+        if resp and resp.status >= 400:
+            logger.warning("[booth-circle] HTTP %s for circle_id=%s", resp.status, circle_id)
+            return []
+        # Invalid shop subdomains redirect to booth.pm main page — detect and bail out.
+        final_url = page.url
+        if f"{circle_id}.booth.pm" not in final_url:
+            logger.warning("[booth-circle] Redirected away for circle_id=%s (url=%s)", circle_id, final_url)
+            return []
+        try:
+            await page.wait_for_selector("li[data-item]", timeout=5_000)
+        except PWTimeout:
+            logger.debug("[booth-circle] No data-item elements appeared for circle_id=%s", circle_id)
+            return []
     except Exception as exc:
-        logger.warning("[booth-circle] Request failed for circle_id=%s: %s", circle_id, exc)
+        logger.warning("[booth-circle] Navigation failed for circle_id=%s: %s", circle_id, exc)
         return []
 
-    soup = BeautifulSoup(html, "html.parser")
-    cards = soup.select("li.item-card[data-product-id]")
-    if not cards:
-        logger.debug("[booth-circle] No item cards found for circle_id=%s", circle_id)
+    elements = await page.query_selector_all("li[data-item]")
+    if not elements:
+        logger.debug("[booth-circle] No data-item elements found for circle_id=%s", circle_id)
         return []
 
-    return _parse_booth_cards(cards, "booth-circle")
+    items: list[WatcherItem] = []
+    seen_ids: set[str] = set()
+
+    for el in elements:
+        try:
+            raw = await el.get_attribute("data-item")
+            if not raw:
+                continue
+            data = json.loads(raw)
+
+            item_id = str(data.get("id", "")).strip()
+            if not item_id or item_id in seen_ids:
+                continue
+            seen_ids.add(item_id)
+
+            name = (data.get("name") or "").strip()[:120]
+            if not name:
+                continue
+
+            price = _parse_price(str(data.get("price", "")))
+
+            shop = data.get("shop", {})
+
+            thumb_urls = data.get("thumbnail_image_urls", [])
+            image_url = thumb_urls[0] if thumb_urls else None
+
+            items.append(
+                WatcherItem(
+                    platform="booth",
+                    item_id=item_id,
+                    name=name,
+                    price=price,
+                    url=f"{_BASE_URL}/zh-tw/items/{item_id}",
+                    image_url=image_url,
+                    seller_name=shop.get("name") or None,
+                    seller_id=circle_id,
+                )
+            )
+        except Exception as exc:
+            logger.debug("[booth-circle] Parse error: %s", exc)
+
+    return items
