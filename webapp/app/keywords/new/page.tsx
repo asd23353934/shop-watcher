@@ -17,12 +17,12 @@ export default function KeywordsNewPage() {
       <div className="mb-6 flex items-center gap-3">
         <Link
           href="/dashboard"
-          className="text-sm text-gray-500 hover:text-gray-700"
+          className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
         >
           ← 返回關鍵字列表
         </Link>
       </div>
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">新增關鍵字</h1>
+      <h1 className="mb-6 text-2xl font-bold text-gray-900 dark:text-gray-100">新增關鍵字</h1>
       <KeywordForm onSuccess={handleSuccess} />
     </>
   )

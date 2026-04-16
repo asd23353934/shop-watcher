@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
 import CircleFollowForm from '@/components/CircleFollowForm'
 import EmptyState from '@/components/EmptyState'
+import { SkeletonRow } from '@/components/ui/SkeletonCard'
 import { PLATFORM_LABELS } from '@/constants/platform'
 
 interface CircleFollow {
@@ -83,7 +85,7 @@ export default function CirclesPage() {
         {/* List */}
         <div className="lg:col-span-2">
           {loading ? (
-            <div className="text-center py-12 text-sm text-gray-400">載入中...</div>
+            <SkeletonRow count={3} />
           ) : follows.length === 0 ? (
             <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
               <EmptyState
@@ -132,7 +134,7 @@ export default function CirclesPage() {
                             : 'border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950'
                         }`}
                       >
-                        {pendingIds.has(follow.id) ? '處理中...' : follow.active ? '暫停' : '恢復'}
+                        {pendingIds.has(follow.id) ? <><Loader2 className="inline h-3 w-3 animate-spin mr-1" />處理中</> : follow.active ? '暫停' : '恢復'}
                       </button>
                       <button
                         onClick={() => handleDelete(follow.id)}

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
 
 interface CircleFollow {
   id: string
@@ -162,7 +163,7 @@ export default function CircleFollowForm({ onSuccess }: CircleFollowFormProps) {
         disabled={loading}
         className="w-full rounded-lg bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 transition-colors"
       >
-        {loading ? '新增中...' : '新增社團追蹤'}
+        {loading ? <><Loader2 className="inline h-4 w-4 animate-spin mr-1" />新增中</> : '新增社團追蹤'}
       </button>
     </form>
   )

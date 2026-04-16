@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Send, Mail, Shield, AlertTriangle, Loader2, X } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -152,7 +153,17 @@ export default function NotificationForm({ displayEmail }: { displayEmail?: stri
   }
 
   if (loading) {
-    return <div className="text-center text-sm text-gray-500 py-8">載入中...</div>
+    return (
+      <div className="space-y-6">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="rounded-xl border border-border bg-card p-6 space-y-4">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+        ))}
+      </div>
+    )
   }
 
   const discordConfigured = !!form.discordWebhookUrl
@@ -194,12 +205,12 @@ export default function NotificationForm({ displayEmail }: { displayEmail?: stri
           <div className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={handleTestWebhook}
               disabled={webhookTesting || !form.discordWebhookUrl}>
-              {webhookTesting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
+              {webhookTesting ? <Loader2 className="inline h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />}
               測試
             </Button>
             <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white"
               onClick={handleSaveDiscord} disabled={savingDiscord}>
-              {savingDiscord ? '儲存中...' : '儲存'}
+              {savingDiscord ? <><Loader2 className="inline h-4 w-4 animate-spin mr-1" />儲存中</> : '儲存'}
             </Button>
           </div>
 
@@ -257,7 +268,7 @@ export default function NotificationForm({ displayEmail }: { displayEmail?: stri
           {form.emailEnabled && (
             <div className="flex justify-end">
               <Button variant="outline" size="sm" onClick={handleTestEmail} disabled={emailTesting}>
-                {emailTesting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
+                {emailTesting ? <Loader2 className="inline h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />}
                 測試
               </Button>
             </div>
@@ -315,7 +326,7 @@ export default function NotificationForm({ displayEmail }: { displayEmail?: stri
             <p className="text-xs text-gray-400">目前共屏蔽 {form.globalSellerBlocklist.length} 個賣場</p>
             <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white"
               onClick={handleSaveBlocklist} disabled={savingBlocklist}>
-              {savingBlocklist ? '儲存中...' : '儲存屏蔽清單'}
+              {savingBlocklist ? <><Loader2 className="inline h-4 w-4 animate-spin mr-1" />儲存中</> : '儲存屏蔽清單'}
             </Button>
           </div>
         </CardContent>
@@ -363,7 +374,7 @@ export default function NotificationForm({ displayEmail }: { displayEmail?: stri
                     } catch { toast.error('網路錯誤，請再試一次') }
                     finally { setClearingHistory(false) }
                   }}>
-                  {clearingHistory ? '清除中...' : '確認清除'}
+                  {clearingHistory ? <><Loader2 className="inline h-4 w-4 mr-1 animate-spin" />清除中</> : '確認清除'}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Loader2 } from 'lucide-react'
 import { PLATFORM_LABELS } from '@/constants/platform'
 import EmptyState from '@/components/EmptyState'
+import { Skeleton } from '@/components/ui/skeleton'
 import { isHttpUrl } from '@/lib/utils'
 
 interface SeenItem {
@@ -147,7 +149,17 @@ export default function HistoryPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-16 text-sm text-gray-400">載入中...</div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
+              <Skeleton className="h-40 w-full rounded-none" />
+              <div className="p-3 space-y-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
           <EmptyState
@@ -232,7 +244,7 @@ export default function HistoryPage() {
                 disabled={loadingMore}
                 className="rounded-lg border border-gray-300 dark:border-gray-700 px-5 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
               >
-                {loadingMore ? '載入中...' : '載入更多'}
+                {loadingMore ? <><Loader2 className="inline h-4 w-4 animate-spin mr-1" />載入中</> : '載入更多'}
               </button>
             </div>
           )}

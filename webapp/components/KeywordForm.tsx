@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { ChevronDown, ChevronUp, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Loader2, X } from 'lucide-react'
 import type { Keyword } from '@/types/keyword'
 import { MATCH_MODE_LABELS, MATCH_MODE_EXAMPLES } from '@/constants/matchMode'
 import { PLATFORM_LABELS, TAIWAN_PLATFORMS, JAPAN_PLATFORMS } from '@/constants/platform'
@@ -245,7 +245,7 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
         <span className="text-xs text-gray-400">所有欄位填寫完成後即可建立</span>
         <button type="submit" disabled={loading}
           className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50">
-          {loading ? '新增中...' : '建立關鍵字'}
+          {loading ? <><Loader2 className="inline h-4 w-4 animate-spin mr-1" />新增中</> : '建立關鍵字'}
         </button>
       </div>
     </form>

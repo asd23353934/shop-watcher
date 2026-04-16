@@ -2,6 +2,7 @@
 
 import { useState, useOptimistic, useTransition } from 'react'
 import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
 import type { Keyword } from '@/types/keyword'
 import { MATCH_MODE_LABELS, MATCH_MODE_EXAMPLES } from '@/constants/matchMode'
 import { PLATFORM_LABELS, TAIWAN_PLATFORMS, JAPAN_PLATFORMS } from '@/constants/platform'
@@ -263,7 +264,7 @@ export default function KeywordList({
                 <div className="flex gap-2 pt-2">
                   <button onClick={() => handleEditSave(kw.id)} disabled={editLoading}
                     className="flex-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
-                    {editLoading ? '儲存中...' : '儲存'}
+                    {editLoading ? <><Loader2 className="inline h-4 w-4 animate-spin mr-1" />儲存中</> : '儲存'}
                   </button>
                   <button onClick={() => setEditingId(null)}
                     className="rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
