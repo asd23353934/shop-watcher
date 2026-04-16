@@ -38,6 +38,7 @@ class WorkerApiClient:
         self._client = httpx.AsyncClient(
             headers={"Authorization": f"Bearer {secret}"},
             timeout=10.0,
+            follow_redirects=True,
         )
         self._batch_semaphore = asyncio.Semaphore(_NOTIFY_BATCH_CONCURRENCY)
 
