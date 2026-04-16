@@ -3,6 +3,7 @@ import { VALID_PLATFORMS } from '@/constants/platform'
 import { MIN_KEYWORD_LENGTH, VALID_MATCH_MODES, validateKeywordFields } from '@/lib/keyword-validation'
 import { prisma } from '@/lib/prisma'
 import { toStringSet } from '@/lib/utils'
+import { Prisma } from '@prisma/client'
 import { NextResponse } from 'next/server'
 
 // PATCH /api/keywords/[id] — update a keyword
@@ -75,29 +76,37 @@ export async function PATCH(
   const newFieldsError = validateKeywordFields(body)
   if (newFieldsError) return newFieldsError
 
-  const updated = await prisma.keyword.update({
-    where: { id },
-    data: {
-      ...(keyword !== undefined && { keyword: (keyword as string).trim() }),
-      ...(platforms !== undefined && { platforms: [...platforms].sort() }),
-      ...(minPrice !== undefined && { minPrice: minPrice != null ? Number(minPrice) : null }),
-      ...(maxPrice !== undefined && { maxPrice: maxPrice != null ? Number(maxPrice) : null }),
-      ...(active !== undefined && { active }),
-      ...(blocklist !== undefined && { blocklist: toStringSet(blocklist) }),
-      ...(mustInclude !== undefined && { mustInclude: toStringSet(mustInclude) }),
-      ...(matchMode !== undefined && { matchMode }),
-      ...(sellerBlocklist !== undefined && { sellerBlocklist: toStringSet(sellerBlocklist) }),
-      // Allow explicit null to clear discordWebhookUrl
-      ...('discordWebhookUrl' in body && {
-        discordWebhookUrl: discordWebhookUrl ?? null,
-      }),
-      ...(maxNotifyPerScan !== undefined && {
-        maxNotifyPerScan: maxNotifyPerScan != null ? Number(maxNotifyPerScan) : null,
-      }),
-    },
-  })
+  try {
+    const updated = await prisma.keyword.update({
+      where: { id },
+      data: {
+        ...(keyword !== undefined && { keyword: (keyword as string).trim() }),
+        ...(platforms !== undefined && { platforms: [...platforms].sort() }),
+        ...(minPrice !== undefined && { minPrice: minPrice != null ? Number(minPrice) : null }),
+        ...(maxPrice !== undefined && { maxPrice: maxPrice != null ? Number(maxPrice) : null }),
+        ...(active !== undefined && { active }),
+        ...(blocklist !== undefined && { blocklist: toStringSet(blocklist) }),
+        ...(mustInclude !== undefined && { mustInclude: toStringSet(mustInclude) }),
+        ...(matchMode !== undefined && { matchMode }),
+        ...(sellerBlocklist !== undefined && { sellerBlocklist: toStringSet(sellerBlocklist) }),
+        // Allow explicit null to clear discordWebhookUrl
+        ...('discordWebhookUrl' in body && {
+          discordWebhookUrl: discordWebhookUrl ?? null,
+        }),
+        ...(maxNotifyPerScan !== undefined && {
+          maxNotifyPerScan: maxNotifyPerScan != null ? Number(maxNotifyPerScan) : null,
+        }),
+      },
+    })
 
-  return NextResponse.json(updated)
+    return NextResponse.json(updated)
+  } catch (err: unknown) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      return NextResponse.json({ error: '此關鍵字與平台組合已存在' }, { status: 409 })
+    }
+    console.error('Failed to update keyword:', err)
+    return NextResponse.json({ error: '伺服器錯誤' }, { status: 500 })
+  }
 }
 
 // DELETE /api/keywords/[id] — delete a keyword

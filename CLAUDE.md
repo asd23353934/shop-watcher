@@ -73,9 +73,9 @@ shop-watcher/
 ├── src/                  # Python Worker
 │   ├── scrapers/         # ruten.py / pchome.py / momo.py / animate.py / yahoo_auction.py
 │   │                     # mandarake.py / myacg.py / kingstone.py / melonbooks.py
-│   │                     # toranoana.py / booth.py / dlsite.py（shopee.py 暫停）
+│   │                     # toranoana.py / booth.py / dlsite.py
+│   │                     # _price_utils.py（共用價格解析 helper）
 │   ├── watchers/         # base.py（BaseWatcher / WatcherItem dataclass）
-│   │                     # shopee.py（蝦皮 Watcher，暫停使用）
 │   ├── api_client.py     # WorkerApiClient
 │   └── scheduler.py      # run_scan_cycle()
 ├── run_once.py           # GitHub Actions 入口（單次掃描）
@@ -87,7 +87,7 @@ shop-watcher/
 
 ## 核心功能
 
-- **關鍵字監控**：每小時掃描多個平台，結果依建立時間排序（最新優先）；支援平台：露天、PChome、MOMO、Animate、Yahoo拍賣、Mandarake、買動漫、金石堂ACG、Melonbooks、虎之穴、Booth、DLsite（蝦皮暫停）
+- **關鍵字監控**：每小時掃描多個平台，結果依建立時間排序（最新優先）；支援平台：露天、PChome、MOMO、Animate、Yahoo拍賣、Mandarake、買動漫、金石堂ACG、Melonbooks、虎之穴、Booth、DLsite
 - **社團/店舖追蹤**：`CircleFollow` 追蹤 BOOTH 店舖或 DLsite 社團的新上架作品（`GET/POST /api/circles`、`PATCH/DELETE /api/circles/[id]`）
 - **批次通知**：每個關鍵字 × 平台一次 API 呼叫（`POST /api/worker/notify/batch`）
 - **去重機制**：`SeenItem(userId, platform, itemId)` 唯一鍵，避免重複通知
@@ -170,7 +170,7 @@ try {
 
 - 每個 scraper 以 **module-level async function** 為主要入口，命名 `scrape_<platform>(page, keyword, **kwargs)`
 - 回傳 `list[WatcherItem]`，**絕對不 raise**，錯誤 log 後回傳空 list
-- Price filtering 用 `_apply_price_filter()`（在 `shopee.py` 定義，其他 scraper 匯入）
+- Price filtering 用 `_apply_price_filter()`（在 `_price_utils.py` 定義，其他 scraper 匯入）
 - Logger：`logger = logging.getLogger(__name__)`，module level
 - 網路逾時：Playwright 用 `timeout=15_000`（ms），httpx 用 `timeout=15`（s）
 

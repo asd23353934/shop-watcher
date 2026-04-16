@@ -34,20 +34,10 @@ jobs:
       - name: 安裝 Playwright Chromium
         run: python -m playwright install chromium --with-deps
 
-      - name: 還原 Shopee session 快取
-        uses: actions/cache@v4
-        with:
-          path: shopee_storage_state.json
-          key: shopee-storage-state-${{ github.run_id }}
-          restore-keys: shopee-storage-state-
-
       - name: 執行單次掃描
         env:
           WORKER_SECRET: ${{ secrets.WORKER_SECRET }}
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-          # 可選：蝦皮 session cookies（JSON 陣列格式）用於繞過 fraud detection
-          # 從真實 Chrome 匯出 shopee.tw cookies 後存入此 secret
-          SHOPEE_COOKIES_JSON: ${{ secrets.SHOPEE_COOKIES_JSON }}
           # 可選：爬取失敗時的 Discord Webhook 通知（逐筆爬取錯誤）
           DISCORD_ERROR_WEBHOOK: ${{ secrets.DISCORD_ERROR_WEBHOOK }}
           # 可選：開發者專用系統告警 Webhook（逾時、嚴重錯誤）
@@ -74,17 +64,18 @@ jobs:
             DESC="Worker Scan workflow 執行失敗（含 import crash、安裝錯誤等）"
           fi
 
+          PAYLOAD=$(jq -n \
+            --arg title "$TITLE" \
+            --arg desc "$DESC" \
+            --arg run "${{ github.run_number }}" \
+            --arg trigger "${{ github.event_name }}" \
+            --arg status "${{ job.status }}" \
+            '{embeds: [{title: $title, color: 16711680, description: $desc, fields: [
+              {name: "Run", value: $run, inline: true},
+              {name: "Trigger", value: $trigger, inline: true},
+              {name: "Status", value: $status, inline: true}
+            ]}]}')
+
           curl -s -X POST "$DISCORD_ERROR_WEBHOOK" \
             -H "Content-Type: application/json" \
-            -d "{
-              \"embeds\": [{
-                \"title\": \"$TITLE\",
-                \"color\": 16711680,
-                \"description\": \"$DESC\",
-                \"fields\": [
-                  {\"name\": \"Run\", \"value\": \"${{ github.run_number }}\", \"inline\": true},
-                  {\"name\": \"Trigger\", \"value\": \"${{ github.event_name }}\", \"inline\": true},
-                  {\"name\": \"Status\", \"value\": \"${{ job.status }}\", \"inline\": true}
-                ]
-              }]
-            }"
+            -d "$PAYLOAD"

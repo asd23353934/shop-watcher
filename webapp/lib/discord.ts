@@ -23,7 +23,6 @@ interface Item {
 }
 
 const PLATFORM_COLORS: Record<string, number> = {
-  shopee: 0xee4d2d,    // Shopee orange-red
   ruten: 0x0066cc,     // Ruten blue
   pchome: 0x0059b3,    // PChome blue
   momo: 0xe60026,      // momo red

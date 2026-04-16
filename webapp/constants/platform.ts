@@ -1,7 +1,7 @@
 export const TAIWAN_PLATFORMS = ['ruten', 'pchome', 'momo', 'animate', 'yahoo-auction', 'myacg', 'kingstone']
 export const JAPAN_PLATFORMS  = ['mandarake', 'melonbooks', 'toranoana', 'booth', 'dlsite']
 
-/** 可建立關鍵字的平台（shopee 暫停，不在此列） */
+/** 可建立關鍵字的平台 */
 export const VALID_PLATFORMS = [...TAIWAN_PLATFORMS, ...JAPAN_PLATFORMS]
 
 /** 支援社團/店舖追蹤的平台 */
@@ -9,7 +9,6 @@ export const CIRCLE_PLATFORMS: string[] = ['booth', 'dlsite']
 
 export const PLATFORM_LABELS: Record<string, string> = {
   ruten: '露天',
-  shopee: '蝦皮購物',
   pchome: 'PChome 24h',
   momo: 'MOMO購物',
   animate: 'Animate台灣',
@@ -36,7 +35,6 @@ export const PLATFORM_SEARCH_URL: Record<string, (keyword: string) => string> = 
   dlsite:         (kw) => `https://www.dlsite.com/maniax/fsr/=/keyword/${encodeURIComponent(kw)}/order/release_d.html`,
   toranoana:      (kw) => `https://ecs.toranoana.jp/tora/ec/app/catalog/list?searchWord=${encodeURIComponent(kw)}&sort=newitem`,
   melonbooks:     (kw) => `https://www.melonbooks.co.jp/search/search.php?search_all=${encodeURIComponent(kw)}`,
-  shopee:         (kw) => `https://shopee.tw/search?keyword=${encodeURIComponent(kw)}`,
 }
 
 export const PLATFORM_BADGE_CLASS: Record<string, string> = {

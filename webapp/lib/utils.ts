@@ -20,6 +20,9 @@ export function isHttpUrl(url: string | null | undefined): url is string {
 
 export const CACHE_CONTROL_PRIVATE_SWR_60 = 'private, stale-while-revalidate=60'
 
+/** UTC+8 offset in milliseconds (Asia/Taipei). */
+export const TAIPEI_OFFSET_MS = 8 * 60 * 60 * 1000
+
 // Discord snowflake ID: 17–20 digit numeric string
 export const DISCORD_USER_ID_RE = /^\d{17,20}$/
 

@@ -189,14 +189,8 @@ async def _scan_one(
     must_include: list[str] = kw.get("mustInclude", [])
     match_mode: str = kw.get("matchMode", "any")
 
-    # Shopee is suspended — log and skip
-    if platform == "shopee":
-        logger.warning("[shopee] Platform is suspended, skipping keyword '%s'", keyword_text)
-        return user_id, platform, True, None
-
     # Acquire per-platform Semaphore (create lazily at the limit set by env)
-    if platform not in semaphores:
-        semaphores[platform] = asyncio.Semaphore(_get_semaphore_limit())
+    semaphores.setdefault(platform, asyncio.Semaphore(_get_semaphore_limit()))
 
     async with semaphores[platform]:
         page = await context.new_page()
@@ -306,6 +300,9 @@ async def _scan_circle(
                 return
         except Exception as exc:
             logger.error("[circle/%s] %s — unhandled error: %s", platform, circle_id, exc)
+            user_id = follow.get("userId", "")
+            if user_id:
+                await api.update_platform_scan_status(platform, False, str(exc), user_id)
             return
         finally:
             await page.close()
@@ -373,7 +370,7 @@ async def _run_scan_tasks(
     await asyncio.gather(*[
         api.update_platform_scan_status(p_name, err is None, err, uid)
         for (uid, p_name), err in user_platform_errors.items()
-        if uid and p_name != "shopee"
+        if uid
     ])
 
 

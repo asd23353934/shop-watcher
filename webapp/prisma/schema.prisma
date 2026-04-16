@@ -46,6 +46,7 @@ model Keyword {
   seenItems SeenItem[]
 
   @@index([userId, createdAt(sort: Desc)])
+  @@index([active, createdAt(sort: Desc)])
 }
 
 model NotificationSetting {
@@ -93,6 +94,7 @@ model CircleFollow {
 
   @@unique([userId, platform, circleId])
   @@index([userId, createdAt(sort: Desc)])
+  @@index([active, createdAt(sort: Desc)])
 }
 
 model SeenItem {

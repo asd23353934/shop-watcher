@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Search, Bell, Activity, ArrowUp } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { PLATFORM_LABELS } from '@/constants/platform'
+import { TAIPEI_OFFSET_MS } from '@/lib/utils'
 
 interface Props {
   userId: string
@@ -9,9 +10,9 @@ interface Props {
 }
 
 export default async function DashboardStats({ userId, compact = false }: Props) {
-  const utc8Now = new Date(Date.now() + 8 * 60 * 60 * 1000)
+  const utc8Now = new Date(Date.now() + TAIPEI_OFFSET_MS)
   const todayStr  = utc8Now.toISOString().slice(0, 10)
-  const yesterdayUtc8 = new Date(Date.now() + 8 * 60 * 60 * 1000 - 86400000)
+  const yesterdayUtc8 = new Date(Date.now() + TAIPEI_OFFSET_MS - 86400000)
   const yesterdayStr  = yesterdayUtc8.toISOString().slice(0, 10)
 
   const startToday     = new Date(todayStr + 'T00:00:00+08:00')

@@ -92,5 +92,5 @@ export async function DELETE() {
 
   await prisma.seenItem.deleteMany({ where: { userId: session.user.id } })
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ success: true })
 }

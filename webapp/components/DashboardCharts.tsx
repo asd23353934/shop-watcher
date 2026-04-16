@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { PLATFORM_LABELS } from '@/constants/platform'
+import { TAIPEI_OFFSET_MS } from '@/lib/utils'
 import ChartsRow from '@/components/ChartsRow'
 
 interface Props {
@@ -8,7 +9,7 @@ interface Props {
 }
 
 export default async function DashboardCharts({ userId, compact = false }: Props) {
-  const utc8Now = new Date(Date.now() + 8 * 60 * 60 * 1000)
+  const utc8Now = new Date(Date.now() + TAIPEI_OFFSET_MS)
 
   const sevenDaysAgo = new Date(utc8Now.getTime() - 7 * 86400000)
   const todayStr = utc8Now.toISOString().slice(0, 10)
@@ -34,7 +35,7 @@ export default async function DashboardCharts({ userId, compact = false }: Props
     dayMap.set(label, 0)
   }
   for (const item of recentItems) {
-    const d = new Date(item.firstSeen.getTime() + 8 * 60 * 60 * 1000)
+    const d = new Date(item.firstSeen.getTime() + TAIPEI_OFFSET_MS)
     const label = `${d.getMonth() + 1}/${d.getDate()}`
     if (dayMap.has(label)) dayMap.set(label, (dayMap.get(label) ?? 0) + 1)
   }

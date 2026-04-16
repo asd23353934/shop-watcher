@@ -13,7 +13,7 @@ from typing import Optional
 from playwright.async_api import Page
 
 from src.watchers.base import WatcherItem
-from src.scrapers.shopee import _apply_price_filter, _parse_price, _extract_price_text
+from src.scrapers._price_utils import _apply_price_filter, _parse_price, _extract_price_text
 
 logger = logging.getLogger(__name__)
 

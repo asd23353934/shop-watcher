@@ -1,5 +1,6 @@
 import { verifyWorkerToken } from '@/lib/worker-auth'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { NextResponse } from 'next/server'
 
 interface PlatformStatusPayload {
@@ -42,10 +43,6 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    const existing = await prisma.platformScanStatus.findUnique({
-      where: { userId_platform: { userId, platform } },
-    })
-
     const updated = await prisma.platformScanStatus.upsert({
       where: { userId_platform: { userId, platform } },
       create: {
@@ -62,13 +59,17 @@ export async function PATCH(request: Request) {
             failCount: 0,
           }
         : {
-            failCount: (existing?.failCount ?? 0) + 1,
+            failCount: { increment: 1 },
             lastError: error ?? 'Unknown error',
           },
     })
 
     return NextResponse.json({ ok: true, failCount: updated.failCount })
-  } catch (err) {
+  } catch (err: unknown) {
+    // P2003: FK violation — userId does not reference an existing user
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2003') {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
     console.error('platform-status PATCH error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

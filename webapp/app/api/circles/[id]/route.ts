@@ -45,17 +45,22 @@ export async function PATCH(
     }
   }
 
-  const updated = await prisma.circleFollow.update({
-    where: { id },
-    data: {
-      ...(active !== undefined && { active: Boolean(active) }),
-      ...('webhookUrl' in body && {
-        webhookUrl: webhookUrl ? (webhookUrl as string).trim() : null,
-      }),
-    },
-  })
+  try {
+    const updated = await prisma.circleFollow.update({
+      where: { id },
+      data: {
+        ...(active !== undefined && { active: Boolean(active) }),
+        ...('webhookUrl' in body && {
+          webhookUrl: webhookUrl ? (webhookUrl as string).trim() : null,
+        }),
+      },
+    })
 
-  return NextResponse.json(updated)
+    return NextResponse.json(updated)
+  } catch (err: unknown) {
+    console.error('Failed to update circle follow:', err)
+    return NextResponse.json({ error: '伺服器錯誤' }, { status: 500 })
+  }
 }
 
 export async function DELETE(

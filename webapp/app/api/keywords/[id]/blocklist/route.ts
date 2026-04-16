@@ -46,10 +46,15 @@ export async function PATCH(
     return NextResponse.json({ blocklist: existing.blocklist })
   }
 
-  const updated = await prisma.keyword.update({
-    where: { id },
-    data: { blocklist: { push: word } },
-  })
+  try {
+    const updated = await prisma.keyword.update({
+      where: { id },
+      data: { blocklist: { push: word } },
+    })
 
-  return NextResponse.json({ blocklist: updated.blocklist })
+    return NextResponse.json({ blocklist: updated.blocklist })
+  } catch (err: unknown) {
+    console.error('Failed to update blocklist:', err)
+    return NextResponse.json({ error: '伺服器錯誤' }, { status: 500 })
+  }
 }

@@ -30,11 +30,11 @@ export async function POST() {
 
   const from = process.env.RESEND_FROM_EMAIL
   if (!from) {
-    return NextResponse.json({ ok: false, error: 'RESEND_FROM_EMAIL 未設定，請聯繫管理員' }, { status: 200 })
+    return NextResponse.json({ ok: false, error: 'RESEND_FROM_EMAIL 未設定，請聯繫管理員' }, { status: 500 })
   }
 
   if (!process.env.RESEND_API_KEY) {
-    return NextResponse.json({ ok: false, error: 'RESEND_API_KEY 未設定，請聯繫管理員' }, { status: 200 })
+    return NextResponse.json({ ok: false, error: 'RESEND_API_KEY 未設定，請聯繫管理員' }, { status: 500 })
   }
 
   const resend = new Resend(process.env.RESEND_API_KEY)
@@ -60,7 +60,7 @@ export async function POST() {
 
     if (error) {
       console.error('[test-email] Resend error:', error)
-      return NextResponse.json({ ok: false, error: '發送失敗，請確認設定是否正確' }, { status: 200 })
+      return NextResponse.json({ ok: false, error: '發送失敗，請確認設定是否正確' }, { status: 502 })
     }
 
     return NextResponse.json({ ok: true })

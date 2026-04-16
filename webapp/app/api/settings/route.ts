@@ -33,7 +33,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const body = await request.json()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
   const { discordWebhookUrl, discordUserId, emailEnabled, globalSellerBlocklist } = body
 
   // Validate Discord Webhook URL — Invalid Discord Webhook URL is rejected
@@ -57,25 +63,30 @@ export async function POST(request: Request) {
     ? globalSellerBlocklist.map((w: string) => String(w).trim()).filter((w) => w.length > 0)
     : []
 
-  // Upsert notification settings — Notification settings are isolated per user
-  const settings = await prisma.notificationSetting.upsert({
-    where: { userId: session.user.id },
-    update: {
-      discordWebhookUrl: discordWebhookUrl?.trim() || null,
-      discordUserId: discordUserId?.trim() || null,
-      emailEnabled: emailEnabled === true,
-      globalSellerBlocklist: parsedGlobalSellerBlocklist,
-    },
-    create: {
-      userId: session.user.id,
-      discordWebhookUrl: discordWebhookUrl?.trim() || null,
-      discordUserId: discordUserId?.trim() || null,
-      emailEnabled: emailEnabled === true,
-      globalSellerBlocklist: parsedGlobalSellerBlocklist,
-    },
-  })
+  try {
+    // Upsert notification settings — Notification settings are isolated per user
+    const settings = await prisma.notificationSetting.upsert({
+      where: { userId: session.user.id },
+      update: {
+        discordWebhookUrl: discordWebhookUrl?.trim() || null,
+        discordUserId: discordUserId?.trim() || null,
+        emailEnabled: emailEnabled === true,
+        globalSellerBlocklist: parsedGlobalSellerBlocklist,
+      },
+      create: {
+        userId: session.user.id,
+        discordWebhookUrl: discordWebhookUrl?.trim() || null,
+        discordUserId: discordUserId?.trim() || null,
+        emailEnabled: emailEnabled === true,
+        globalSellerBlocklist: parsedGlobalSellerBlocklist,
+      },
+    })
 
-  return NextResponse.json(settings)
+    return NextResponse.json(settings)
+  } catch (err: unknown) {
+    console.error('Failed to upsert settings:', err)
+    return NextResponse.json({ error: '伺服器錯誤' }, { status: 500 })
+  }
 }
 
 // PATCH /api/settings — partial update (supports globalSellerBlocklist)
@@ -85,7 +96,13 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const body = await request.json()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
   const { discordWebhookUrl, discordUserId, emailEnabled, globalSellerBlocklist } = body
 
   if (discordWebhookUrl !== undefined && discordWebhookUrl && discordWebhookUrl.trim() !== '') {
@@ -109,22 +126,27 @@ export async function PATCH(request: Request) {
         : [])
     : undefined
 
-  const settings = await prisma.notificationSetting.upsert({
-    where: { userId: session.user.id },
-    update: {
-      ...(discordWebhookUrl !== undefined && { discordWebhookUrl: discordWebhookUrl?.trim() || null }),
-      ...(discordUserId !== undefined && { discordUserId: discordUserId?.trim() || null }),
-      ...(emailEnabled !== undefined && { emailEnabled: emailEnabled === true }),
-      ...(parsedGlobalSellerBlocklist !== undefined && { globalSellerBlocklist: parsedGlobalSellerBlocklist }),
-    },
-    create: {
-      userId: session.user.id,
-      discordWebhookUrl: discordWebhookUrl?.trim() || null,
-      discordUserId: discordUserId?.trim() || null,
-      emailEnabled: emailEnabled === true,
-      globalSellerBlocklist: parsedGlobalSellerBlocklist ?? [],
-    },
-  })
+  try {
+    const settings = await prisma.notificationSetting.upsert({
+      where: { userId: session.user.id },
+      update: {
+        ...(discordWebhookUrl !== undefined && { discordWebhookUrl: discordWebhookUrl?.trim() || null }),
+        ...(discordUserId !== undefined && { discordUserId: discordUserId?.trim() || null }),
+        ...(emailEnabled !== undefined && { emailEnabled: emailEnabled === true }),
+        ...(parsedGlobalSellerBlocklist !== undefined && { globalSellerBlocklist: parsedGlobalSellerBlocklist }),
+      },
+      create: {
+        userId: session.user.id,
+        discordWebhookUrl: discordWebhookUrl?.trim() || null,
+        discordUserId: discordUserId?.trim() || null,
+        emailEnabled: emailEnabled === true,
+        globalSellerBlocklist: parsedGlobalSellerBlocklist ?? [],
+      },
+    })
 
-  return NextResponse.json(settings)
+    return NextResponse.json(settings)
+  } catch (err: unknown) {
+    console.error('Failed to upsert settings:', err)
+    return NextResponse.json({ error: '伺服器錯誤' }, { status: 500 })
+  }
 }

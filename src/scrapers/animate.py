@@ -16,7 +16,7 @@ from bs4 import BeautifulSoup
 from playwright.async_api import Page
 
 from src.watchers.base import WatcherItem
-from src.scrapers.shopee import _apply_price_filter, _parse_price
+from src.scrapers._price_utils import _apply_price_filter
 
 logger = logging.getLogger(__name__)
 

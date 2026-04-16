@@ -3,6 +3,7 @@ import { VALID_PLATFORMS } from '@/constants/platform'
 import { MIN_KEYWORD_LENGTH, VALID_MATCH_MODES, validateKeywordFields } from '@/lib/keyword-validation'
 import { prisma } from '@/lib/prisma'
 import { CACHE_CONTROL_PRIVATE_SWR_60, toStringSet } from '@/lib/utils'
+import { Prisma } from '@prisma/client'
 import { NextResponse } from 'next/server'
 
 const MAX_FREE_KEYWORDS = 3
@@ -117,22 +118,30 @@ export async function POST(request: Request) {
   const parsedMustInclude = toStringSet(mustInclude)
   const parsedSellerBlocklist = toStringSet(sellerBlocklist)
 
-  const newKeyword = await prisma.keyword.create({
-    data: {
-      userId: session.user.id,
-      keyword: trimmedKeyword,
-      platforms: sortedPlatforms,
-      minPrice: minPrice != null ? Number(minPrice) : null,
-      maxPrice: maxPrice != null ? Number(maxPrice) : null,
-      blocklist: parsedBlocklist,
-      mustInclude: parsedMustInclude,
-      matchMode: matchMode ?? 'any',
-      active: active !== false,
-      sellerBlocklist: parsedSellerBlocklist,
-      discordWebhookUrl: discordWebhookUrl ?? null,
-      maxNotifyPerScan: maxNotifyPerScan != null ? Number(maxNotifyPerScan) : null,
-    },
-  })
+  try {
+    const newKeyword = await prisma.keyword.create({
+      data: {
+        userId: session.user.id,
+        keyword: trimmedKeyword,
+        platforms: sortedPlatforms,
+        minPrice: minPrice != null ? Number(minPrice) : null,
+        maxPrice: maxPrice != null ? Number(maxPrice) : null,
+        blocklist: parsedBlocklist,
+        mustInclude: parsedMustInclude,
+        matchMode: matchMode ?? 'any',
+        active: active !== false,
+        sellerBlocklist: parsedSellerBlocklist,
+        discordWebhookUrl: discordWebhookUrl ?? null,
+        maxNotifyPerScan: maxNotifyPerScan != null ? Number(maxNotifyPerScan) : null,
+      },
+    })
 
-  return NextResponse.json(newKeyword, { status: 201 })
+    return NextResponse.json(newKeyword, { status: 201 })
+  } catch (err: unknown) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      return NextResponse.json({ error: '此關鍵字與平台組合已存在' }, { status: 409 })
+    }
+    console.error('Failed to create keyword:', err)
+    return NextResponse.json({ error: '伺服器錯誤' }, { status: 500 })
+  }
 }

@@ -13,14 +13,13 @@ No Playwright needed.
 import logging
 import re
 from typing import Optional
-from urllib.parse import quote
 
 import httpx
 from bs4 import BeautifulSoup
 from playwright.async_api import Page
 
 from src.watchers.base import WatcherItem
-from src.scrapers.shopee import _apply_price_filter, _parse_price
+from src.scrapers._price_utils import _apply_price_filter, _parse_price
 
 logger = logging.getLogger(__name__)
 

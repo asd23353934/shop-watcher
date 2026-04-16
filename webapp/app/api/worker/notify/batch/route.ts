@@ -5,6 +5,11 @@ import { sendEmailBatchNotification } from '@/lib/email'
 import { isHttpUrl } from '@/lib/utils'
 import { NextResponse, after } from 'next/server'
 
+// Upper bound on batch size — protects the `OR: items.map(...)` dedup query from exploding
+// if a scraper bug or misbehaving Worker sends a huge payload. Real scrapers yield ≤ 50 items
+// per scan; 500 leaves generous headroom while preventing DB CPU exhaustion.
+const MAX_ITEMS_PER_BATCH = 500
+
 interface BatchItem {
   platform: string
   itemId: string
@@ -85,6 +90,12 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: 'items array is required' },
       { status: 400 }
+    )
+  }
+  if (items.length > MAX_ITEMS_PER_BATCH) {
+    return NextResponse.json(
+      { error: `items array exceeds maximum size of ${MAX_ITEMS_PER_BATCH}` },
+      { status: 413 }
     )
   }
   if (keywordId && circleFollowId) {
@@ -226,30 +237,32 @@ export async function POST(request: Request) {
     filteredNewItems = filteredNewItems.slice(0, cap)
   }
 
-  // ── 4. Persist SeenItems ─────────────────────────────────────────────────
+  // ── 4. Persist SeenItems (atomically — createMany + price-drop updates share one transaction) ─
+  // If either half fails, we must NOT send notifications, otherwise new items would be marked as
+  // "seen" in DB but the user never got notified — on the next scan they'd be treated as duplicates.
   let insertedCount = 0
-  if (filteredNewItems.length > 0) {
-    const result = await prisma.seenItem.createMany({
-      data: filteredNewItems.map((item) => ({
-        userId,
-        platform: item.platform,
-        itemId: item.itemId,
-        keyword: effectiveKeywordLabel,
-        keywordId: keywordIdForRecord,
-        lastPrice: item.price ?? null,
-        itemName: item.name ? item.name.slice(0, 255) : null,
-        itemUrl: isHttpUrl(item.url) ? item.url : null,
-        imageUrl: isHttpUrl(item.imageUrl) ? item.imageUrl : null,
-      })),
-      skipDuplicates: true,
-    })
-    insertedCount = result.count
-  }
+  try {
+    await prisma.$transaction(async (tx) => {
+      if (filteredNewItems.length > 0) {
+        const result = await tx.seenItem.createMany({
+          data: filteredNewItems.map((item) => ({
+            userId,
+            platform: item.platform,
+            itemId: item.itemId,
+            keyword: effectiveKeywordLabel,
+            keywordId: keywordIdForRecord,
+            lastPrice: item.price ?? null,
+            itemName: item.name ? item.name.slice(0, 255) : null,
+            itemUrl: isHttpUrl(item.url) ? item.url : null,
+            imageUrl: isHttpUrl(item.imageUrl) ? item.imageUrl : null,
+          })),
+          skipDuplicates: true,
+        })
+        insertedCount = result.count
+      }
 
-  if (filteredPriceDropItems.length > 0) {
-    await prisma.$transaction(
-      filteredPriceDropItems.map((item) =>
-        prisma.seenItem.updateMany({
+      for (const item of filteredPriceDropItems) {
+        await tx.seenItem.updateMany({
           where: {
             userId,
             platform: item.platform,
@@ -262,8 +275,11 @@ export async function POST(request: Request) {
             imageUrl: isHttpUrl(item.imageUrl) ? item.imageUrl : undefined,
           },
         })
-      )
-    )
+      }
+    })
+  } catch (err: unknown) {
+    console.error('[notify/batch] DB write failed:', err)
+    return NextResponse.json({ error: '伺服器錯誤' }, { status: 500 })
   }
 
   // ── 5. Send notifications (after response to avoid Vercel timeout) ──────────
