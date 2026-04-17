@@ -19,8 +19,14 @@ from playwright.async_api import Page, TimeoutError as PWTimeout
 
 from src.watchers.base import WatcherItem
 from src.scrapers._price_utils import _apply_price_filter, _parse_price
+from src.scrapers._dom_signal import record_dom_intact
 
 logger = logging.getLogger(__name__)
+
+
+async def _check_dom_structure(page) -> bool:
+    # BOOTH keyword search uses SSR HTML via httpx — no rendered page; wrapper check handled post-parse.
+    return True
 
 _BASE_URL = "https://booth.pm"
 
@@ -113,9 +119,15 @@ async def scrape_booth(
             html = resp.text
     except Exception as exc:
         logger.warning("[booth] Request failed for keyword=%s: %s", keyword, exc)
+        record_dom_intact("booth", False)
         return []
 
     soup = BeautifulSoup(html, "html.parser")
+    # Record DOM-intact signal: outer search wrapper / header presence
+    record_dom_intact(
+        "booth",
+        bool(soup.select_one("header, #app, body")) and await _check_dom_structure(page),
+    )
     cards = soup.select("li.item-card[data-product-id]")
     if not cards:
         logger.debug("[booth] No item cards found for keyword=%s", keyword)

@@ -4,6 +4,7 @@ import { useState, useOptimistic, useTransition } from 'react'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import type { Keyword } from '@/types/keyword'
+import type { PlatformHealthInfo } from '@/components/KeywordClientSection'
 import { MATCH_MODE_LABELS, MATCH_MODE_EXAMPLES } from '@/constants/matchMode'
 import { PLATFORM_LABELS, TAIWAN_PLATFORMS, JAPAN_PLATFORMS } from '@/constants/platform'
 import KeywordCard from '@/components/KeywordCard'
@@ -16,6 +17,7 @@ import { cn } from '@/lib/utils'
 
 interface KeywordListProps {
   keywords: Keyword[]
+  platformHealth: Record<string, PlatformHealthInfo>
   onOptimisticToggle: (id: string, newActive: boolean) => void
   onOptimisticUpdate: (updated: Keyword) => void
   onOptimisticDelete: (id: string) => void
@@ -24,6 +26,7 @@ interface KeywordListProps {
 
 export default function KeywordList({
   keywords,
+  platformHealth,
   onOptimisticToggle,
   onOptimisticUpdate,
   onOptimisticDelete,
@@ -276,6 +279,7 @@ export default function KeywordList({
               // ── Card display ─────────────────────────────────────────
               <KeywordCard
                 keyword={kw}
+                platformHealth={platformHealth}
                 onEdit={() => handleEdit(kw)}
                 onDelete={() => setDeleteTargetId(kw.id)}
                 onToggle={(newActive) => handleToggleActive(kw, newActive)}

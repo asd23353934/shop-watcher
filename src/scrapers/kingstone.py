@@ -17,8 +17,14 @@ from playwright.async_api import Page
 
 from src.watchers.base import WatcherItem
 from src.scrapers._price_utils import _apply_price_filter, _parse_price
+from src.scrapers._dom_signal import record_dom_intact
 
 logger = logging.getLogger(__name__)
+
+
+async def _check_dom_structure(page) -> bool:
+    # Kingstone uses SSR HTML via httpx — no rendered page; wrapper check handled post-parse.
+    return True
 
 _BASE_URL = "https://www.kingstone.com.tw"
 
@@ -85,9 +91,15 @@ async def scrape_kingstone(
             html = resp.text
     except Exception as exc:
         logger.warning("[kingstone] Request failed for keyword=%s: %s", keyword, exc)
+        record_dom_intact("kingstone", False)
         return []
 
     soup = BeautifulSoup(html, "html.parser")
+    # Record DOM-intact signal: outer site wrapper / header presence
+    record_dom_intact(
+        "kingstone",
+        bool(soup.select_one("header, #header, body")) and await _check_dom_structure(page),
+    )
 
     # Product links: /basic/{id}/
     product_links = soup.select('a[href*="/basic/"]')

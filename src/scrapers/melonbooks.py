@@ -17,8 +17,14 @@ from playwright.async_api import Page
 
 from src.watchers.base import WatcherItem
 from src.scrapers._price_utils import _apply_price_filter, _parse_price
+from src.scrapers._dom_signal import record_dom_intact
 
 logger = logging.getLogger(__name__)
+
+
+async def _check_dom_structure(page) -> bool:
+    # Melonbooks uses SSR HTML via httpx — no rendered page; wrapper check handled post-parse.
+    return True
 
 _BASE_URL = "https://www.melonbooks.co.jp"
 _SEARCH_URL = _BASE_URL + "/search/search.php"
@@ -61,9 +67,15 @@ async def scrape_melonbooks(
             html = resp.text
     except Exception as exc:
         logger.warning("[melonbooks] Request failed for keyword=%s: %s", keyword, exc)
+        record_dom_intact("melonbooks", False)
         return []
 
     soup = BeautifulSoup(html, "html.parser")
+    # Record DOM-intact signal: outer search wrapper / header presence
+    record_dom_intact(
+        "melonbooks",
+        bool(soup.select_one("#container, header, body")) and await _check_dom_structure(page),
+    )
     card_els = soup.select(".item-list li")
     if not card_els:
         logger.debug("[melonbooks] No product cards found for keyword=%s", keyword)

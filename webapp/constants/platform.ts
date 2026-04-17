@@ -37,6 +37,11 @@ export const PLATFORM_SEARCH_URL: Record<string, (keyword: string) => string> = 
   melonbooks:     (kw) => `https://www.melonbooks.co.jp/search/search.php?search_all=${encodeURIComponent(kw)}`,
 }
 
+export const CANARY_UNHEALTHY_REASON_LABELS: Record<string, string> = {
+  dom_broken: '頁面結構可能已改版',
+  empty_canary: 'canary 關鍵字連續無結果',
+}
+
 export const PLATFORM_BADGE_CLASS: Record<string, string> = {
   ruten: 'text-blue-700 border-blue-300',
   pchome: 'text-red-700 border-red-300',

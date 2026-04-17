@@ -6,11 +6,17 @@ import { Plus } from 'lucide-react'
 import type { Keyword } from '@/types/keyword'
 import KeywordList from '@/components/KeywordList'
 
-interface Props {
-  initialKeywords: Keyword[]
+export interface PlatformHealthInfo {
+  unhealthyReason: string | null
+  lastRunAt: string | null
 }
 
-export default function KeywordClientSection({ initialKeywords }: Props) {
+interface Props {
+  initialKeywords: Keyword[]
+  platformHealth: Record<string, PlatformHealthInfo>
+}
+
+export default function KeywordClientSection({ initialKeywords, platformHealth }: Props) {
   const [keywords, setKeywords] = useState<Keyword[]>(initialKeywords)
 
   const handleToggle = (id: string, newActive: boolean) => {
@@ -48,6 +54,7 @@ export default function KeywordClientSection({ initialKeywords }: Props) {
 
       <KeywordList
         keywords={keywords}
+        platformHealth={platformHealth}
         onOptimisticToggle={handleToggle}
         onOptimisticUpdate={handleUpdate}
         onOptimisticDelete={handleDelete}

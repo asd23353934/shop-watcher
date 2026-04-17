@@ -1,12 +1,24 @@
 'use client'
 
 import type { Keyword } from '@/types/keyword'
-import { PLATFORM_LABELS, PLATFORM_SEARCH_URL } from '@/constants/platform'
+import type { PlatformHealthInfo } from '@/components/KeywordClientSection'
+import { PLATFORM_LABELS, PLATFORM_SEARCH_URL, CANARY_UNHEALTHY_REASON_LABELS } from '@/constants/platform'
 import { MATCH_MODE_BADGE_LABELS } from '@/constants/matchMode'
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
-import { Pencil, Trash2, Link2 } from 'lucide-react'
+import { Pencil, Trash2, Link2, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+function formatRelativeTime(iso: string | null): string {
+  if (!iso) return '尚無記錄'
+  const diffMs  = Date.now() - new Date(iso).getTime()
+  const diffMin = Math.floor(diffMs / 60000)
+  if (diffMin < 1)  return '剛剛'
+  if (diffMin < 60) return `${diffMin} 分鐘前`
+  const diffHr = Math.floor(diffMin / 60)
+  if (diffHr < 24)  return `${diffHr} 小時前`
+  return `${Math.floor(diffHr / 24)} 天前`
+}
 
 // Platform pill colors (light + dark)
 const PLATFORM_COLORS: Record<string, string> = {
@@ -26,6 +38,7 @@ const PLATFORM_COLORS: Record<string, string> = {
 
 interface KeywordCardProps {
   keyword: Keyword
+  platformHealth: Record<string, PlatformHealthInfo>
   onEdit: () => void
   onDelete: () => void
   onToggle: (newActive: boolean) => void
@@ -45,7 +58,7 @@ function PriceRange({ minPrice, maxPrice }: { minPrice: number | null; maxPrice:
   )
 }
 
-export default function KeywordCard({ keyword: kw, onEdit, onDelete, onToggle, toggleDisabled }: KeywordCardProps) {
+export default function KeywordCard({ keyword: kw, platformHealth, onEdit, onDelete, onToggle, toggleDisabled }: KeywordCardProps) {
   return (
     <div className="space-y-3">
       {/* Top row: name + status + controls */}
@@ -82,21 +95,30 @@ export default function KeywordCard({ keyword: kw, onEdit, onDelete, onToggle, t
         {kw.platforms.map((p) => {
           const searchUrl = PLATFORM_SEARCH_URL[p]?.(kw.keyword)
           const colorClass = PLATFORM_COLORS[p] ?? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+          const health = platformHealth[p]
+          const warningTitle = health
+            ? `${CANARY_UNHEALTHY_REASON_LABELS[health.unhealthyReason ?? ''] ?? '平台異常'}｜${formatRelativeTime(health.lastRunAt)}`
+            : undefined
           const content = (
             <span className={cn(
-              'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium hover:opacity-80 transition-opacity',
+              'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium hover:opacity-80 transition-opacity',
               colorClass,
-              searchUrl && 'cursor-pointer'
+              searchUrl && 'cursor-pointer',
+              health && 'ring-1 ring-amber-400 dark:ring-amber-600'
             )}>
+              {health && <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" />}
               {PLATFORM_LABELS[p] ?? p}
             </span>
           )
+          const linkTitle = health
+            ? warningTitle
+            : `在 ${PLATFORM_LABELS[p] ?? p} 搜尋「${kw.keyword}」`
           return searchUrl ? (
-            <a key={p} href={searchUrl} target="_blank" rel="noopener noreferrer" title={`在 ${PLATFORM_LABELS[p] ?? p} 搜尋「${kw.keyword}」`}>
+            <a key={p} href={searchUrl} target="_blank" rel="noopener noreferrer" title={linkTitle}>
               {content}
             </a>
           ) : (
-            <span key={p}>{content}</span>
+            <span key={p} title={warningTitle}>{content}</span>
           )
         })}
       </div>

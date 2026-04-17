@@ -80,6 +80,19 @@ model PlatformScanStatus {
   @@unique([userId, platform])
 }
 
+model PlatformCanaryStatus {
+  id                    String    @id @default(cuid())
+  platform              String    @unique
+  lastRunAt             DateTime?
+  itemCount             Int       @default(0)
+  domIntact             Boolean   @default(true)
+  consecutiveEmptyCount Int       @default(0)
+  healthState           String    @default("healthy")
+  unhealthyReason       String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
 model CircleFollow {
   id         String   @id @default(cuid())
   userId     String

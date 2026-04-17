@@ -17,8 +17,14 @@ from playwright.async_api import Page
 
 from src.watchers.base import WatcherItem
 from src.scrapers._price_utils import _apply_price_filter
+from src.scrapers._dom_signal import record_dom_intact
 
 logger = logging.getLogger(__name__)
+
+
+async def _check_dom_structure(page) -> bool:
+    # MOMO uses RSC payload — no rendered DOM; marker check handled post-fetch.
+    return True
 
 _BASE_URL = "https://www.momoshop.com.tw"
 
@@ -79,8 +85,11 @@ async def scrape_momo(
             resp = await client.get(url)
             resp.raise_for_status()
             rsc_text = resp.text
+        # Record DOM-intact signal: presence of goodsInfoList marker = healthy wrapper
+        record_dom_intact("momo", '"goodsInfoList"' in rsc_text and await _check_dom_structure(page))
     except Exception as exc:
         logger.warning("[momo] Request failed for keyword=%s: %s", keyword, exc)
+        record_dom_intact("momo", False)
         return []
 
     goods_list = _extract_goods_info_list(rsc_text)

@@ -17,8 +17,14 @@ from playwright.async_api import Page
 
 from src.watchers.base import WatcherItem
 from src.scrapers._price_utils import _apply_price_filter, _parse_price
+from src.scrapers._dom_signal import record_dom_intact
 
 logger = logging.getLogger(__name__)
+
+
+async def _check_dom_structure(page) -> bool:
+    # MyACG AJAX fragment via httpx — no rendered page; wrapper check handled post-parse.
+    return True
 
 _BASE_URL = "https://www.myacg.com.tw"
 _AJAX_URL = _BASE_URL + "/goods_list_show_005.php"
@@ -62,9 +68,15 @@ async def scrape_myacg(
             html = resp.text
     except Exception as exc:
         logger.warning("[myacg] Request failed for keyword=%s: %s", keyword, exc)
+        record_dom_intact("myacg", False)
         return []
 
     soup = BeautifulSoup(html, "html.parser")
+    # Record DOM-intact signal: AJAX fragment returned non-trivial HTML
+    record_dom_intact(
+        "myacg",
+        (len(html) > 50 and bool(soup.find())) and await _check_dom_structure(page),
+    )
 
     # Each product: <li> or container with a link to goods_detail.php?gid=...
     product_links = soup.select('a[href*="goods_detail.php"]')

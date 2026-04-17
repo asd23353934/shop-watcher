@@ -14,8 +14,14 @@ from playwright.async_api import Page
 
 from src.watchers.base import WatcherItem
 from src.scrapers._price_utils import _apply_price_filter
+from src.scrapers._dom_signal import record_dom_intact
 
 logger = logging.getLogger(__name__)
+
+
+async def _check_dom_structure(page) -> bool:
+    # PChome uses a JSON API — no rendered DOM; presence check handled post-fetch.
+    return True
 
 _HEADERS = {
     "User-Agent": (
@@ -54,8 +60,11 @@ async def scrape_pchome(
             resp = await client.get(url)
             resp.raise_for_status()
             data = resp.json()
+        # Record DOM-intact signal: API returning dict with prods key = healthy
+        record_dom_intact("pchome", isinstance(data, dict) and "prods" in data and await _check_dom_structure(page))
     except Exception as exc:
         logger.warning("[pchome] Request failed for keyword=%s: %s", keyword, exc)
+        record_dom_intact("pchome", False)
         return []
 
     prods = data.get("prods") or []

@@ -247,5 +247,29 @@ class WorkerApiClient:
             logger.error("update_platform_scan_status: network error — %s", exc)
             return False
 
+    async def report_canary_status(self, records: list[dict]) -> bool:
+        """
+        PATCH /api/worker/canary-status
+
+        Batched upsert of PlatformCanaryStatus rows. Each record must carry
+        `platform`, `itemCount`, `domIntact`, `ranAt` (ISO-8601 UTC).
+
+        Returns True on HTTP 200, False on any error. Never raises.
+        """
+        url = f"{self._base_url}/api/worker/canary-status"
+        try:
+            resp = await self._client.patch(url, json={"records": records})
+            if resp.status_code == 200:
+                return True
+            logger.error(
+                "report_canary_status: HTTP %s — %s",
+                resp.status_code,
+                resp.text[:200],
+            )
+            return False
+        except httpx.HTTPError as exc:
+            logger.error("report_canary_status: network error — %s", exc)
+            return False
+
     async def close(self) -> None:
         await self._client.aclose()

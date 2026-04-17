@@ -21,6 +21,7 @@ import httpx
 from playwright.async_api import async_playwright, BrowserContext
 
 from src.api_client import WorkerApiClient
+from src.canary import run_canary_cycle
 from src.scrapers.ruten import scrape_ruten
 from src.scrapers.pchome import scrape_pchome
 from src.scrapers.momo import scrape_momo
@@ -54,6 +55,12 @@ def _get_scan_timeout() -> int:
         return int(os.environ.get("SCAN_TIMEOUT_SECONDS", "300"))
     except ValueError:
         return 300
+
+
+def _canary_enabled() -> bool:
+    """Read ENABLE_CANARY from env, default True. Set to '0' / 'false' to disable."""
+    val = os.environ.get("ENABLE_CANARY", "true").strip().lower()
+    return val not in ("0", "false", "no", "off")
 
 
 def _get_semaphore_limit() -> int:
@@ -435,6 +442,11 @@ async def run_scan_cycle(api: WorkerApiClient) -> None:
                     for res in results:
                         if isinstance(res, Exception):
                             logger.error("Circle scan gather exception: %s", res)
+                if _canary_enabled():
+                    try:
+                        await run_canary_cycle(context, api)
+                    except Exception as exc:
+                        logger.error("Canary cycle error: %s", exc)
 
             await asyncio.wait_for(
                 _run_all(),

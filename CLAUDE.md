@@ -75,8 +75,10 @@ shop-watcher/
 │   │                     # mandarake.py / myacg.py / kingstone.py / melonbooks.py
 │   │                     # toranoana.py / booth.py / dlsite.py
 │   │                     # _price_utils.py（共用價格解析 helper）
+│   │                     # _dom_signal.py（canary DOM intact 訊號橋接）
 │   ├── watchers/         # base.py（BaseWatcher / WatcherItem dataclass）
 │   ├── api_client.py     # WorkerApiClient
+│   ├── canary.py         # run_canary_cycle() + CANARY_KEYWORDS
 │   └── scheduler.py      # run_scan_cycle()
 ├── run_once.py           # GitHub Actions 入口（單次掃描）
 ├── main.py               # 本地 scheduler 模式入口（持續循環）
@@ -93,7 +95,12 @@ shop-watcher/
 - **去重機制**：`SeenItem(userId, platform, itemId)` 唯一鍵，避免重複通知
 - **降價提醒**：`SeenItem.lastPrice` 追蹤歷史價格，降價時重新通知
 - **禁詞過濾**：`Keyword.blocklist String[]`，Worker 端過濾商品名稱；`sellerBlocklist` 可屏蔽特定賣場
-- **平台健康監控**：`PlatformScanStatus` 記錄各平台最後成功/失敗時間與連續失敗次數，Dashboard 顯示健康 Badge
+- **平台健康監控**：雙層訊號偵測 scraper 改版
+  - **Layer 1 — 使用者關鍵字**：`PlatformScanStatus` 記錄各平台最後成功/失敗時間與連續失敗次數
+  - **Layer 2 — Canary keyword**：每次 scan cycle 額外跑高流量對照關鍵字（`src/canary.py` 維護）並搭配 scraper 內 `_check_dom_structure()` 檢查頁面外層容器是否存在，結果寫入 `PlatformCanaryStatus.healthState` / `unhealthyReason`（`dom_broken` / `empty_canary`）
+  - **狀態轉換**：DOM 結構異常立即標 `unhealthy`；canary 連續兩輪 0 筆才標 `unhealthy`，避免誤報
+  - **UI 呈現**：Dashboard 顯示 🐤 canary badge，關鍵字卡片於對應平台標籤旁顯示 ⚠️ icon；不推播 Discord（避免與使用者通知混淆）
+  - **Rollback 開關**：Worker 端 `ENABLE_CANARY=false` 可關閉 canary 執行
 - **Discord 通知**：Embed 格式，所有新商品全數送出；每次 Webhook 呼叫最多 10 embeds，自動分批，批次間隔 500ms 避免 rate limit
 - **Email 通知**：Resend SDK，所有新商品彙整為一封表格 Email
 - **Webhook 測試**：`POST /api/settings/test-webhook` / `POST /api/settings/test-email` 即時驗證通知設定
@@ -196,3 +203,4 @@ try {
 | `NEXT_PUBLIC_API_URL` | Next.js 部署網址（例：`https://shop-watcher.vercel.app`） |
 | `DISCORD_ERROR_WEBHOOK` | 逐筆爬取失敗通知 Webhook（選填） |
 | `SYSTEM_ALERT_WEBHOOK` | 系統層級告警 Webhook（選填，同 webapp 設定） |
+| `ENABLE_CANARY` | Canary 執行開關（預設 true，設 `false` 可關閉） |

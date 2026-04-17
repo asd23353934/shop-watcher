@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { cn } from '@/lib/utils'
-import { PLATFORM_LABELS } from '@/constants/platform'
+import { PLATFORM_LABELS, CANARY_UNHEALTHY_REASON_LABELS } from '@/constants/platform'
 
 interface Props {
   userId: string
@@ -30,19 +30,33 @@ function getStatus(failCount: number, lastSuccess: Date | null): Status {
 }
 
 export default async function PlatformScanHealthSection({ userId }: Props) {
-  const statuses = await prisma.platformScanStatus.findMany({
-    where: { userId },
-    orderBy: { platform: 'asc' },
-  })
+  const [statuses, canaries] = await Promise.all([
+    prisma.platformScanStatus.findMany({
+      where: { userId },
+      orderBy: { platform: 'asc' },
+    }),
+    prisma.platformCanaryStatus.findMany(),
+  ])
 
-  // Only show platforms that have been scanned at least once (i.e., user has keywords for them).
-  // Platforms with no record are irrelevant to this user — showing them would always be 'warning'.
+  const canaryByPlatform = new Map(canaries.map((c) => [c.platform, c]))
+
   const platformData = statuses.map((record) => {
     const label      = PLATFORM_LABELS[record.platform] ?? record.platform
     const failCount  = record.failCount
     const lastSuccess = record.lastSuccess
     const status     = getStatus(failCount, lastSuccess)
-    return { platform: record.platform, label, failCount, lastSuccess, status, lastError: record.lastError }
+    const canary     = canaryByPlatform.get(record.platform)
+    return {
+      platform: record.platform,
+      label,
+      failCount,
+      lastSuccess,
+      status,
+      lastError: record.lastError,
+      canaryHealthState: (canary?.healthState ?? 'healthy') as 'healthy' | 'unhealthy',
+      canaryUnhealthyReason: canary?.unhealthyReason ?? null,
+      canaryLastRunAt: canary?.lastRunAt ?? null,
+    }
   })
 
   const normalCount  = platformData.filter((p) => p.status === 'normal').length
@@ -79,10 +93,11 @@ export default async function PlatformScanHealthSection({ userId }: Props) {
               <th className="text-xs font-medium text-gray-500 uppercase tracking-wider text-left px-4 py-3">上次成功掃描</th>
               <th className="text-xs font-medium text-gray-500 uppercase tracking-wider text-left px-4 py-3">連續失敗</th>
               <th className="text-xs font-medium text-gray-500 uppercase tracking-wider text-left px-4 py-3">狀態</th>
+              <th className="text-xs font-medium text-gray-500 uppercase tracking-wider text-left px-4 py-3">Canary</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-            {platformData.map(({ platform, label, failCount, lastSuccess, status, lastError }) => (
+            {platformData.map(({ platform, label, failCount, lastSuccess, status, lastError, canaryHealthState, canaryUnhealthyReason, canaryLastRunAt }) => (
               <tr key={platform} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
@@ -123,6 +138,18 @@ export default async function PlatformScanHealthSection({ userId }: Props) {
                       title={lastError ?? undefined}>
                       ✕ 異常
                     </span>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  {canaryHealthState === 'unhealthy' ? (
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800"
+                      title={`${CANARY_UNHEALTHY_REASON_LABELS[canaryUnhealthyReason ?? ''] ?? '異常'}｜${formatRelativeTime(canaryLastRunAt)}`}
+                    >
+                      🐤 異常
+                    </span>
+                  ) : (
+                    <span className="text-gray-300 dark:text-gray-600 text-xs">—</span>
                   )}
                 </td>
               </tr>

@@ -20,8 +20,14 @@ from playwright.async_api import Page
 
 from src.watchers.base import WatcherItem
 from src.scrapers._price_utils import _apply_price_filter, _parse_price
+from src.scrapers._dom_signal import record_dom_intact
 
 logger = logging.getLogger(__name__)
+
+
+async def _check_dom_structure(page) -> bool:
+    # DLsite AJAX endpoint via httpx — no rendered page; JSON wrapper check handled post-fetch.
+    return True
 
 _BASE_URL = "https://www.dlsite.com"
 _AJAX_URL = _BASE_URL + "/maniax/fsr/ajax"
@@ -69,8 +75,14 @@ async def scrape_dlsite(
             resp = await client.get(_AJAX_URL, params=params)
             resp.raise_for_status()
             data = resp.json()
+        # Record DOM-intact signal: JSON payload contains search_result wrapper key
+        record_dom_intact(
+            "dlsite",
+            isinstance(data, dict) and "search_result" in data and await _check_dom_structure(page),
+        )
     except Exception as exc:
         logger.warning("[dlsite] Request failed for keyword=%s: %s", keyword, exc)
+        record_dom_intact("dlsite", False)
         return []
 
     html = data.get("search_result", "")

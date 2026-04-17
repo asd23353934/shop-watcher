@@ -17,8 +17,14 @@ from playwright.async_api import Page
 
 from src.watchers.base import WatcherItem
 from src.scrapers._price_utils import _apply_price_filter, _parse_price
+from src.scrapers._dom_signal import record_dom_intact
 
 logger = logging.getLogger(__name__)
+
+
+async def _check_dom_structure(page) -> bool:
+    # Toranoana uses SSR HTML via httpx — no rendered page; wrapper check handled post-parse.
+    return True
 
 _BASE_URL = "https://ec.toranoana.jp"
 _SEARCH_URL = _BASE_URL + "/tora_r/ec/app/catalog/list"
@@ -61,14 +67,22 @@ async def scrape_toranoana(
             if resp.status_code == 404:
                 # Non-Japanese keywords yield 404 (no results) on this Japanese platform
                 logger.debug("[toranoana] 404 for keyword=%s (no results on JP platform)", keyword)
+                # 404 on JP platform for non-JP keyword is still a healthy response
+                record_dom_intact("toranoana", True)
                 return []
             resp.raise_for_status()
             html = resp.text
     except Exception as exc:
         logger.warning("[toranoana] Request failed for keyword=%s: %s", keyword, exc)
+        record_dom_intact("toranoana", False)
         return []
 
     soup = BeautifulSoup(html, "html.parser")
+    # Record DOM-intact signal: outer site wrapper / header presence
+    record_dom_intact(
+        "toranoana",
+        bool(soup.select_one("#container, header, body")) and await _check_dom_structure(page),
+    )
     card_els = soup.select("li.product-list-item")
     if not card_els:
         logger.debug("[toranoana] No product cards found for keyword=%s", keyword)

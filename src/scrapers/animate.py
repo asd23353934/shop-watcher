@@ -17,8 +17,14 @@ from playwright.async_api import Page
 
 from src.watchers.base import WatcherItem
 from src.scrapers._price_utils import _apply_price_filter
+from src.scrapers._dom_signal import record_dom_intact
 
 logger = logging.getLogger(__name__)
+
+
+async def _check_dom_structure(page) -> bool:
+    # Animate uses SSR HTML via httpx — no rendered page; wrapper check handled post-parse.
+    return True
 
 _BASE_URL = "https://www.animate-onlineshop.com.tw"
 
@@ -69,9 +75,15 @@ async def scrape_animate(
             html = resp.text
     except Exception as exc:
         logger.warning("[animate] Request failed for keyword=%s: %s", keyword, exc)
+        record_dom_intact("animate", False)
         return []
 
     soup = BeautifulSoup(html, "html.parser")
+    # Record DOM-intact signal: outer ProductList wrapper / form element presence
+    record_dom_intact(
+        "animate",
+        bool(soup.select_one("form#aspnetForm, #aspnetForm, body")) and await _check_dom_structure(page),
+    )
 
     # Product cards: <li> elements containing a link to ProductDetail.aspx?pid=...
     product_links = soup.select('a[href*="ProductDetail.aspx"]')

@@ -14,10 +14,19 @@ from playwright.async_api import Page
 
 from src.watchers.base import WatcherItem
 from src.scrapers._price_utils import _apply_price_filter, _parse_price, _extract_price_text
+from src.scrapers._dom_signal import record_dom_intact
 
 logger = logging.getLogger(__name__)
 
 SPA_WAIT = 4  # seconds after domcontentloaded
+
+
+async def _check_dom_structure(page: Page) -> bool:
+    try:
+        el = await page.query_selector("main, #search-result-container, body")
+        return el is not None
+    except Exception:
+        return False
 
 
 async def scrape_ruten(
@@ -39,8 +48,11 @@ async def scrape_ruten(
         )
         # Ruten search returns newest listings via Playwright — wait for SPA render
         await asyncio.sleep(SPA_WAIT)
+        # Record DOM-intact signal for canary health detection
+        record_dom_intact("ruten", await _check_dom_structure(page))
     except Exception as exc:
         logger.error("[ruten] Navigation error: %s", exc)
+        record_dom_intact("ruten", False)
         return []
 
     # ── Extract product links ──────────────────────────────────────────────

@@ -1027,3 +1027,69 @@ code:
   - webapp/prisma/schema.prisma
   - webapp/prisma/migrations/20260413035653_add_perf_indexes/migration.sql
 -->
+---
+### Requirement: Keyword card shows canary warning icon for unhealthy platforms
+
+The keyword card UI component (`KeywordCard`) SHALL render a small warning icon next to each platform label whose `canaryHealthState` is `unhealthy` (as returned by `GET /api/platform-status`). Hovering the icon SHALL reveal a tooltip with the `canaryUnhealthyReason` and `canaryLastRunAt` so the user can judge whether to keep that platform enabled for the keyword.
+
+#### Scenario: Warning icon appears on platform label when platform is unhealthy
+
+- **WHEN** an authenticated user views their keyword list
+- **AND** `GET /api/platform-status` reports `canaryHealthState=unhealthy` for platform `booth`
+- **AND** a keyword card includes `booth` among its enabled platforms
+- **THEN** the platform label for `booth` in the keyword card SHALL display a warning icon
+
+#### Scenario: Warning icon is absent when all platforms are healthy
+
+- **WHEN** all platforms enabled for a keyword report `canaryHealthState=healthy`
+- **THEN** no platform label on the keyword card SHALL display a warning icon
+
+#### Scenario: Tooltip describes the unhealthy reason
+
+- **WHEN** the user hovers the warning icon on a platform label
+- **THEN** a tooltip SHALL display the human-readable form of `canaryUnhealthyReason` (e.g., "頁面結構可能已改版" for `dom_broken`, "canary 關鍵字連續無結果" for `empty_canary`)
+- **AND** the tooltip SHALL include `canaryLastRunAt` as relative time
+
+<!-- @trace
+source: platform-health-two-layer-detection
+updated: 2026-04-17
+code:
+  - webapp/components/KeywordCard.tsx
+  - webapp/app/api/platform-status/route.ts
+  - webapp/constants/platform.ts
+-->
+
+<!-- @trace
+source: platform-health-two-layer-detection
+updated: 2026-04-17
+code:
+  - src/scheduler.py
+  - CLAUDE.md
+  - src/scrapers/melonbooks.py
+  - src/canary.py
+  - src/scrapers/myacg.py
+  - src/scrapers/ruten.py
+  - src/scrapers/yahoo_auction.py
+  - README.md
+  - src/scrapers/_dom_signal.py
+  - webapp/app/api/platform-status/route.ts
+  - webapp/components/KeywordSection.tsx
+  - webapp/prisma/migrations/20260417000000_add_platform_canary_status/migration.sql
+  - src/api_client.py
+  - src/scrapers/animate.py
+  - webapp/components/KeywordClientSection.tsx
+  - src/scrapers/pchome.py
+  - src/scrapers/dlsite.py
+  - webapp/components/KeywordList.tsx
+  - src/scrapers/kingstone.py
+  - webapp/components/PlatformScanHealthBadge.tsx
+  - src/scrapers/booth.py
+  - webapp/components/PlatformScanHealthSection.tsx
+  - webapp/app/api/worker/canary-status/route.ts
+  - webapp/constants/platform.ts
+  - src/scrapers/momo.py
+  - webapp/prisma/schema.prisma
+  - webapp/components/KeywordCard.tsx
+  - src/scrapers/toranoana.py
+  - src/scrapers/mandarake.py
+-->

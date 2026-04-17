@@ -6,10 +6,19 @@ interface Props {
 }
 
 export default async function PlatformScanHealthBadge({ userId }: Props) {
-  const statuses = await prisma.platformScanStatus.findMany({
-    where: { userId },
-    select: { failCount: true },
-  })
+  const [statuses, canaries] = await Promise.all([
+    prisma.platformScanStatus.findMany({
+      where: { userId },
+      select: { platform: true, failCount: true },
+    }),
+    prisma.platformCanaryStatus.findMany({
+      where: { healthState: 'unhealthy' },
+      select: { platform: true },
+    }),
+  ])
+
+  const userPlatforms = new Set(statuses.map((s) => s.platform))
+  const canaryUnhealthyCount = canaries.filter((c) => userPlatforms.has(c.platform)).length
 
   const warningCount = statuses.filter((s) => s.failCount >= 3).length
   const minorFailCount = statuses.filter((s) => s.failCount > 0 && s.failCount < 3).length
@@ -29,9 +38,14 @@ export default async function PlatformScanHealthBadge({ userId }: Props) {
           <span className="rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-medium text-yellow-700">
             {minorFailCount} 個警告
           </span>
-        ) : (
+        ) : canaryUnhealthyCount === 0 ? (
           <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700">
             ✓ 全部正常
+          </span>
+        ) : null}
+        {canaryUnhealthyCount > 0 && (
+          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700" title="canary 偵測到平台異常">
+            🐤 {canaryUnhealthyCount} 平台 canary 異常
           </span>
         )}
         <svg

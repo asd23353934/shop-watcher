@@ -17,8 +17,14 @@ from playwright.async_api import Page
 
 from src.watchers.base import WatcherItem
 from src.scrapers._price_utils import _apply_price_filter
+from src.scrapers._dom_signal import record_dom_intact
 
 logger = logging.getLogger(__name__)
+
+
+async def _check_dom_structure(page) -> bool:
+    # Yahoo auction uses SSR HTML via httpx — no rendered page; wrapper check handled post-fetch.
+    return True
 
 _HEADERS = {
     "User-Agent": (
@@ -83,7 +89,14 @@ async def scrape_yahoo_auction(
             html = resp.text
     except Exception as exc:
         logger.warning("[yahoo-auction] Request failed for keyword=%s: %s", keyword, exc)
+        record_dom_intact("yahoo-auction", False)
         return []
+
+    # Record DOM-intact signal: presence of isoredux-data script wrapper = healthy SSR page
+    record_dom_intact(
+        "yahoo-auction",
+        ('id="isoredux-data"' in html) and await _check_dom_structure(page),
+    )
 
     # Extract isoredux-data JSON (Yahoo拍賣 embeds product data in isoredux Redux state)
     m = re.search(r'<script id="isoredux-data"[^>]*>(.*?)</script>', html, re.DOTALL)

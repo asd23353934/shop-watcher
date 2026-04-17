@@ -18,8 +18,14 @@ from playwright.async_api import Page
 
 from src.watchers.base import WatcherItem
 from src.scrapers._price_utils import _apply_price_filter
+from src.scrapers._dom_signal import record_dom_intact
 
 logger = logging.getLogger(__name__)
+
+
+async def _check_dom_structure(page) -> bool:
+    # Mandarake uses SSR HTML via httpx — no rendered page; wrapper check handled post-parse.
+    return True
 
 _BASE_URL = "https://order.mandarake.co.jp"
 _DETAIL_URL = _BASE_URL + "/order/detailPage/detail?itemCode={code}&lang=en"
@@ -79,14 +85,21 @@ async def scrape_mandarake(
                 logger.warning(
                     "[mandarake] Redirected to %s — cookie gate may have changed", location
                 )
+                record_dom_intact("mandarake", False)
                 return []
             resp.raise_for_status()
             html = resp.text
     except Exception as exc:
         logger.warning("[mandarake] Request failed for keyword=%s: %s", keyword, exc)
+        record_dom_intact("mandarake", False)
         return []
 
     soup = BeautifulSoup(html, "html.parser")
+    # Record DOM-intact signal: outer results wrapper presence
+    record_dom_intact(
+        "mandarake",
+        bool(soup.select_one("#contents, #container, body")) and await _check_dom_structure(page),
+    )
 
     # Product cards: each item is in a .block or .itemBlock div
     cards = soup.select(".block, .itemBlock, li.block")
