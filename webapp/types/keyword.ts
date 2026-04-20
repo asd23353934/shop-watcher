@@ -1,5 +1,3 @@
-import type { Tag } from './tag'
-
 export interface Keyword {
   id: string
   keyword: string
@@ -14,5 +12,4 @@ export interface Keyword {
   sellerBlocklist: string[]
   discordWebhookUrl: string | null
   maxNotifyPerScan: number | null
-  tags?: Pick<Tag, 'id' | 'name' | 'color'>[]
 }

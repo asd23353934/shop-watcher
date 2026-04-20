@@ -7,8 +7,6 @@ import type { Keyword } from '@/types/keyword'
 import { MATCH_MODE_LABELS, MATCH_MODE_EXAMPLES } from '@/constants/matchMode'
 import { PLATFORM_LABELS, TAIWAN_PLATFORMS, JAPAN_PLATFORMS } from '@/constants/platform'
 import { cn } from '@/lib/utils'
-import { TagSelector } from '@/components/TagSelector'
-import { useTags } from '@/lib/hooks/useTags'
 
 interface KeywordFormProps {
   onSuccess?: (keyword: Keyword) => void
@@ -33,8 +31,6 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
   const [active, setActive]               = useState(true)
   const [advancedOpen, setAdvancedOpen]   = useState(false)
   const [loading, setLoading]             = useState(false)
-  const [tagIds, setTagIds]               = useState<string[]>([])
-  const { tags, setTags } = useTags()
 
   const togglePlatform = (p: string) =>
     setPlatforms((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p])
@@ -66,7 +62,6 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
           blocklist, mustInclude, matchMode, active, sellerBlocklist,
           discordWebhookUrl: discordWebhookUrl || null,
           maxNotifyPerScan: maxNotifyPerScan ? Number(maxNotifyPerScan) : null,
-          tagIds,
         }),
       })
 
@@ -80,7 +75,6 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
       setKeyword(''); setPlatforms(['ruten']); setMinPrice(''); setMaxPrice('')
       setBlocklist([]); setMustInclude([]); setMatchMode('any')
       setSellerBlocklist([]); setDiscordWebhookUrl(''); setMaxNotifyPerScan('')
-      setTagIds([])
       toast.success('關鍵字已新增')
       onSuccess?.(newKeyword)
     } catch {
@@ -244,17 +238,6 @@ export default function KeywordForm({ onSuccess }: KeywordFormProps) {
           </label>
           <span className="text-sm text-gray-700 dark:text-gray-300">建立後立即啟用監控</span>
         </div>
-      </section>
-
-      {/* ⑥ 標籤 */}
-      <section className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 shadow-sm space-y-3">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">⑥ 標籤（選填）</p>
-        <TagSelector
-          tags={tags}
-          selectedTagIds={tagIds}
-          onChange={setTagIds}
-          onTagCreated={(t) => setTags((prev) => [...prev, t])}
-        />
       </section>
 
       {/* Submit */}

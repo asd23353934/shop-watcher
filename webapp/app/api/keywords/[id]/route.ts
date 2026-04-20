@@ -2,7 +2,6 @@ import { auth } from '@/auth'
 import { VALID_PLATFORMS } from '@/constants/platform'
 import { MIN_KEYWORD_LENGTH, VALID_MATCH_MODES, validateKeywordFields } from '@/lib/keyword-validation'
 import { prisma } from '@/lib/prisma'
-import { assertTagIdsOwnedBy, TagOwnershipError } from '@/lib/tag-validation'
 import { toStringSet } from '@/lib/utils'
 import { Prisma } from '@prisma/client'
 import { NextResponse } from 'next/server'
@@ -39,7 +38,6 @@ export async function PATCH(
     keyword, platforms, minPrice, maxPrice, active,
     blocklist, mustInclude, matchMode,
     sellerBlocklist, discordWebhookUrl, maxNotifyPerScan,
-    tagIds,
   } = body
 
   if (keyword !== undefined) {
@@ -78,67 +76,30 @@ export async function PATCH(
   const newFieldsError = validateKeywordFields(body)
   if (newFieldsError) return newFieldsError
 
-  let validTagIds: string[] | null = null
-  if (tagIds !== undefined) {
-    if (!Array.isArray(tagIds) || tagIds.some((v) => typeof v !== 'string')) {
-      return NextResponse.json({ error: 'tagIds 必須為字串陣列' }, { status: 400 })
-    }
-    try {
-      validTagIds = await assertTagIdsOwnedBy(session.user.id, tagIds as string[])
-    } catch (err: unknown) {
-      if (err instanceof TagOwnershipError) {
-        const status = err.reason === 'forbidden' ? 403 : 400
-        const message = err.reason === 'forbidden' ? '禁止使用他人的標籤' : '標籤不存在'
-        return NextResponse.json({ error: message }, { status })
-      }
-      throw err
-    }
-  }
-
   try {
-    const updated = await prisma.$transaction(async (tx) => {
-      const keywordRow = await tx.keyword.update({
-        where: { id },
-        data: {
-          ...(keyword !== undefined && { keyword: (keyword as string).trim() }),
-          ...(platforms !== undefined && { platforms: [...platforms].sort() }),
-          ...(minPrice !== undefined && { minPrice: minPrice != null ? Number(minPrice) : null }),
-          ...(maxPrice !== undefined && { maxPrice: maxPrice != null ? Number(maxPrice) : null }),
-          ...(active !== undefined && { active }),
-          ...(blocklist !== undefined && { blocklist: toStringSet(blocklist) }),
-          ...(mustInclude !== undefined && { mustInclude: toStringSet(mustInclude) }),
-          ...(matchMode !== undefined && { matchMode }),
-          ...(sellerBlocklist !== undefined && { sellerBlocklist: toStringSet(sellerBlocklist) }),
-          // Allow explicit null to clear discordWebhookUrl
-          ...('discordWebhookUrl' in body && {
-            discordWebhookUrl: discordWebhookUrl ?? null,
-          }),
-          ...(maxNotifyPerScan !== undefined && {
-            maxNotifyPerScan: maxNotifyPerScan != null ? Number(maxNotifyPerScan) : null,
-          }),
-        },
-      })
-
-      if (validTagIds !== null) {
-        await tx.keywordTag.deleteMany({ where: { keywordId: id } })
-        if (validTagIds.length > 0) {
-          await tx.keywordTag.createMany({
-            data: validTagIds.map((tagId) => ({ keywordId: id, tagId })),
-          })
-        }
-      }
-
-      return tx.keyword.findUniqueOrThrow({
-        where: { id: keywordRow.id },
-        include: { tags: { include: { tag: true } } },
-      })
+    const updated = await prisma.keyword.update({
+      where: { id },
+      data: {
+        ...(keyword !== undefined && { keyword: (keyword as string).trim() }),
+        ...(platforms !== undefined && { platforms: [...platforms].sort() }),
+        ...(minPrice !== undefined && { minPrice: minPrice != null ? Number(minPrice) : null }),
+        ...(maxPrice !== undefined && { maxPrice: maxPrice != null ? Number(maxPrice) : null }),
+        ...(active !== undefined && { active }),
+        ...(blocklist !== undefined && { blocklist: toStringSet(blocklist) }),
+        ...(mustInclude !== undefined && { mustInclude: toStringSet(mustInclude) }),
+        ...(matchMode !== undefined && { matchMode }),
+        ...(sellerBlocklist !== undefined && { sellerBlocklist: toStringSet(sellerBlocklist) }),
+        // Allow explicit null to clear discordWebhookUrl
+        ...('discordWebhookUrl' in body && {
+          discordWebhookUrl: discordWebhookUrl ?? null,
+        }),
+        ...(maxNotifyPerScan !== undefined && {
+          maxNotifyPerScan: maxNotifyPerScan != null ? Number(maxNotifyPerScan) : null,
+        }),
+      },
     })
 
-    const { tags, ...rest } = updated
-    return NextResponse.json({
-      ...rest,
-      tags: tags.map((kt) => ({ id: kt.tag.id, name: kt.tag.name, color: kt.tag.color })),
-    })
+    return NextResponse.json(updated)
   } catch (err: unknown) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
       return NextResponse.json({ error: '此關鍵字與平台組合已存在' }, { status: 409 })

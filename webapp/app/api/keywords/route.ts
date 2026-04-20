@@ -2,26 +2,9 @@ import { auth } from '@/auth'
 import { VALID_PLATFORMS } from '@/constants/platform'
 import { MIN_KEYWORD_LENGTH, VALID_MATCH_MODES, validateKeywordFields } from '@/lib/keyword-validation'
 import { prisma } from '@/lib/prisma'
-import { assertTagIdsOwnedBy, TagOwnershipError } from '@/lib/tag-validation'
 import { CACHE_CONTROL_PRIVATE_SWR_60, toStringSet } from '@/lib/utils'
 import { Prisma } from '@prisma/client'
 import { NextResponse } from 'next/server'
-
-type KeywordWithTags = Prisma.KeywordGetPayload<{
-  include: { tags: { include: { tag: true } } }
-}>
-
-function serializeKeyword(k: KeywordWithTags) {
-  const { tags, ...rest } = k
-  return {
-    ...rest,
-    tags: tags.map((kt) => ({
-      id: kt.tag.id,
-      name: kt.tag.name,
-      color: kt.tag.color,
-    })),
-  }
-}
 
 const MAX_FREE_KEYWORDS = 3
 
@@ -35,11 +18,10 @@ export async function GET() {
   const keywords = await prisma.keyword.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: 'desc' },
-    include: { tags: { include: { tag: true } } },
   })
 
   return NextResponse.json(
-    keywords.map(serializeKeyword),
+    keywords,
     { headers: { 'Cache-Control': CACHE_CONTROL_PRIVATE_SWR_60 } }
   )
 }
@@ -62,7 +44,6 @@ export async function POST(request: Request) {
     keyword, platforms, minPrice, maxPrice, active,
     blocklist, mustInclude, matchMode,
     sellerBlocklist, discordWebhookUrl, maxNotifyPerScan,
-    tagIds,
   } = body
 
   const trimmedKeyword = typeof keyword === 'string' ? keyword.trim() : ''
@@ -137,23 +118,6 @@ export async function POST(request: Request) {
   const parsedMustInclude = toStringSet(mustInclude)
   const parsedSellerBlocklist = toStringSet(sellerBlocklist)
 
-  let validTagIds: string[] = []
-  if (tagIds !== undefined) {
-    if (!Array.isArray(tagIds) || tagIds.some((v) => typeof v !== 'string')) {
-      return NextResponse.json({ error: 'tagIds 必須為字串陣列' }, { status: 400 })
-    }
-    try {
-      validTagIds = await assertTagIdsOwnedBy(session.user.id, tagIds as string[])
-    } catch (err: unknown) {
-      if (err instanceof TagOwnershipError) {
-        const status = err.reason === 'forbidden' ? 403 : 400
-        const message = err.reason === 'forbidden' ? '禁止使用他人的標籤' : '標籤不存在'
-        return NextResponse.json({ error: message }, { status })
-      }
-      throw err
-    }
-  }
-
   try {
     const newKeyword = await prisma.keyword.create({
       data: {
@@ -169,14 +133,10 @@ export async function POST(request: Request) {
         sellerBlocklist: parsedSellerBlocklist,
         discordWebhookUrl: discordWebhookUrl ?? null,
         maxNotifyPerScan: maxNotifyPerScan != null ? Number(maxNotifyPerScan) : null,
-        tags: validTagIds.length > 0
-          ? { create: validTagIds.map((tagId) => ({ tagId })) }
-          : undefined,
       },
-      include: { tags: { include: { tag: true } } },
     })
 
-    return NextResponse.json(serializeKeyword(newKeyword), { status: 201 })
+    return NextResponse.json(newKeyword, { status: 201 })
   } catch (err: unknown) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
       return NextResponse.json({ error: '此關鍵字與平台組合已存在' }, { status: 409 })

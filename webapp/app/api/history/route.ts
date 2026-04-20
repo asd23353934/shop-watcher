@@ -2,7 +2,7 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { CACHE_CONTROL_PRIVATE_SWR_60 } from '@/lib/utils'
 import { PLATFORM_LABELS } from '@/constants/platform'
-import { assertTagIdsOwnedBy, TagOwnershipError } from '@/lib/tag-validation'
+import { Prisma } from '@prisma/client'
 import { NextResponse } from 'next/server'
 
 const VALID_PLATFORMS = new Set(Object.keys(PLATFORM_LABELS))
@@ -15,12 +15,10 @@ const VALID_PLATFORMS = new Set(Object.keys(PLATFORM_LABELS))
  *   ?keywordId=<id>    filter by keyword (includes circle:{name} via the keyword field)
  *   ?platform=<name>   filter by platform
  *   ?cursor=<id>       cursor-based pagination (ID of last item from previous page)
+ *   ?q=<string>        case-insensitive substring search over itemName; tokens split on
+ *                      any Unicode whitespace (including U+3000) and combined with AND
  *
  * Returns: { items: SeenItem[], nextCursor: string | null }
- *
- * History pagination loads next 50 items
- * History supports filtering by keyword
- * History supports filtering by platform
  */
 export async function GET(request: Request) {
   const session = await auth()
@@ -32,7 +30,7 @@ export async function GET(request: Request) {
   const keywordId = searchParams.get('keywordId')
   const platform = searchParams.get('platform')
   const rawCursor = searchParams.get('cursor')
-  const rawTagIds = searchParams.get('tagIds')
+  const rawQ = searchParams.get('q')
 
   const CUID_RE = /^c[a-z0-9]{24}$/
   if (rawCursor && !CUID_RE.test(rawCursor)) {
@@ -42,12 +40,9 @@ export async function GET(request: Request) {
 
   const PAGE_SIZE = 50
 
-  // Build where clause
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const where: any = { userId: session.user.id }
+  const where: Prisma.SeenItemWhereInput = { userId: session.user.id }
 
   if (keywordId) {
-    // keywordId can be a Prisma keyword record ID, or a special "circle:*" label stored in .keyword field
     if (keywordId.startsWith('circle:')) {
       where.keyword = keywordId
       where.keywordId = null
@@ -63,44 +58,20 @@ export async function GET(request: Request) {
     where.platform = platform
   }
 
-  // tagIds filter (AND semantics): silently drop ids not owned by user
-  if (rawTagIds) {
-    const requested = rawTagIds
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean)
-    let validTagIds: string[] = []
-    if (requested.length > 0) {
-      try {
-        validTagIds = await assertTagIdsOwnedBy(session.user.id, requested)
-      } catch (err) {
-        if (err instanceof TagOwnershipError) {
-          // silently filter to owned ids
-          const rows = await prisma.tag.findMany({
-            where: { id: { in: requested }, userId: session.user.id },
-            select: { id: true },
-          })
-          validTagIds = rows.map((r) => r.id)
-        } else {
-          throw err
-        }
-      }
-    }
-    if (validTagIds.length > 0) {
-      where.AND = validTagIds.map((tagId) => ({
-        tags: { some: { tagId } },
+  if (rawQ) {
+    const tokens = rawQ.trim().split(/[\s\u3000]+/).filter(Boolean)
+    if (tokens.length > 0) {
+      where.itemName = { not: null }
+      where.AND = tokens.map((token) => ({
+        itemName: { contains: token, mode: 'insensitive' as const },
       }))
     }
   }
 
-  // Cursor pagination: skip items with id <= cursor (using cursor on createdAt desc)
   const items = await prisma.seenItem.findMany({
     where,
     orderBy: { firstSeen: 'desc' },
     take: PAGE_SIZE + 1,
-    include: {
-      tags: { include: { tag: { select: { id: true, name: true, color: true } } } },
-    },
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   })
 
@@ -108,16 +79,8 @@ export async function GET(request: Request) {
   const pageItems = hasMore ? items.slice(0, PAGE_SIZE) : items
   const nextCursor = hasMore ? pageItems[pageItems.length - 1].id : null
 
-  const shaped = pageItems.map((it) => {
-    const { tags, ...rest } = it
-    return {
-      ...rest,
-      tags: tags.map((st) => ({ id: st.tag.id, name: st.tag.name, color: st.tag.color })),
-    }
-  })
-
   return NextResponse.json(
-    { items: shaped, nextCursor },
+    { items: pageItems, nextCursor },
     { headers: { 'Cache-Control': CACHE_CONTROL_PRIVATE_SWR_60 } }
   )
 }

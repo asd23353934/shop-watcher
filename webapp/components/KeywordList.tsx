@@ -9,8 +9,6 @@ import { MATCH_MODE_LABELS, MATCH_MODE_EXAMPLES } from '@/constants/matchMode'
 import { PLATFORM_LABELS, TAIWAN_PLATFORMS, JAPAN_PLATFORMS } from '@/constants/platform'
 import KeywordCard from '@/components/KeywordCard'
 import EmptyState from '@/components/EmptyState'
-import { TagSelector } from '@/components/TagSelector'
-import { useTags } from '@/lib/hooks/useTags'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -41,8 +39,6 @@ export default function KeywordList({
   const [editSellerBlocklistInput, setEditSellerBlocklistInput] = useState('')
   const [editLoading, setEditLoading] = useState(false)
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
-  const [editTagIds, setEditTagIds] = useState<string[]>([])
-  const { tags, setTags } = useTags()
 
   const [isPending, startTransition] = useTransition()
 
@@ -101,7 +97,6 @@ export default function KeywordList({
     setEditBlocklistInput('')
     setEditMustIncludeInput('')
     setEditSellerBlocklistInput('')
-    setEditTagIds(kw.tags?.map((t) => t.id) ?? [])
     setEditForm({
       keyword: kw.keyword,
       platforms: [...kw.platforms],
@@ -126,7 +121,7 @@ export default function KeywordList({
       const res = await fetch(`/api/keywords/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...editForm, tagIds: editTagIds }),
+        body: JSON.stringify(editForm),
       })
       if (res.ok) {
         const updated = await res.json()
@@ -266,17 +261,6 @@ export default function KeywordList({
                   <input type="number" placeholder="空白 = 無上限" min="1" value={editForm.maxNotifyPerScan ?? ''}
                     onChange={(e) => setEditForm((p) => ({ ...p, maxNotifyPerScan: e.target.value ? Number(e.target.value) : null }))}
                     className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 max-w-xs" />
-                </div>
-
-                {/* Tags */}
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">標籤</label>
-                  <TagSelector
-                    tags={tags}
-                    selectedTagIds={editTagIds}
-                    onChange={setEditTagIds}
-                    onTagCreated={(t) => setTags((prev) => [...prev, t])}
-                  />
                 </div>
 
                 {/* Actions */}

@@ -24,75 +24,6 @@ model User {
   seenItems            SeenItem[]
   platformScanStatuses PlatformScanStatus[]
   circleFollows        CircleFollow[]
-  tags                 Tag[]
-  tagRules             TagRule[]
-}
-
-model Tag {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  color     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  keywordTags  KeywordTag[]
-  circleTags   CircleFollowTag[]
-  tagRules     TagRule[]
-  seenItemTags SeenItemTag[]
-
-  @@unique([userId, name])
-  @@index([userId])
-}
-
-model TagRule {
-  id            String   @id @default(cuid())
-  userId        String
-  pattern       String
-  tagId         String
-  enabled       Boolean  @default(true)
-  systemDefault Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@index([userId, enabled])
-}
-
-model SeenItemTag {
-  seenItemId String
-  tagId      String
-
-  seenItem SeenItem @relation(fields: [seenItemId], references: [id], onDelete: Cascade)
-  tag      Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@id([seenItemId, tagId])
-  @@index([tagId])
-}
-
-model KeywordTag {
-  keywordId String
-  tagId     String
-
-  keyword Keyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
-  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@id([keywordId, tagId])
-  @@index([tagId])
-}
-
-model CircleFollowTag {
-  circleFollowId String
-  tagId          String
-
-  circleFollow CircleFollow @relation(fields: [circleFollowId], references: [id], onDelete: Cascade)
-  tag          Tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@id([circleFollowId, tagId])
-  @@index([tagId])
 }
 
 model Keyword {
@@ -113,7 +44,6 @@ model Keyword {
 
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   seenItems SeenItem[]
-  tags      KeywordTag[]
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([active, createdAt(sort: Desc)])
@@ -173,8 +103,7 @@ model CircleFollow {
   active     Boolean  @default(true)
   createdAt  DateTime @default(now())
 
-  user User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tags CircleFollowTag[]
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, platform, circleId])
   @@index([userId, createdAt(sort: Desc)])
@@ -194,9 +123,8 @@ model SeenItem {
   itemUrl   String?
   imageUrl  String?
 
-  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  keywordRef Keyword?      @relation(fields: [keywordId], references: [id], onDelete: SetNull)
-  tags       SeenItemTag[]
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  keywordRef Keyword? @relation(fields: [keywordId], references: [id], onDelete: SetNull)
 
   @@unique([userId, platform, itemId])
   @@index([userId, keywordId, firstSeen(sort: Desc)])

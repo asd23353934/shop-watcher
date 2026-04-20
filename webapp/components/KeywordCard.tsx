@@ -8,7 +8,6 @@ import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { Pencil, Trash2, Link2, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { TagChip } from '@/components/TagChip'
 
 function formatRelativeTime(iso: string | null): string {
   if (!iso) return '尚無記錄'
@@ -152,9 +151,6 @@ export default function KeywordCard({ keyword: kw, platformHealth, onEdit, onDel
             📊 最多 {kw.maxNotifyPerScan} 筆
           </span>
         )}
-        {kw.tags?.map((t) => (
-          <TagChip key={t.id} name={t.name} color={t.color} />
-        ))}
       </div>
     </div>
   )

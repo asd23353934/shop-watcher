@@ -1,20 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Loader2 } from 'lucide-react'
 import { PLATFORM_LABELS } from '@/constants/platform'
 import EmptyState from '@/components/EmptyState'
 import { Skeleton } from '@/components/ui/skeleton'
-import { TagChip } from '@/components/TagChip'
-import { TagFilterBar } from '@/components/TagFilterBar'
-import { useTags } from '@/lib/hooks/useTags'
 import { isHttpUrl } from '@/lib/utils'
-
-interface HistoryTag {
-  id: string
-  name: string
-  color: string | null
-}
 
 interface SeenItem {
   id: string
@@ -26,7 +17,6 @@ interface SeenItem {
   itemUrl: string | null
   imageUrl: string | null
   firstSeen: string
-  tags: HistoryTag[]
 }
 
 interface KeywordOption {
@@ -81,8 +71,9 @@ export default function HistoryPage() {
   const [keywords, setKeywords] = useState<KeywordOption[]>([])
   const [selectedKeywordId, setSelectedKeywordId] = useState('')
   const [selectedPlatform, setSelectedPlatform] = useState('')
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
-  const { tags: availableTags } = useTags()
+  const [q, setQ] = useState('')
+  const [debouncedQ, setDebouncedQ] = useState('')
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     fetch('/api/keywords')
@@ -91,11 +82,11 @@ export default function HistoryPage() {
       .catch(() => {/* non-fatal */})
   }, [])
 
-  const fetchItems = useCallback(async (keywordId: string, platform: string, tagIds: string[], cursor?: string) => {
+  const fetchItems = useCallback(async (keywordId: string, platform: string, qParam: string, cursor?: string) => {
     const params = new URLSearchParams()
     if (keywordId) params.set('keywordId', keywordId)
     if (platform) params.set('platform', platform)
-    if (tagIds.length > 0) params.set('tagIds', tagIds.join(','))
+    if (qParam.trim()) params.set('q', qParam)
     if (cursor) params.set('cursor', cursor)
 
     const qs = params.toString()
@@ -104,24 +95,43 @@ export default function HistoryPage() {
     return res.json() as Promise<{ items: SeenItem[]; nextCursor: string | null }>
   }, [])
 
-  const tagIdsKey = selectedTagIds.join(',')
+  const handleQChange = (value: string) => {
+    setQ(value)
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+      debounceRef.current = null
+    }
+    if (value === '') {
+      setDebouncedQ('')
+      return
+    }
+    debounceRef.current = setTimeout(() => {
+      setDebouncedQ(value)
+    }, 300)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
+
   useEffect(() => {
     setLoading(true)
-    fetchItems(selectedKeywordId, selectedPlatform, selectedTagIds)
+    fetchItems(selectedKeywordId, selectedPlatform, debouncedQ)
       .then(({ items: newItems, nextCursor: nc }) => {
         setItems(newItems)
         setNextCursor(nc)
       })
       .catch(() => {/* silent */})
       .finally(() => setLoading(false))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedKeywordId, selectedPlatform, tagIdsKey, fetchItems])
+  }, [selectedKeywordId, selectedPlatform, debouncedQ, fetchItems])
 
   const handleLoadMore = async () => {
     if (!nextCursor || loadingMore) return
     setLoadingMore(true)
     try {
-      const { items: more, nextCursor: nc } = await fetchItems(selectedKeywordId, selectedPlatform, selectedTagIds, nextCursor)
+      const { items: more, nextCursor: nc } = await fetchItems(selectedKeywordId, selectedPlatform, debouncedQ, nextCursor)
       setItems((prev) => [...prev, ...more])
       setNextCursor(nc)
     } catch {/* silent */} finally {
@@ -161,17 +171,16 @@ export default function HistoryPage() {
             <option key={p} value={p}>{PLATFORM_LABELS[p]}</option>
           ))}
         </select>
-      </div>
 
-      {availableTags.length > 0 && (
-        <div className="mb-6">
-          <TagFilterBar
-            tags={availableTags}
-            selectedTagIds={selectedTagIds}
-            onChange={setSelectedTagIds}
-          />
-        </div>
-      )}
+        <input
+          type="search"
+          value={q}
+          onChange={(e) => handleQChange(e.target.value)}
+          placeholder="搜尋商品名稱"
+          aria-label="搜尋商品名稱"
+          className="flex-1 min-w-[12rem] rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
 
       {loading ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -239,14 +248,6 @@ export default function HistoryPage() {
                           <span className="font-mono text-gray-400">{item.itemId}</span>
                         )}
                       </div>
-
-                      {item.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {item.tags.map((t) => (
-                            <TagChip key={t.id} name={t.name} color={t.color} />
-                          ))}
-                        </div>
-                      )}
 
                       <div className="mt-auto flex items-center justify-between gap-1 pt-1">
                         <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[11px] text-gray-600 dark:text-gray-400 truncate max-w-[5rem]">
