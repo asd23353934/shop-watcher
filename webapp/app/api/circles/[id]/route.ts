@@ -1,5 +1,6 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { assertTagIdsOwnedBy, TagOwnershipError } from '@/lib/tag-validation'
 import { isValidDiscordWebhookUrl } from '@/lib/webhook-validation'
 import { NextResponse } from 'next/server'
 
@@ -34,7 +35,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { active, webhookUrl } = body
+  const { active, webhookUrl, tagIds } = body
 
   if (webhookUrl !== undefined && webhookUrl !== null) {
     if (!isValidDiscordWebhookUrl(webhookUrl)) {
@@ -45,18 +46,55 @@ export async function PATCH(
     }
   }
 
+  let validTagIds: string[] | null = null
+  if (tagIds !== undefined) {
+    if (!Array.isArray(tagIds) || tagIds.some((v) => typeof v !== 'string')) {
+      return NextResponse.json({ error: 'tagIds 必須為字串陣列' }, { status: 400 })
+    }
+    try {
+      validTagIds = await assertTagIdsOwnedBy(session.user.id, tagIds as string[])
+    } catch (err: unknown) {
+      if (err instanceof TagOwnershipError) {
+        const status = err.reason === 'forbidden' ? 403 : 400
+        const message = err.reason === 'forbidden' ? '禁止使用他人的標籤' : '標籤不存在'
+        return NextResponse.json({ error: message }, { status })
+      }
+      throw err
+    }
+  }
+
   try {
-    const updated = await prisma.circleFollow.update({
-      where: { id },
-      data: {
-        ...(active !== undefined && { active: Boolean(active) }),
-        ...('webhookUrl' in body && {
-          webhookUrl: webhookUrl ? (webhookUrl as string).trim() : null,
-        }),
-      },
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.circleFollow.update({
+        where: { id },
+        data: {
+          ...(active !== undefined && { active: Boolean(active) }),
+          ...('webhookUrl' in body && {
+            webhookUrl: webhookUrl ? (webhookUrl as string).trim() : null,
+          }),
+        },
+      })
+
+      if (validTagIds !== null) {
+        await tx.circleFollowTag.deleteMany({ where: { circleFollowId: id } })
+        if (validTagIds.length > 0) {
+          await tx.circleFollowTag.createMany({
+            data: validTagIds.map((tagId) => ({ circleFollowId: id, tagId })),
+          })
+        }
+      }
+
+      return tx.circleFollow.findUniqueOrThrow({
+        where: { id },
+        include: { tags: { include: { tag: true } } },
+      })
     })
 
-    return NextResponse.json(updated)
+    const { tags, ...rest } = updated
+    return NextResponse.json({
+      ...rest,
+      tags: tags.map((ct) => ({ id: ct.tag.id, name: ct.tag.name, color: ct.tag.color })),
+    })
   } catch (err: unknown) {
     console.error('Failed to update circle follow:', err)
     return NextResponse.json({ error: '伺服器錯誤' }, { status: 500 })

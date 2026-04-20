@@ -5,7 +5,16 @@ import { Loader2 } from 'lucide-react'
 import { PLATFORM_LABELS } from '@/constants/platform'
 import EmptyState from '@/components/EmptyState'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TagChip } from '@/components/TagChip'
+import { TagFilterBar } from '@/components/TagFilterBar'
+import { useTags } from '@/lib/hooks/useTags'
 import { isHttpUrl } from '@/lib/utils'
+
+interface HistoryTag {
+  id: string
+  name: string
+  color: string | null
+}
 
 interface SeenItem {
   id: string
@@ -17,6 +26,7 @@ interface SeenItem {
   itemUrl: string | null
   imageUrl: string | null
   firstSeen: string
+  tags: HistoryTag[]
 }
 
 interface KeywordOption {
@@ -71,6 +81,8 @@ export default function HistoryPage() {
   const [keywords, setKeywords] = useState<KeywordOption[]>([])
   const [selectedKeywordId, setSelectedKeywordId] = useState('')
   const [selectedPlatform, setSelectedPlatform] = useState('')
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+  const { tags: availableTags } = useTags()
 
   useEffect(() => {
     fetch('/api/keywords')
@@ -79,10 +91,11 @@ export default function HistoryPage() {
       .catch(() => {/* non-fatal */})
   }, [])
 
-  const fetchItems = useCallback(async (keywordId: string, platform: string, cursor?: string) => {
+  const fetchItems = useCallback(async (keywordId: string, platform: string, tagIds: string[], cursor?: string) => {
     const params = new URLSearchParams()
     if (keywordId) params.set('keywordId', keywordId)
     if (platform) params.set('platform', platform)
+    if (tagIds.length > 0) params.set('tagIds', tagIds.join(','))
     if (cursor) params.set('cursor', cursor)
 
     const qs = params.toString()
@@ -91,22 +104,24 @@ export default function HistoryPage() {
     return res.json() as Promise<{ items: SeenItem[]; nextCursor: string | null }>
   }, [])
 
+  const tagIdsKey = selectedTagIds.join(',')
   useEffect(() => {
     setLoading(true)
-    fetchItems(selectedKeywordId, selectedPlatform)
+    fetchItems(selectedKeywordId, selectedPlatform, selectedTagIds)
       .then(({ items: newItems, nextCursor: nc }) => {
         setItems(newItems)
         setNextCursor(nc)
       })
       .catch(() => {/* silent */})
       .finally(() => setLoading(false))
-  }, [selectedKeywordId, selectedPlatform, fetchItems])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedKeywordId, selectedPlatform, tagIdsKey, fetchItems])
 
   const handleLoadMore = async () => {
     if (!nextCursor || loadingMore) return
     setLoadingMore(true)
     try {
-      const { items: more, nextCursor: nc } = await fetchItems(selectedKeywordId, selectedPlatform, nextCursor)
+      const { items: more, nextCursor: nc } = await fetchItems(selectedKeywordId, selectedPlatform, selectedTagIds, nextCursor)
       setItems((prev) => [...prev, ...more])
       setNextCursor(nc)
     } catch {/* silent */} finally {
@@ -147,6 +162,16 @@ export default function HistoryPage() {
           ))}
         </select>
       </div>
+
+      {availableTags.length > 0 && (
+        <div className="mb-6">
+          <TagFilterBar
+            tags={availableTags}
+            selectedTagIds={selectedTagIds}
+            onChange={setSelectedTagIds}
+          />
+        </div>
+      )}
 
       {loading ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -214,6 +239,14 @@ export default function HistoryPage() {
                           <span className="font-mono text-gray-400">{item.itemId}</span>
                         )}
                       </div>
+
+                      {item.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {item.tags.map((t) => (
+                            <TagChip key={t.id} name={t.name} color={t.color} />
+                          ))}
+                        </div>
+                      )}
 
                       <div className="mt-auto flex items-center justify-between gap-1 pt-1">
                         <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[11px] text-gray-600 dark:text-gray-400 truncate max-w-[5rem]">

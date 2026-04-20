@@ -1,12 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import CircleFollowForm from '@/components/CircleFollowForm'
 import EmptyState from '@/components/EmptyState'
 import { SkeletonRow } from '@/components/ui/SkeletonCard'
 import { PLATFORM_LABELS } from '@/constants/platform'
+import { TagChip } from '@/components/TagChip'
+import { TagFilterBar } from '@/components/TagFilterBar'
+import { useTags } from '@/lib/hooks/useTags'
+import type { Tag } from '@/types/tag'
 
 interface CircleFollow {
   id: string
@@ -16,6 +20,7 @@ interface CircleFollow {
   webhookUrl: string | null
   active: boolean
   createdAt: string
+  tags?: Pick<Tag, 'id' | 'name' | 'color'>[]
 }
 
 const PLATFORM_STYLES: Record<string, string> = {
@@ -27,6 +32,16 @@ export default function CirclesPage() {
   const [follows, setFollows] = useState<CircleFollow[]>([])
   const [loading, setLoading] = useState(true)
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
+  const { tags } = useTags()
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+
+  const filteredFollows = useMemo(() => {
+    if (selectedTagIds.length === 0) return follows
+    return follows.filter((f) => {
+      const ids = new Set((f.tags ?? []).map((t) => t.id))
+      return selectedTagIds.every((id) => ids.has(id))
+    })
+  }, [follows, selectedTagIds])
 
   useEffect(() => {
     fetch('/api/circles')
@@ -81,12 +96,14 @@ export default function CirclesPage() {
         </p>
       </div>
 
+      <TagFilterBar tags={tags} selectedTagIds={selectedTagIds} onChange={setSelectedTagIds} />
+
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* List */}
         <div className="lg:col-span-2">
           {loading ? (
             <SkeletonRow count={3} />
-          ) : follows.length === 0 ? (
+          ) : filteredFollows.length === 0 ? (
             <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
               <EmptyState
                 heading="尚無社團追蹤"
@@ -95,7 +112,7 @@ export default function CirclesPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {follows.map((follow) => (
+              {filteredFollows.map((follow) => (
                 <div
                   key={follow.id}
                   className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 shadow-sm"
@@ -121,6 +138,13 @@ export default function CirclesPage() {
                       {follow.webhookUrl && (
                         <div className="mt-1 text-xs text-purple-500 dark:text-purple-400" title={follow.webhookUrl}>
                           Webhook: ...{follow.webhookUrl.slice(-20)}
+                        </div>
+                      )}
+                      {follow.tags && follow.tags.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {follow.tags.map((t) => (
+                            <TagChip key={t.id} name={t.name} color={t.color} />
+                          ))}
                         </div>
                       )}
                     </div>

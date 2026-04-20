@@ -3,6 +3,9 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
+import { TagSelector } from '@/components/TagSelector'
+import { useTags } from '@/lib/hooks/useTags'
+import type { Tag } from '@/types/tag'
 
 interface CircleFollow {
   id: string
@@ -12,6 +15,7 @@ interface CircleFollow {
   webhookUrl: string | null
   active: boolean
   createdAt: string
+  tags?: Pick<Tag, 'id' | 'name' | 'color'>[]
 }
 
 interface CircleFollowFormProps {
@@ -39,6 +43,8 @@ export default function CircleFollowForm({ onSuccess }: CircleFollowFormProps) {
   const [circleName, setCircleName] = useState('')
   const [webhookUrl, setWebhookUrl] = useState('')
   const [loading, setLoading] = useState(false)
+  const [tagIds, setTagIds] = useState<string[]>([])
+  const { tags, setTags } = useTags()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -53,6 +59,7 @@ export default function CircleFollowForm({ onSuccess }: CircleFollowFormProps) {
           circleId: circleId.trim(),
           circleName: circleName.trim(),
           webhookUrl: webhookUrl.trim() || null,
+          tagIds,
         }),
       })
 
@@ -72,6 +79,7 @@ export default function CircleFollowForm({ onSuccess }: CircleFollowFormProps) {
       setCircleName('')
       setWebhookUrl('')
       setPlatform('booth')
+      setTagIds([])
       toast.success('社團追蹤已新增')
       onSuccess?.(follow)
     } catch {
@@ -156,6 +164,17 @@ export default function CircleFollowForm({ onSuccess }: CircleFollowFormProps) {
           className={inputClass}
         />
         <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">留空時使用全域 Webhook</p>
+      </div>
+
+      {/* Tags */}
+      <div className="mb-6">
+        <label className={labelClass}>標籤（選填）</label>
+        <TagSelector
+          tags={tags}
+          selectedTagIds={tagIds}
+          onChange={setTagIds}
+          onTagCreated={(t) => setTags((prev) => [...prev, t])}
+        />
       </div>
 
       <button

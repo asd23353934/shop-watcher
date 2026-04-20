@@ -1,10 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import type { Keyword } from '@/types/keyword'
 import KeywordList from '@/components/KeywordList'
+import { TagFilterBar } from '@/components/TagFilterBar'
+import { useTags } from '@/lib/hooks/useTags'
 
 export interface PlatformHealthInfo {
   unhealthyReason: string | null
@@ -18,6 +20,16 @@ interface Props {
 
 export default function KeywordClientSection({ initialKeywords, platformHealth }: Props) {
   const [keywords, setKeywords] = useState<Keyword[]>(initialKeywords)
+  const { tags } = useTags()
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+
+  const filteredKeywords = useMemo(() => {
+    if (selectedTagIds.length === 0) return keywords
+    return keywords.filter((k) => {
+      const ids = new Set((k.tags ?? []).map((t) => t.id))
+      return selectedTagIds.every((id) => ids.has(id))
+    })
+  }, [keywords, selectedTagIds])
 
   const handleToggle = (id: string, newActive: boolean) => {
     setKeywords((prev) => prev.map((k) => (k.id === id ? { ...k, active: newActive } : k)))
@@ -52,8 +64,10 @@ export default function KeywordClientSection({ initialKeywords, platformHealth }
         </Link>
       </div>
 
+      <TagFilterBar tags={tags} selectedTagIds={selectedTagIds} onChange={setSelectedTagIds} />
+
       <KeywordList
-        keywords={keywords}
+        keywords={filteredKeywords}
         platformHealth={platformHealth}
         onOptimisticToggle={handleToggle}
         onOptimisticUpdate={handleUpdate}

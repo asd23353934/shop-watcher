@@ -2,6 +2,7 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { CACHE_CONTROL_PRIVATE_SWR_60 } from '@/lib/utils'
 import { PLATFORM_LABELS } from '@/constants/platform'
+import { assertTagIdsOwnedBy, TagOwnershipError } from '@/lib/tag-validation'
 import { NextResponse } from 'next/server'
 
 const VALID_PLATFORMS = new Set(Object.keys(PLATFORM_LABELS))
@@ -31,6 +32,7 @@ export async function GET(request: Request) {
   const keywordId = searchParams.get('keywordId')
   const platform = searchParams.get('platform')
   const rawCursor = searchParams.get('cursor')
+  const rawTagIds = searchParams.get('tagIds')
 
   const CUID_RE = /^c[a-z0-9]{24}$/
   if (rawCursor && !CUID_RE.test(rawCursor)) {
@@ -61,11 +63,44 @@ export async function GET(request: Request) {
     where.platform = platform
   }
 
+  // tagIds filter (AND semantics): silently drop ids not owned by user
+  if (rawTagIds) {
+    const requested = rawTagIds
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    let validTagIds: string[] = []
+    if (requested.length > 0) {
+      try {
+        validTagIds = await assertTagIdsOwnedBy(session.user.id, requested)
+      } catch (err) {
+        if (err instanceof TagOwnershipError) {
+          // silently filter to owned ids
+          const rows = await prisma.tag.findMany({
+            where: { id: { in: requested }, userId: session.user.id },
+            select: { id: true },
+          })
+          validTagIds = rows.map((r) => r.id)
+        } else {
+          throw err
+        }
+      }
+    }
+    if (validTagIds.length > 0) {
+      where.AND = validTagIds.map((tagId) => ({
+        tags: { some: { tagId } },
+      }))
+    }
+  }
+
   // Cursor pagination: skip items with id <= cursor (using cursor on createdAt desc)
   const items = await prisma.seenItem.findMany({
     where,
     orderBy: { firstSeen: 'desc' },
     take: PAGE_SIZE + 1,
+    include: {
+      tags: { include: { tag: { select: { id: true, name: true, color: true } } } },
+    },
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   })
 
@@ -73,8 +108,16 @@ export async function GET(request: Request) {
   const pageItems = hasMore ? items.slice(0, PAGE_SIZE) : items
   const nextCursor = hasMore ? pageItems[pageItems.length - 1].id : null
 
+  const shaped = pageItems.map((it) => {
+    const { tags, ...rest } = it
+    return {
+      ...rest,
+      tags: tags.map((st) => ({ id: st.tag.id, name: st.tag.name, color: st.tag.color })),
+    }
+  })
+
   return NextResponse.json(
-    { items: pageItems, nextCursor },
+    { items: shaped, nextCursor },
     { headers: { 'Cache-Control': CACHE_CONTROL_PRIVATE_SWR_60 } }
   )
 }

@@ -19,42 +19,112 @@ model User {
   image     String?
   createdAt DateTime @default(now())
 
-  keywords              Keyword[]
-  notificationSetting   NotificationSetting?
-  seenItems             SeenItem[]
-  platformScanStatuses  PlatformScanStatus[]
-  circleFollows         CircleFollow[]
+  keywords             Keyword[]
+  notificationSetting  NotificationSetting?
+  seenItems            SeenItem[]
+  platformScanStatuses PlatformScanStatus[]
+  circleFollows        CircleFollow[]
+  tags                 Tag[]
+  tagRules             TagRule[]
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  color     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  keywordTags  KeywordTag[]
+  circleTags   CircleFollowTag[]
+  tagRules     TagRule[]
+  seenItemTags SeenItemTag[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model TagRule {
+  id            String   @id @default(cuid())
+  userId        String
+  pattern       String
+  tagId         String
+  enabled       Boolean  @default(true)
+  systemDefault Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@index([userId, enabled])
+}
+
+model SeenItemTag {
+  seenItemId String
+  tagId      String
+
+  seenItem SeenItem @relation(fields: [seenItemId], references: [id], onDelete: Cascade)
+  tag      Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([seenItemId, tagId])
+  @@index([tagId])
+}
+
+model KeywordTag {
+  keywordId String
+  tagId     String
+
+  keyword Keyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([keywordId, tagId])
+  @@index([tagId])
+}
+
+model CircleFollowTag {
+  circleFollowId String
+  tagId          String
+
+  circleFollow CircleFollow @relation(fields: [circleFollowId], references: [id], onDelete: Cascade)
+  tag          Tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([circleFollowId, tagId])
+  @@index([tagId])
 }
 
 model Keyword {
-  id        String   @id @default(cuid())
-  userId    String
-  keyword   String
-  platforms String[]
-  minPrice  Float?
-  maxPrice  Float?
-  active          Boolean  @default(true)
-  blocklist       String[] @default([])
-  mustInclude     String[] @default([])
-  matchMode       String   @default("any")
-  sellerBlocklist String[] @default([])
+  id                String   @id @default(cuid())
+  userId            String
+  keyword           String
+  platforms         String[]
+  minPrice          Float?
+  maxPrice          Float?
+  active            Boolean  @default(true)
+  blocklist         String[] @default([])
+  mustInclude       String[] @default([])
+  matchMode         String   @default("any")
+  sellerBlocklist   String[] @default([])
   discordWebhookUrl String?
   maxNotifyPerScan  Int?
-  createdAt    DateTime @default(now())
+  createdAt         DateTime @default(now())
 
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   seenItems SeenItem[]
+  tags      KeywordTag[]
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([active, createdAt(sort: Desc)])
 }
 
 model NotificationSetting {
-  id                   String   @id @default(cuid())
-  userId               String   @unique
-  discordWebhookUrl    String?
-  discordUserId        String?
-  emailEnabled         Boolean  @default(false)
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  discordWebhookUrl     String?
+  discordUserId         String?
+  emailEnabled          Boolean  @default(false)
   globalSellerBlocklist String[] @default([])
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -96,14 +166,15 @@ model PlatformCanaryStatus {
 model CircleFollow {
   id         String   @id @default(cuid())
   userId     String
-  platform   String   // "booth" | "dlsite"
-  circleId   String   // 平台上的店家/社團 ID
+  platform   String // "booth" | "dlsite"
+  circleId   String // 平台上的店家/社團 ID
   circleName String
   webhookUrl String?
   active     Boolean  @default(true)
   createdAt  DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags CircleFollowTag[]
 
   @@unique([userId, platform, circleId])
   @@index([userId, createdAt(sort: Desc)])
@@ -123,8 +194,9 @@ model SeenItem {
   itemUrl   String?
   imageUrl  String?
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  keywordRef  Keyword? @relation(fields: [keywordId], references: [id], onDelete: SetNull)
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  keywordRef Keyword?      @relation(fields: [keywordId], references: [id], onDelete: SetNull)
+  tags       SeenItemTag[]
 
   @@unique([userId, platform, itemId])
   @@index([userId, keywordId, firstSeen(sort: Desc)])

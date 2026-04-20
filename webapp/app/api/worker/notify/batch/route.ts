@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { sendDiscordBatchNotification } from '@/lib/discord'
 import { sendEmailBatchNotification } from '@/lib/email'
 import { isHttpUrl } from '@/lib/utils'
+import { ensureSystemTagRules, compilePattern, applyRulesToTitle, type CompiledRule } from '@/lib/auto-tag'
 import { NextResponse, after } from 'next/server'
 
 // Upper bound on batch size — protects the `OR: items.map(...)` dedup query from exploding
@@ -280,6 +281,48 @@ export async function POST(request: Request) {
   } catch (err: unknown) {
     console.error('[notify/batch] DB write failed:', err)
     return NextResponse.json({ error: '伺服器錯誤' }, { status: 500 })
+  }
+
+  // ── 4b. Apply auto-tag rules to newly inserted SeenItems ──────────────────
+  if (filteredNewItems.length > 0 && insertedCount > 0) {
+    try {
+      await ensureSystemTagRules(userId)
+      const rawRules = await prisma.tagRule.findMany({
+        where: { userId, enabled: true },
+        select: { id: true, tagId: true, pattern: true },
+      })
+      const compiled: CompiledRule[] = []
+      for (const r of rawRules) {
+        const res = compilePattern(r.pattern)
+        if (res.ok) compiled.push({ id: r.id, tagId: r.tagId, regex: res.regex })
+        else console.warn(`[notify/batch] skip invalid rule ${r.id}: ${res.reason}`)
+      }
+
+      if (compiled.length > 0) {
+        const insertedKeys = new Set(filteredNewItems.map((it) => `${it.platform}:${it.itemId}`))
+        const seenRows = await prisma.seenItem.findMany({
+          where: {
+            userId,
+            OR: filteredNewItems.map((it) => ({ platform: it.platform, itemId: it.itemId })),
+          },
+          select: { id: true, platform: true, itemId: true, itemName: true },
+        })
+
+        const tagData: { seenItemId: string; tagId: string }[] = []
+        for (const row of seenRows) {
+          if (!insertedKeys.has(`${row.platform}:${row.itemId}`)) continue
+          if (!row.itemName) continue
+          const tagIds = applyRulesToTitle(row.itemName, compiled)
+          for (const tagId of tagIds) tagData.push({ seenItemId: row.id, tagId })
+        }
+
+        if (tagData.length > 0) {
+          await prisma.seenItemTag.createMany({ data: tagData, skipDuplicates: true })
+        }
+      }
+    } catch (err) {
+      console.error('[notify/batch] auto-tag failed:', err)
+    }
   }
 
   // ── 5. Send notifications (after response to avoid Vercel timeout) ──────────

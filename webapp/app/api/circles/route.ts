@@ -1,9 +1,23 @@
 import { auth } from '@/auth'
 import { CIRCLE_PLATFORMS } from '@/constants/platform'
 import { prisma } from '@/lib/prisma'
+import { assertTagIdsOwnedBy, TagOwnershipError } from '@/lib/tag-validation'
 import { CACHE_CONTROL_PRIVATE_SWR_60 } from '@/lib/utils'
 import { isValidDiscordWebhookUrl } from '@/lib/webhook-validation'
+import { Prisma } from '@prisma/client'
 import { NextResponse } from 'next/server'
+
+type CircleWithTags = Prisma.CircleFollowGetPayload<{
+  include: { tags: { include: { tag: true } } }
+}>
+
+function serializeCircle(c: CircleWithTags) {
+  const { tags, ...rest } = c
+  return {
+    ...rest,
+    tags: tags.map((ct) => ({ id: ct.tag.id, name: ct.tag.name, color: ct.tag.color })),
+  }
+}
 
 /**
  * POST /api/circles — follow a BOOTH shop or DLsite circle
@@ -21,10 +35,11 @@ export async function GET() {
   const follows = await prisma.circleFollow.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: 'desc' },
+    include: { tags: { include: { tag: true } } },
   })
 
   return NextResponse.json(
-    follows,
+    follows.map(serializeCircle),
     { headers: { 'Cache-Control': CACHE_CONTROL_PRIVATE_SWR_60 } }
   )
 }
@@ -42,7 +57,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { platform, circleId, circleName, webhookUrl, active } = body
+  const { platform, circleId, circleName, webhookUrl, active, tagIds } = body
 
   const ownerEmail = process.env.OWNER_EMAIL?.toLowerCase()
   const isOwner = ownerEmail && session.user.email?.toLowerCase() === ownerEmail
@@ -94,6 +109,23 @@ export async function POST(request: Request) {
     }
   }
 
+  let validTagIds: string[] = []
+  if (tagIds !== undefined) {
+    if (!Array.isArray(tagIds) || tagIds.some((v) => typeof v !== 'string')) {
+      return NextResponse.json({ error: 'tagIds 必須為字串陣列' }, { status: 400 })
+    }
+    try {
+      validTagIds = await assertTagIdsOwnedBy(session.user.id, tagIds as string[])
+    } catch (err: unknown) {
+      if (err instanceof TagOwnershipError) {
+        const status = err.reason === 'forbidden' ? 403 : 400
+        const message = err.reason === 'forbidden' ? '禁止使用他人的標籤' : '標籤不存在'
+        return NextResponse.json({ error: message }, { status })
+      }
+      throw err
+    }
+  }
+
   // Duplicate CircleFollow is rejected (@@unique([userId, platform, circleId]))
   try {
     const follow = await prisma.circleFollow.create({
@@ -104,10 +136,14 @@ export async function POST(request: Request) {
         circleName: (circleName as string).trim(),
         webhookUrl: webhookUrl ? (webhookUrl as string).trim() : null,
         active: active !== false,
+        tags: validTagIds.length > 0
+          ? { create: validTagIds.map((tagId) => ({ tagId })) }
+          : undefined,
       },
+      include: { tags: { include: { tag: true } } },
     })
 
-    return NextResponse.json(follow, { status: 201 })
+    return NextResponse.json(serializeCircle(follow), { status: 201 })
   } catch (err: unknown) {
     // Prisma unique constraint violation → P2002
     if (

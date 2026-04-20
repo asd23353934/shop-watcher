@@ -67,7 +67,8 @@ shop-watcher/
 │   ├── components/       # React 元件
 │   ├── constants/        # platform.ts（PLATFORM_LABELS / TAIWAN_PLATFORMS / JAPAN_PLATFORMS 等）
 │   ├── lib/              # discord.ts / email.ts / prisma.ts / utils.ts
-│   │                     # worker-auth.ts / webhook-validation.ts
+│   │                     # worker-auth.ts / webhook-validation.ts / tag-validation.ts
+│   │                     # auto-tag.ts / system-tag-rules.ts / hooks/useTags.ts
 │   ├── prisma/           # schema.prisma + migrations
 │   └── scripts/          # cleanup.ts（資料清理）
 ├── src/                  # Python Worker
@@ -91,6 +92,8 @@ shop-watcher/
 
 - **關鍵字監控**：每小時掃描多個平台，結果依建立時間排序（最新優先）；支援平台：露天、PChome、MOMO、Animate、Yahoo拍賣、Mandarake、買動漫、金石堂ACG、Melonbooks、虎之穴、Booth、DLsite
 - **社團/店舖追蹤**：`CircleFollow` 追蹤 BOOTH 店舖或 DLsite 社團的新上架作品（`GET/POST /api/circles`、`PATCH/DELETE /api/circles/[id]`）
+- **商品自動標籤**：`TagRule(pattern → Tag)` 於 worker 入庫時對 SeenItem.title 跑 regex 比對，命中者寫入 `SeenItemTag` join table；系統預設 30 條規則於使用者首次存取時 lazy seed（並一次性回填近 30 天 SeenItem）；管理介面在 `/settings` 的「標籤規則」區塊（`TagRuleManager`）；API `GET/POST /api/tag-rules`、`PATCH/DELETE /api/tag-rules/[id]`
+- **跨資源標籤（Tag）**：`Tag` 模型以 `(userId, name)` 為唯一鍵，可共用於 Keyword 與 CircleFollow；API `GET/POST /api/tags`、`PATCH/DELETE /api/tags/[id]`；Dashboard 與 Circles 頁面支援 client-side AND filter；Keyword/Circle 建立與編輯支援 inline 新增 tag；設定頁 `TagManager` 提供刪除確認（顯示套用數量）
 - **批次通知**：每個關鍵字 × 平台一次 API 呼叫（`POST /api/worker/notify/batch`）
 - **去重機制**：`SeenItem(userId, platform, itemId)` 唯一鍵，避免重複通知
 - **降價提醒**：`SeenItem.lastPrice` 追蹤歷史價格，降價時重新通知
