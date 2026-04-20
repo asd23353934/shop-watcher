@@ -24,74 +24,112 @@ The system SHALL allow an authenticated user to save a Discord Webhook URL and a
 
 #### Scenario: Invalid Discord Webhook URL is rejected
 
-- **WHEN** a user submits a `discordWebhookUrl` that does not start with `https://discord.com/api/webhooks/`
-- **THEN** the API SHALL return a validation error
+- **WHEN** a user submits a `discordWebhookUrl` that does not pass `isValidDiscordWebhookUrl()` validation (i.e., hostname is not exactly `discord.com`, protocol is not `https:`, path does not start with `/api/webhooks/`, or URL resolves to a private IP range)
+- **THEN** the API SHALL return a 400 validation error
 - **AND** the `NotificationSetting` row SHALL NOT be updated
 
 
 <!-- @trace
-source: saas-webapp
-updated: 2026-03-31
+source: fix-security-vulnerabilities
+updated: 2026-04-20
 code:
-  - webapp/app/api/keywords/[id]/route.ts
-  - src/scrapers/ruten.py
-  - webapp/app/globals.css
-  - webapp/package.json
-  - webapp/app/favicon.ico
-  - webapp/public/file.svg
-  - webapp/tsconfig.json
-  - webapp/middleware.ts
-  - webapp/prisma/migrations/migration_lock.toml
-  - webapp/app/api/worker/notify/route.ts
-  - webapp/app/login/page.tsx
-  - webapp/eslint.config.mjs
-  - webapp/public/globe.svg
-  - webapp/types/next-auth.d.ts
-  - webapp/next.config.ts
-  - webapp/public/vercel.svg
-  - webapp/vercel.json
-  - main.py
-  - poc/screenshots/shopee.png
-  - webapp/app/dashboard/layout.tsx
-  - .github/workflows/worker.yml
-  - .env.example
-  - webapp/lib/email.ts
-  - webapp/lib/prisma.ts
-  - webapp/components/KeywordForm.tsx
-  - webapp/app/api/worker/keywords/route.ts
-  - webapp/components/NotificationForm.tsx
-  - fly.toml
-  - src/database.py
-  - webapp/app/api/keywords/route.ts
-  - src/api_client.py
-  - webapp/app/api/settings/route.ts
-  - webapp/postcss.config.mjs
-  - webapp/app/dashboard/page.tsx
-  - config.example.yaml
-  - webapp/app/page.tsx
-  - webapp/components/KeywordFormWrapper.tsx
-  - poc/screenshots/ruten.png
-  - webapp/lib/worker-auth.ts
-  - src/config.py
+  - webapp/components/ui/card.tsx
+  - webapp/app/status/page.tsx
+  - webapp/app/api/settings/test-email/route.ts
   - webapp/app/settings/page.tsx
-  - webapp/prisma/migrations/20260331075111_init/migration.sql
-  - requirements.txt
   - webapp/components/KeywordList.tsx
-  - webapp/prisma/schema.prisma
-  - .github/workflows/ci.yml
+  - src/scrapers/toranoana.py
   - src/scheduler.py
+  - webapp/app/api/keywords/[id]/blocklist/route.ts
+  - webapp/app/api/settings/test-webhook/route.ts
+  - webapp/app/settings/loading.tsx
+  - webapp/app/api/keywords/route.ts
+  - webapp/components/NotificationStatus.tsx
+  - webapp/prisma/migrations/20260420022937_add_tag_rules/migration.sql
+  - src/scrapers/myacg.py
+  - webapp/lib/utils.ts
+  - webapp/components/DashboardStats.tsx
+  - webapp/app/circles/page.tsx
+  - webapp/components/KeywordClientSection.tsx
+  - webapp/app/api/platform-status/route.ts
+  - webapp/components/theme-provider.tsx
+  - src/scrapers/dlsite.py
+  - webapp/app/history/page.tsx
+  - webapp/components/KeywordCard.tsx
+  - webapp/components/policy-section.tsx
+  - webapp/components/KeywordForm.tsx
+  - .github/workflows/ci.yml
+  - webapp/app/globals.css
+  - webapp/app/api/history/route.ts
+  - webapp/app/login/page.tsx
+  - .github/workflows/cleanup.yml
+  - webapp/lib/keyword-validation.ts
+  - webapp/vercel.json
+  - webapp/prisma/migrations/20260420030000_remove_tag_system/migration.sql
+  - webapp/app/dashboard/layout.tsx
+  - webapp/app/circles/layout.tsx
+  - src/scrapers/ruten.py
+  - webapp/app/status/layout.tsx
+  - src/scrapers/_dom_signal.py
+  - webapp/app/dashboard/page.tsx
+  - webapp/app/keywords/new/layout.tsx
+  - webapp/lib/email.ts
+  - webapp/lib/webhook-validation.ts
+  - .github/workflows/warmup.yml
+  - webapp/app/api/worker/keywords/route.ts
+  - webapp/app/api/circles/route.ts
+  - webapp/next.config.ts
+  - src/scrapers/yahoo_auction.py
+  - webapp/components/PlatformScanHealthSection.tsx
+  - webapp/app/terms/page.tsx
+  - webapp/prisma/migrations/20260420014921_add_tags/migration.sql
+  - webapp/components/ChartsRow.tsx
+  - webapp/app/api/circles/[id]/route.ts
+  - src/scrapers/animate.py
+  - src/watchers/base.py
+  - webapp/components/CircleFollowForm.tsx
+  - src/canary.py
+  - src/scrapers/pchome.py
+  - webapp/app/api/keywords/[id]/route.ts
+  - webapp/app/api/settings/route.ts
+  - webapp/app/api/worker/canary-status/route.ts
+  - webapp/prisma/migrations/20260414000000_replace_email_address_with_email_enabled/migration.sql
+  - src/scrapers/mandarake.py
+  - CLAUDE.md
+  - webapp/app/dashboard/loading.tsx
+  - webapp/package.json
+  - webapp/app/privacy/page.tsx
+  - src/scrapers/momo.py
   - src/scrapers/shopee.py
-  - webapp/app/api/auth/[...nextauth]/route.ts
-  - webapp/auth.ts
-  - webapp/lib/discord.ts
-  - webapp/public/window.svg
+  - webapp/app/history/layout.tsx
+  - webapp/app/circles/loading.tsx
+  - .github/workflows/worker.yml
+  - webapp/components/ScanLogSection.tsx
+  - src/scrapers/_price_utils.py
+  - webapp/app/keywords/new/page.tsx
+  - webapp/components/DashboardCharts.tsx
+  - webapp/app/history/loading.tsx
   - webapp/app/layout.tsx
-  - webapp/public/next.svg
-  - src/scrapers/__init__.py
-  - src/notifier.py
-  - Dockerfile
-  - run_once.py
-  - webapp/README.md
+  - webapp/lib/discord.ts
+  - webapp/app/api/worker/notify/route.ts
+  - webapp/components/Navbar.tsx
+  - webapp/components/PlatformScanHealthBadge.tsx
+  - webapp/auth.ts
+  - webapp/prisma/migrations/20260416000000_add_active_userid_indexes/migration.sql
+  - webapp/prisma/schema.prisma
+  - README.md
+  - src/scrapers/kingstone.py
+  - webapp/app/api/worker/notify/batch/route.ts
+  - webapp/constants/platform.ts
+  - src/scrapers/booth.py
+  - webapp/app/api/worker/platform-status/route.ts
+  - webapp/app/settings/layout.tsx
+  - src/scrapers/melonbooks.py
+  - webapp/components/NotificationForm.tsx
+  - src/watchers/shopee.py
+  - webapp/prisma/migrations/20260417000000_add_platform_canary_status/migration.sql
+  - src/api_client.py
+  - webapp/components/KeywordSection.tsx
 -->
 
 ---

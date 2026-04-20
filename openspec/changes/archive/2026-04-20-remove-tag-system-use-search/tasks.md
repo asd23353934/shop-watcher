@@ -33,11 +33,11 @@
 - [x] 4.1 修改 `webapp/app/api/history/route.ts`：新增 `q` query 參數解析（URL decode 透過 `searchParams.get` 自動處理；`.trim()`；以 `/[\s\u3000]+/` split 為 tokens）；每個 token 轉為 `{ itemName: { contains: token, mode: 'insensitive' } }` 並以 `AND` 疊加於 `where`；保留 `itemName: { not: null }` 約束使 null row 不匹配。此任務落實 spec「ADDED: History API supports title search via q parameter」並同時完成「REMOVED: History API supports tagIds filter with AND semantics」（移除 `tagIds` 參數處理）與「REMOVED: History response includes auto-applied tags」（移除 `include: { tags: ... }` 與 response `shaped` map 的 `tags` 欄位）。參考 design 決策「搜尋採 Postgres `ILIKE` + 多詞 AND，不引入 full-text 索引」
 - [x] 4.2 修改 `webapp/app/history/page.tsx`：在既有 keyword / platform `<select>` 之後新增 `<input type="search">` 搜尋框；state `q: string`；使用 `useEffect` 搭配 `setTimeout` 300ms debounce 於 `q` 變更時觸發 refetch（落實 design 決策「前端搜尋輸入 debounce 300ms」）；清空（`q === ''`）時立即 refetch 不等 debounce（於 onChange 判斷並 clearTimeout）；fetchItems 簽名加入 `q: string` 參數並於 `params.set('q', q)` 當 `q.trim()` 非空時附加；同時移除 `TagChip` / `TagFilterBar` / `useTags` / `HistoryTag` / `item.tags` 相關 JSX 與 state。此任務落實 spec「ADDED: History page provides title search input」並完成「REMOVED: History page displays tag chips and supports tag filter bar」
 - [x] 4.3 於 `webapp/app/history/page.tsx` 加入 `useEffect` cleanup：unmount 或依賴變更時 `clearTimeout` 避免 leak
-- [ ] 4.4 手動驗證：本地 dev server 開啟 `/history` → 輸入 `公仔` 確認 < 1s 返回；輸入 `檔案 公仔` 確認 AND 語意；清空搜尋確認還原列表；與 keyword / platform filter 疊加正確；`q` 為全形空白或純空白時不觸發 filter
+- [x] 4.4 手動驗證：本地 dev server 開啟 `/history` → 輸入 `公仔` 確認 < 1s 返回；輸入 `檔案 公仔` 確認 AND 語意；清空搜尋確認還原列表；與 keyword / platform filter 疊加正確；`q` 為全形空白或純空白時不觸發 filter
 
 ## 5. 文件與清理
 
 - [x] 5.1 修改 `CLAUDE.md`：「核心功能」章節移除「商品自動標籤」與「跨資源標籤」兩個 bullet；「目錄結構」移除 `auto-tag.ts` / `system-tag-rules.ts` / `hooks/useTags.ts` 與 `components/Tag*.tsx`；於「通知歷史」相關段落加入「支援標題關鍵字搜尋」一句
 - [x] 5.2 修改 `README.md`：功能特色表格移除「🏷️ 跨資源標籤」與「🤖 商品自動標籤」兩列；若 `/history` 在表格有敘述，加入「支援商品名稱關鍵字搜尋」
 - [x] 5.3 刪除 `openspec/changes/add-cross-resource-tags/` 與 `openspec/changes/add-auto-tag-rules/` 兩個目錄（已於 master commit 但能力被本 change 取消，保留會造成 `spectra list` 永久噪音）。落實 design 決策「Spectra in-progress changes 保留不歸檔、從此 change 併入 archive 時一併清理」
-- [ ] 5.4 執行 pre-commit 檢查：`/simplify` 掃視變更、`/spectra:audit` 檢查新搜尋端點是否有注入或 ReDoS 風險（`contains` 採 Prisma 參數化，非字串拼接，應為安全）
+- [x] 5.4 執行 pre-commit 檢查：`/simplify` 掃視變更、`/spectra:audit` 檢查新搜尋端點是否有注入或 ReDoS 風險（`contains` 採 Prisma 參數化，非字串拼接，應為安全）
