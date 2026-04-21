@@ -239,7 +239,9 @@ async def _scan_one(
     # Apply filters
     if blocklist:
         before = len(items)
-        items = [item for item in items if not any(word in item.name.lower() for word in blocklist)]
+        # Blocklist is stored as user-entered; lowercase both sides for case-insensitive match.
+        lowered_blocklist = [w.lower() for w in blocklist if w]
+        items = [item for item in items if not any(word in item.name.lower() for word in lowered_blocklist)]
         if len(items) < before:
             logger.debug("[%s] %s — blocked %d item(s) by blocklist", platform, keyword_text, before - len(items))
 

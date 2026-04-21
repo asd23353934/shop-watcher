@@ -1,6 +1,7 @@
 import { verifyWorkerToken } from '@/lib/worker-auth'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
+import { VALID_PLATFORMS } from '@/constants/platform'
 import { NextResponse } from 'next/server'
 
 interface PlatformStatusPayload {
@@ -38,6 +39,9 @@ export async function PATCH(request: Request) {
   if (!platform || typeof platform !== 'string') {
     return NextResponse.json({ error: 'platform is required' }, { status: 400 })
   }
+  if (!VALID_PLATFORMS.includes(platform)) {
+    return NextResponse.json({ error: 'Unknown platform' }, { status: 400 })
+  }
   if (typeof success !== 'boolean') {
     return NextResponse.json({ error: 'success (boolean) is required' }, { status: 400 })
   }
@@ -71,6 +75,6 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
     console.error('platform-status PATCH error:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: '伺服器錯誤' }, { status: 500 })
   }
 }

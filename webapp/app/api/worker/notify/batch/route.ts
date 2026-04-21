@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { sendDiscordBatchNotification } from '@/lib/discord'
 import { sendEmailBatchNotification } from '@/lib/email'
 import { isHttpUrl } from '@/lib/utils'
+import { isValidDiscordWebhookUrl } from '@/lib/webhook-validation'
 import { NextResponse, after } from 'next/server'
 
 // Upper bound on batch size — protects the `OR: items.map(...)` dedup query from exploding
@@ -118,6 +119,12 @@ export async function POST(request: Request) {
     }
   }
 
+  // Defence-in-depth: even though user-facing routes validate webhook URLs on save,
+  // re-validate here so a compromised/misconfigured worker cannot force outbound requests to arbitrary hosts.
+  if (keywordWebhookUrl != null && keywordWebhookUrl !== '' && !isValidDiscordWebhookUrl(keywordWebhookUrl)) {
+    return NextResponse.json({ error: 'Invalid Discord webhook URL' }, { status: 400 })
+  }
+
   if (items.length === 0) {
     return NextResponse.json({ new: 0, price_drop: 0, duplicate: 0 })
   }
@@ -202,9 +209,18 @@ export async function POST(request: Request) {
   const rawNewItems: NotifyItem[] = []
   const priceDropItems: NotifyItem[] = []
   let duplicateCount = 0
+  // Dedup payload-level duplicates: if the same (platform,itemId) appears twice in items[],
+  // we must only classify it once — otherwise createMany skipDuplicates hides it but the
+  // price-drop updateMany path would run twice against the same row.
+  const seenKeys = new Set<string>()
 
   for (const item of items) {
     const key = `${item.platform}:${item.itemId}`
+    if (seenKeys.has(key)) {
+      duplicateCount++
+      continue
+    }
+    seenKeys.add(key)
     const existing = existingMap.get(key)
 
     if (!existing) {
@@ -252,7 +268,7 @@ export async function POST(request: Request) {
             keyword: effectiveKeywordLabel,
             keywordId: keywordIdForRecord,
             lastPrice: item.price ?? null,
-            itemName: item.name ? item.name.slice(0, 255) : null,
+            itemName: item.name?.trim().slice(0, 255) || null,
             itemUrl: isHttpUrl(item.url) ? item.url : null,
             imageUrl: isHttpUrl(item.imageUrl) ? item.imageUrl : null,
           })),
@@ -270,7 +286,7 @@ export async function POST(request: Request) {
           },
           data: {
             lastPrice: item.price,
-            itemName: item.name ? item.name.slice(0, 255) : undefined,
+            itemName: item.name?.trim().slice(0, 255) || undefined,
             itemUrl: isHttpUrl(item.url) ? item.url : undefined,
             imageUrl: isHttpUrl(item.imageUrl) ? item.imageUrl : undefined,
           },

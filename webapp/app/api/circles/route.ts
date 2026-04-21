@@ -120,6 +120,6 @@ export async function POST(request: Request) {
       )
     }
     console.error('POST /api/circles error:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: '伺服器錯誤' }, { status: 500 })
   }
 }
