@@ -106,7 +106,11 @@ async def scrape_myacg(
             if li:
                 name_a = li.select_one("div.name a")
                 if name_a:
-                    name = name_a.get_text(strip=True)[:120]
+                    raw = name_a.get_text(strip=True)
+                    # 無圖片時站方會把 pic 路徑塞在前面，用 #$%&$# 分隔
+                    if "#$%&$#" in raw:
+                        raw = raw.rsplit("#$%&$#", 1)[-1].strip()
+                    name = raw[:120]
             if not name:
                 img_el = a.select_one("img")
                 name = (img_el.get("alt", "") if img_el else a.get_text(separator=" ", strip=True)).strip()[:120]
