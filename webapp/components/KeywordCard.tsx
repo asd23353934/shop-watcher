@@ -61,10 +61,10 @@ function PriceRange({ minPrice, maxPrice }: { minPrice: number | null; maxPrice:
 export default function KeywordCard({ keyword: kw, platformHealth, onEdit, onDelete, onToggle, toggleDisabled }: KeywordCardProps) {
   return (
     <div className="space-y-3">
-      {/* Top row: name + status + controls */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 truncate">{kw.keyword}</h3>
+      {/* Top row: name + status + controls；手機版直向堆疊讓關鍵字佔滿一整列、不省略 */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
+          <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 break-words">{kw.keyword}</h3>
           <span className={cn(
             'px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0',
             kw.active
@@ -79,7 +79,7 @@ export default function KeywordCard({ keyword: kw, platformHealth, onEdit, onDel
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-auto">
           <Switch checked={kw.active} onCheckedChange={onToggle} disabled={toggleDisabled} aria-label={kw.active ? '停用' : '啟用'} />
           <Button variant="ghost" size="icon" onClick={onEdit} aria-label="編輯" className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
             <Pencil className="h-4 w-4" />

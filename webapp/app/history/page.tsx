@@ -261,7 +261,7 @@ export default function HistoryPage() {
                         </span>
                       </div>
 
-                      <div className="text-[11px] text-gray-400 dark:text-gray-500 truncate">
+                      <div className="text-[11px] text-gray-400 dark:text-gray-500 break-words">
                         關鍵字：{item.keyword}
                       </div>
                     </div>
