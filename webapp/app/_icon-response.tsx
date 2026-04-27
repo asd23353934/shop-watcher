@@ -18,8 +18,9 @@ const EYE_SPARKLE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25
 const FULL_LOGO_DATA_URI = `data:image/svg+xml;utf8,${encodeURIComponent(FULL_LOGO_SVG)}`
 const EYE_SPARKLE_DATA_URI = `data:image/svg+xml;utf8,${encodeURIComponent(EYE_SPARKLE_SVG)}`
 
+// 固定 URL 不能用 immutable（會卡住一年無法傳播 logo 改版）；改 1 天 TTL，瀏覽器與 CDN 都會在合理時間內取回新版本
 const ICON_CACHE_HEADERS = {
-  'Cache-Control': 'public, max-age=31536000, immutable',
+  'Cache-Control': 'public, max-age=86400, must-revalidate',
 }
 
 interface RenderOptions {
