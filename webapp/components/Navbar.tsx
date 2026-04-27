@@ -4,8 +4,9 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { ShoppingBag, Eye, Menu, X, Sun, Moon, LogOut } from 'lucide-react'
+import { Menu, X, Sun, Moon, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Logo } from '@/components/Logo'
 import { cn } from '@/lib/utils'
 
 interface NavbarProps {
@@ -44,10 +45,7 @@ export default function Navbar({ user, signOutAction }: NavbarProps) {
 
           {/* Logo */}
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="relative">
-              <ShoppingBag className="h-6 w-6 text-indigo-600" />
-              <Eye className="h-3 w-3 text-indigo-600 absolute -bottom-0.5 -right-0.5" />
-            </div>
+            <Logo size={28} className="rounded-md" />
             <span className="font-bold text-indigo-700 dark:text-indigo-400">Shop Watcher</span>
           </Link>
 

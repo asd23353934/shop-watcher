@@ -1,17 +1,18 @@
-<!-- SPECTRA:START v1.0.1 -->
+<!-- SPECTRA:START v1.0.2 -->
 
 # Spectra Instructions
 
 This project uses Spectra for Spec-Driven Development(SDD). Specs live in `openspec/specs/`, change proposals in `openspec/changes/`.
 
-## Use `/spectra:*` skills when:
+## Use `/spectra-*` skills when:
 
-- A discussion needs structure before coding → `/spectra:discuss`
-- User wants to plan, propose, or design a change → `/spectra:propose`
-- Tasks are ready to implement → `/spectra:apply`
-- There's an in-progress change to continue → `/spectra:ingest`
-- User asks about specs or how something works → `/spectra:ask`
-- Implementation is done → `/spectra:archive`
+- A discussion needs structure before coding → `/spectra-discuss`
+- User wants to plan, propose, or design a change → `/spectra-propose`
+- Tasks are ready to implement → `/spectra-apply`
+- There's an in-progress change to continue → `/spectra-ingest`
+- User asks about specs or how something works → `/spectra-ask`
+- Implementation is done → `/spectra-archive`
+- Commit only files related to a specific change → `/spectra-commit`
 
 ## Workflow
 
@@ -22,9 +23,10 @@ discuss? → propose → apply ⇄ ingest → archive
 
 ## Parked Changes
 
-Changes can be parked（暫存）— temporarily moved out of `openspec/changes/`. Parked changes won't appear in `spectra list` but can be found with `spectra list --parked`. To restore: `spectra unpark <name>`. The `/spectra:apply` and `/spectra:ingest` skills handle parked changes automatically.
+Changes can be parked（暫存）— temporarily moved out of `openspec/changes/`. Parked changes won't appear in `spectra list` but can be found with `spectra list --parked`. To restore: `spectra unpark <name>`. The `/spectra-apply` and `/spectra-ingest` skills handle parked changes automatically.
 
 <!-- SPECTRA:END -->
+
 
 ---
 
@@ -107,6 +109,16 @@ shop-watcher/
 - **通知歷史**：`/history` 頁面顯示最近 50 筆通知記錄，支援商品名稱關鍵字搜尋（多詞以空白分隔、AND 語意、對 `itemName` 做 case-insensitive 比對）
 - **掃描時間**：Dashboard 顯示「上次掃描：N 分鐘前」
 - **資料清理**：GitHub Actions 每日 UTC 02:00 清理過期 SeenItem（30天）/ ScanLog（7天）
+- **PWA 支援**：可加入手機主畫面當 App 使用
+  - **Manifest**：`webapp/app/manifest.ts`（Next.js `MetadataRoute.Manifest`），輸出於 `/manifest.webmanifest`；`start_url=/dashboard`、`display=standalone`、`theme_color=#6366F1`、`background_color=#0B0F19`
+  - **Master SVG**：`webapp/app/icon.svg`（Next.js favicon convention）；docs landing page 另有 `docs/logo.svg`（GitHub Pages 獨立部署）
+  - **多尺寸 PNG**：由 `next/og` ImageResponse 動態生成
+    - `webapp/app/apple-icon.tsx` → 180×180（Apple touch）
+    - `webapp/app/icon-192/route.tsx` → 192×192（PWA）
+    - `webapp/app/icon-512/route.tsx` → 512×512（PWA）
+    - `webapp/app/icon-maskable/route.tsx` → 512×512 maskable（內容壓在中央 80% 安全區，避免被 Android launcher 切割）
+  - **iOS 安裝引導**：`webapp/components/IOSInstallHint.tsx` 偵測 iOS Safari + 非 standalone 模式時顯示底部提示卡，dismiss 後寫入 `localStorage` 不再出現；掛在 dashboard layout 與 login 頁
+  - **Logo 元件**：`webapp/components/Logo.tsx` inline SVG，所有畫面（Navbar / Login / iOS hint）共用以避免品牌不一致
 
 ## 開發慣例
 

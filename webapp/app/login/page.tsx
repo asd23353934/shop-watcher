@@ -1,6 +1,8 @@
 import { signIn, auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { Logo } from '@/components/Logo'
+import { IOSInstallHint } from '@/components/IOSInstallHint'
 
 const platforms = [
   { name: '露天', color: '#0066CC' },
@@ -41,19 +43,7 @@ export default async function LoginPage({
 
       <div className="relative z-10 w-full max-w-md bg-[#131B2F] rounded-2xl border border-white/10 shadow-xl shadow-indigo-500/5 p-6 sm:p-8 animate-fade-in-up">
         <div className="flex flex-col items-center">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-            <svg
-              className="w-6 h-6 text-white"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-          </div>
+          <Logo size={56} className="rounded-xl shadow-lg shadow-indigo-500/30" />
           <h1 className="mt-3 text-2xl font-black text-white tracking-wide">Shop Watcher</h1>
           <div className="mt-2 inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full px-3 py-1">
             <span className="relative flex h-2 w-2">
@@ -119,6 +109,7 @@ export default async function LoginPage({
           <Link href="/privacy" className="underline underline-offset-2 hover:text-gray-400">隱私政策</Link>
         </p>
       </div>
+      <IOSInstallHint />
     </main>
   )
 }

@@ -1,6 +1,7 @@
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import Navbar from '@/components/Navbar'
+import { IOSInstallHint } from '@/components/IOSInstallHint'
 import { logoutAction } from '@/actions/auth'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -15,6 +16,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
       />
       <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
+      <IOSInstallHint />
     </div>
   )
 }

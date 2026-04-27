@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -22,6 +22,16 @@ export const metadata: Metadata = {
   },
   description:
     "自動監控露天、PChome、MOMO、Animate、Yahoo拍賣、Mandarake、買動漫、金石堂、BOOTH、DLsite、Toranoana、Melonbooks 等多平台新品，Discord 即時通知。",
+  applicationName: "Shop Watcher",
+  appleWebApp: {
+    capable: true,
+    // 'default'（白底深字）讓 iOS 狀態列獨立於內容；改用 'black-translucent' 需搭配 safe-area-inset-top padding 才不會被瀏海蓋住
+    statusBarStyle: "default",
+    title: "Shop Watcher",
+  },
+  formatDetection: {
+    telephone: false,
+  },
   openGraph: {
     type: "website",
     locale: "zh_TW",
@@ -30,6 +40,16 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0B0F19" },
+  ],
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
