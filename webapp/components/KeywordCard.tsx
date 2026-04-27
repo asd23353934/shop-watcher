@@ -61,10 +61,18 @@ function PriceRange({ minPrice, maxPrice }: { minPrice: number | null; maxPrice:
 export default function KeywordCard({ keyword: kw, platformHealth, onEdit, onDelete, onToggle, toggleDisabled }: KeywordCardProps) {
   return (
     <div className="space-y-3">
-      {/* Top row: name + status + controls；手機版直向堆疊讓關鍵字佔滿一整列、不省略 */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+      {/* 手機版：關鍵字獨佔一列（不含任何 badge），讓長名稱可換行且視覺上突出 */}
+      <h3 className="sm:hidden font-bold text-lg text-gray-900 dark:text-gray-100 break-words">
+        {kw.keyword}
+      </h3>
+
+      {/* 第二列（手機版）/ 唯一列（桌機版）：badge + 控制鈕 */}
+      <div className="flex items-center justify-between gap-3 sm:gap-4">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
-          <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 break-words">{kw.keyword}</h3>
+          {/* 桌機版才把關鍵字 inline 放在這裡 */}
+          <h3 className="hidden sm:block font-bold text-lg text-gray-900 dark:text-gray-100 break-words">
+            {kw.keyword}
+          </h3>
           <span className={cn(
             'px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0',
             kw.active
@@ -79,7 +87,7 @@ export default function KeywordCard({ keyword: kw, platformHealth, onEdit, onDel
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-auto">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <Switch checked={kw.active} onCheckedChange={onToggle} disabled={toggleDisabled} aria-label={kw.active ? '停用' : '啟用'} />
           <Button variant="ghost" size="icon" onClick={onEdit} aria-label="編輯" className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
             <Pencil className="h-4 w-4" />
